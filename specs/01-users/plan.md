@@ -1,6 +1,6 @@
 # 01 — Usuarios y accesos · Plan de implementación
 
-Specs cubiertas: SPEC-USR-01 a SPEC-USR-23 ([spec.md](spec.md)). RNF: 2 (autenticación), 3 (usuarios únicos) y 7 (API documentada).
+Specs cubiertas: SPEC-USR-01 a SPEC-USR-25 ([spec.md](spec.md)). RNF: 2 (autenticación), 3 (usuarios únicos) y 7 (API documentada).
 
 ## Enfoque
 
@@ -12,14 +12,14 @@ Primera área de negocio. Agrega la entidad `User` con sus tres roles, el caso d
 |------|---------|-----------------|-------|
 | Dominio | `app/domain/users.py` | `User` mapeado con herencia de tabla única (tabla `users`, discriminador `role`) y las subclases `Admin`, `Representative` y `Client`. `normalize_email(email)` y un `@validates("email")` que normaliza al asignar. `deactivate()`. Registro `ROLE_CLASSES = {"Admin": Admin, ...}`, canales válidos `NOTIFICATION_CHANNELS = {"mail", "whatsapp"}` y `DEFAULT_CHANNEL = "mail"` | USR-01, 03, 06, 09, 23 |
 | Dominio | `app/domain/errors.py` | `DomainError` y las subclases `ValidationError(fields)`, `DuplicateUserError`, `InvalidCredentialsError`, `UserNotFoundError` y `SelfDeactivationError` | USR-04, 05, 08, 15, 19, 21, 22, 23 |
-| Services | `app/services/passwords.py` | Protocolo `PasswordHasher` (`hash(password) -> str`, `verify(password_hash, password) -> bool`) y su implementación `WerkzeugPasswordHasher`, que envuelve `generate_password_hash` y `check_password_hash` | USR-02, 14, 15 |
-| Services | `app/services/user_service.py` | `UserService(repository, hasher, commit)`: `create_user`, `update_user`, `deactivate_user`, `list_by_role` y `authenticate`. Valida los datos del alta y de la modificación, y verifica el email duplicado antes de insertar | USR-01 a 09, 11, 12, 14, 15, 19, 21, 22, 23 |
+| Services | `app/services/passwords.py` | Protocolo `PasswordHasher` (`hash(password) -> str`, `verify(password_hash, password) -> bool` y `dummy_hash() -> str`) y su implementación `WerkzeugPasswordHasher`, que envuelve `generate_password_hash` y `check_password_hash` y calcula el hash de relleno una sola vez por proceso | USR-02, 14, 15, 24 |
+| Services | `app/services/user_service.py` | `UserService(repository, hasher, commit)`: `create_user`, `update_user`, `deactivate_user`, `list_by_role` y `authenticate`. Valida los datos del alta y de la modificación (incluido el tipo de dato), verifica el email duplicado antes de insertar y, en el login, verifica contra el hash de relleno cuando el email no existe o el usuario está inactivo | USR-01 a 09, 11, 12, 14, 15, 19, 21 a 25 |
 | Repositories | `app/repositories/user_repository.py` | `SqlAlchemyUserRepository(session)`: `add`, `get`, `find_by_email` y `list_by_role`. `add` hace `flush()` y traduce `IntegrityError` a `DuplicateUserError` | USR-01, 03, 04, 08, 11, 12 |
 | App | `app/auth.py` | `get_user_service()` (arma el service del request con `get_session()`), `current_user()` (lee `session["user_id"]`; un usuario inexistente o inactivo cuenta como sin sesión), y los decoradores `login_required` (`401`) y `admin_required` (`403`) | USR-16, 18 |
 | Controllers | `app/controllers/auth.py` | Blueprint `auth`: `POST /login` y `POST /logout` | USR-14, 15, 17 |
 | Controllers | `app/controllers/users.py` | Blueprint `users`: `POST /users`, `PATCH /users/<int:user_id>`, `POST /users/<int:user_id>/deactivate`, `GET /clients` y `GET /representatives` | USR-01, 04 a 09, 11 a 13, 18, 19, 21 a 23 |
 | Controllers | `app/controllers/errors.py` | `register_error_handlers(app)`: traduce cada `DomainError` a su respuesta HTTP con una tabla `{clase: (status, código)}`, sin `if`/`elif` | USR-04, 05, 08, 15, 21, 22, 23 |
-| App | `app/cli.py` | Comando `create-admin` (`@with_appcontext`) que usa `get_user_service()` | USR-20 |
+| App | `app/cli.py` | Comando `create-admin` (`@with_appcontext`) que usa `get_user_service()` y pide la contraseña con `click.prompt` oculto y confirmado | USR-20 |
 | App | `app/__init__.py` | Registra los blueprints `auth` y `users`, los manejadores de errores y el comando `create-admin` | — |
 | Contrato | `docs/openapi.json` | Las 7 operaciones nuevas, el esquema de seguridad por cookie y los esquemas `User`, `Error` y `ValidationErrorResponse` | RNF 7 |
 
@@ -65,7 +65,7 @@ Cuerpos de error (`{"error": "<código>"}`):
 | `DuplicateUserError` | `409` | `{"error": "duplicate_email"}` |
 | `SelfDeactivationError` | `409` | `{"error": "self_deactivation"}` |
 
-Un login con el cuerpo vacío o sin alguno de los dos campos responde `401` `invalid_credentials`, igual que cualquier otro intento fallido (SPEC-USR-15).
+Un login con el cuerpo vacío, sin alguno de los dos campos o con un campo que no es texto responde `401` `invalid_credentials`, igual que cualquier otro intento fallido (SPEC-USR-15 y 25).
 
 ## Patrones aplicados
 
@@ -95,7 +95,10 @@ Un login con el cuerpo vacío o sin alguno de los dos campos responde `401` `inv
 | El contrato suma `components.securitySchemes.sessionCookie` (cookie `session`) como `security` global. Las operaciones públicas mantienen `"security": []` | Swagger UI muestra qué operaciones piden sesión, y las públicas existentes no cambian. |
 | `PATCH /users/{user_id}` acepta solo `name`, `email` y `preferred_channel`; el controller ignora cualquier otra clave (`role`, `password`, `is_active`) | SPEC-USR-07 solo permite modificar esos tres datos. La baja va por su propio endpoint. |
 | Los listados incluyen a los usuarios inactivos y se ordenan por `id` | SPEC-USR-13 pide mostrar el estado, lo que solo tiene sentido si aparecen los inactivos. El orden fijo hace que los tests sean determinísticos. |
-| `create-admin` pide `--name` y `--email` como opciones y la contraseña con un prompt oculto con confirmación (`click.option(..., prompt=True, hide_input=True, confirmation_prompt=True)`) | La contraseña no queda en el historial de la shell. Usa el mismo `create_user` con `role="Admin"`, así que aplica las mismas validaciones. Si falla, informa el error y termina con código distinto de 0. |
+| `create-admin` pide `--name` y `--email` como opciones y la contraseña con un prompt oculto con confirmación (`click.option(..., prompt=True, hide_input=True, confirmation_prompt=True)`). **Reemplazada por la fila de prompt-only (2026-11-10)**: esa opción también aceptaba `--password` | La contraseña no queda en el historial de la shell. Usa el mismo `create_user` con `role="Admin"`, así que aplica las mismas validaciones. Si falla, informa el error y termina con código distinto de 0. |
+| `create-admin` pide la contraseña dentro del comando con `click.prompt("Password", hide_input=True, confirmation_prompt=True)` y no declara ninguna opción `--password` (decisión 6 de la spec) | Con `click.password_option` el comando aceptaba `--password x`, que deja la contraseña en el historial de la shell y en la lista de procesos. Sin la opción, click rechaza el flag con "No such option". Se descartó mantener `--password` para scripts: el prompt también se alimenta por la entrada estándar. SPEC-USR-20 no cambia de comportamiento. |
+| Hash de relleno (SPEC-USR-24): el protocolo `PasswordHasher` suma `dummy_hash() -> str`. `WerkzeugPasswordHasher` lo calcula con `generate_password_hash` sobre una constante una sola vez por proceso (`functools.cache` a nivel de módulo). `authenticate` llama a `verify(hasher.dummy_hash(), password)` cuando el email no existe o el usuario está inactivo, y después lanza `InvalidCredentialsError` | El service se arma en cada request (`get_user_service()`), así que calcularlo de forma perezosa por instancia del service haría un `hash` más un `verify` en cada login fallido: el camino del email inexistente seguiría siendo distinguible, ahora por lento. Con el hash cacheado por proceso, los tres caminos cuestan un solo `verify`. El hash lo produce el hasher inyectado, así que tiene el mismo costo que uno real, el dominio no importa werkzeug y los tests unitarios usan el fake. Los tests cuentan las llamadas a `verify` en lugar de medir tiempos, que serían frágiles. Se descartaron un hash fijo escrito en el código (queda atado a los parámetros de werkzeug de hoy) y el cálculo perezoso por instancia del service. |
+| Tipos de dato (SPEC-USR-25): un valor que no es texto en `name`, `email`, `password`, `role` o `preferred_channel` se informa como `invalid` en el `ValidationError`; en el login, un `email` o `password` que no es texto lanza el mismo `InvalidCredentialsError` | El JSON puede traer números, listas u objetos; sin el chequeo romperían con `AttributeError` o `TypeError` (`500`). El comportamiento ya existía en el código sin spec propia y ahora queda trazado. |
 | SPEC-USR-10 se verifica ahora de forma parcial y se completa en `04-tickets` | Todavía no existen tickets, hitos ni `StateChange`. Hoy se prueba que la baja conserva la fila con todos sus datos, que el repositorio no tiene métodos de borrado y que ninguna ruta de usuarios acepta `DELETE`. El caso completo (un ticket de un usuario inactivo conserva sus hitos y su historial) se agrega al `test-plan.md` de `04-tickets`. |
 | Sin reloj inyectable en esta área | Ninguna spec de usuarios registra fechas. El reloj se incorpora en `04-tickets` con `StateChange`. |
 

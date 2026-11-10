@@ -13,7 +13,7 @@ Fixtures nuevas (`tests/conftest.py`):
 
 Dobles para tests unitarios (`tests/unit/users/fakes.py`, sin Flask ni base):
 - `FakeUserRepository`: diccionario en memoria que asigna ids y busca por email normalizado.
-- `FakePasswordHasher`: `hash(p)` devuelve `"hashed:" + p`; `verify` compara con ese formato.
+- `FakePasswordHasher`: `hash(p)` devuelve `"hashed:" + p`; `verify` compara con ese formato y registra cada llamada en `verify_calls`; `dummy_hash()` devuelve `hash("dummy-password")`.
 - `CommitSpy`: función que cuenta cuántas veces se llamó.
 
 Contraseña válida de referencia en los casos: `"password1"` (9 caracteres).
@@ -93,6 +93,7 @@ Contraseña válida de referencia en los casos: `"password1"` (9 caracteres).
 | USR-20 | TC-USR-20b | integration | `create-admin` con un email que ya existe | Código distinto de 0, mensaje de email duplicado y sigue habiendo un solo usuario con ese email | `tests/integration/users/test_cli.py` |
 | USR-20 | TC-USR-20c | integration | `create-admin` con contraseña de 7 caracteres | Código distinto de 0 y no se crea ningún usuario | `tests/integration/users/test_cli.py` |
 | USR-20 | TC-USR-20d | integration | `create-admin` y después `POST /login` con esas credenciales | `200` con `role: "Admin"` | `tests/integration/users/test_cli.py` |
+| USR-20 | TC-USR-20e | integration | `runner.invoke(args=["create-admin", "--name", "Ana", "--email", "ana@x.com", "--password", "password1"])` | Código distinto de 0, mensaje `No such option` y no se crea ningún usuario | `tests/integration/users/test_cli.py` |
 | USR-21 | TC-USR-21a | unit | `deactivate_user(admin.id, actor=admin)` | Lanza `SelfDeactivationError`; el admin sigue activo y no hay commit | `tests/unit/users/test_user_service.py` |
 | USR-21 | TC-USR-21b | integration | `admin_client` hace `POST /users/{su_propio_id}/deactivate` | `409` `{"error": "self_deactivation"}` | `tests/integration/users/test_users_api.py` |
 | USR-22 | TC-USR-22a | unit | `update_user(id, name="   ")` | `ValidationError` con `fields["name"] == "required"`; el nombre no cambia y no hay commit | `tests/unit/users/test_user_service.py` |
@@ -103,6 +104,15 @@ Contraseña válida de referencia en los casos: `"password1"` (9 caracteres).
 | USR-23 | TC-USR-23b | unit | `update_user(id, preferred_channel="telegram")` | `ValidationError` con `fields["preferred_channel"] == "invalid"`; el canal no cambia y no hay commit | `tests/unit/users/test_user_service.py` |
 | USR-23 | TC-USR-23c | integration | `POST /users` con `preferred_channel: "sms"` | `400` con `fields.preferred_channel == "invalid"` y sin usuario creado | `tests/integration/users/test_users_api.py` |
 | USR-23 | TC-USR-23d | integration | `PATCH /users/{id}` con `preferred_channel: "sms"` | `400` con `fields.preferred_channel == "invalid"` y el canal no cambia | `tests/integration/users/test_users_api.py` |
+| USR-24 | TC-USR-24a | unit | `authenticate("nobody@x.com", "password1")` con `FakePasswordHasher` | Lanza `InvalidCredentialsError` y `verify` se llamó exactamente una vez, con `hasher.dummy_hash()` | `tests/unit/users/test_user_service.py` |
+| USR-24 | TC-USR-24b | unit | Usuario inactivo; `authenticate` con su contraseña correcta | Lanza `InvalidCredentialsError` y `verify` se llamó exactamente una vez, con `hasher.dummy_hash()` (no con el hash del usuario) | `tests/unit/users/test_user_service.py` |
+| USR-24 | TC-USR-24c | unit | `WerkzeugPasswordHasher().dummy_hash()` en dos instancias | Es un hash de werkzeug (no verifica `"password1"` ni el texto vacío) y es el mismo valor en las dos instancias (se calcula una vez por proceso) | `tests/unit/users/test_passwords.py` |
+| USR-25 | TC-USR-25a | unit | `create_user(name=123, email=123, role=1, password=12345678, preferred_channel=["mail"])` | `ValidationError` con los cinco campos en `"invalid"`; no se agrega nada y no hay commit | `tests/unit/users/test_user_service.py` |
+| USR-25 | TC-USR-25b | unit | `update_user(id, name=1, email=["ana@x.com"], preferred_channel={"mail": 1})` | `ValidationError` con los tres campos en `"invalid"`; el usuario no cambia y no hay commit | `tests/unit/users/test_user_service.py` |
+| USR-25 | TC-USR-25c | unit | `authenticate` con `email=123`, con `password=12345678` y con los dos en listas | Lanza `InvalidCredentialsError` en los tres casos | `tests/unit/users/test_user_service.py` |
+| USR-25 | TC-USR-25d | integration | `POST /users` con `name: 123` y `preferred_channel: ["mail"]` | `400` `{"error": "validation_error", "fields": {"name": "invalid", "preferred_channel": "invalid"}}` y sin usuario creado | `tests/integration/users/test_users_api.py` |
+| USR-25 | TC-USR-25e | integration | `PATCH /users/{id}` con `email: 123` | `400` con `fields == {"email": "invalid"}` y la fila no cambia | `tests/integration/users/test_users_api.py` |
+| USR-25 | TC-USR-25f | integration | `POST /login` con `email: 123` y con `password: ["password1"]` | `401` `{"error": "invalid_credentials"}` en los dos casos y sin sesión | `tests/integration/users/test_auth_api.py` |
 
 Además, cada task de endpoint deja en verde TC-PLT-14a y 14b (sincronización entre las rutas y el contrato).
 
@@ -121,12 +131,15 @@ Además, cada task de endpoint deja en verde TC-PLT-14a y 14b (sincronización e
 - Usuario inexistente en la modificación y en la baja: TC-USR-07c, 07e y 09d.
 - Modificación con nombre solo con espacios o email vacío: TC-USR-22a y 22c.
 - Canal preferido desconocido en el alta y en la modificación: TC-USR-23a a 23d.
+- Login con email inexistente o usuario inactivo: igual cantidad de `verify` que un login real (TC-USR-24a y 24b).
+- Valores JSON que no son texto (números, listas, objetos): TC-USR-25a a 25f.
+- `create-admin` con `--password` en la línea de comandos: TC-USR-20e.
 
 ## RNF cubiertos
 
 | RNF | Casos |
 |-----|-------|
-| RNF 2 (autenticación robusta) | TC-USR-02a, 02b, 02c, 14b, 14c, 15a a 15e, 16a a 16d, 17a, 17b, 18a a 18d, 19a a 19c |
+| RNF 2 (autenticación robusta) | TC-USR-02a, 02b, 02c, 14b, 14c, 15a a 15e, 16a a 16d, 17a, 17b, 18a a 18d, 19a a 19c, 20e, 24a a 24c, 25a a 25f |
 | RNF 3 (usuarios únicos) | TC-USR-03a a 03c, 04a a 04d, 08a a 08c |
 | RNF 5 y 6 (conservación del historial, parcial) | TC-USR-10a, 10b, 10c (TC-USR-10d en `04-tickets`) |
 | RNF 7 (documentación de la API) | TC-PLT-14a y 14b en cada task de endpoint (T-USR-18 a 23) |

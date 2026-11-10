@@ -1,6 +1,6 @@
 # 01 — Usuarios y accesos · Tasks
 
-Estados: `[ ]` pendiente · `[~]` en curso · `[x]` hecha. Cada task es un ciclo TDD con los casos de [test-plan.md](test-plan.md). La tabla está en orden de ejecución: T-USR-27 y 28 se agregaron después (SPEC-USR-22 y 23) y se ubican donde corresponden, sin renumerar las demás.
+Estados: `[ ]` pendiente · `[~]` en curso · `[x]` hecha. Cada task es un ciclo TDD con los casos de [test-plan.md](test-plan.md). La tabla está en orden de ejecución: T-USR-27 y 28 se agregaron después (SPEC-USR-22 y 23) y se ubican donde corresponden, sin renumerar las demás. T-USR-29 a 33 son el hardening del 2026-11-10 (SPEC-USR-24, 25 y la decisión 6).
 
 Las tasks de endpoints (T-USR-18 a 23) agregan la operación a `docs/openapi.json` y la ruta en el mismo ciclo: en la fase roja fallan el test del endpoint y TC-PLT-14b, y en la verde pasan los dos (ver [plan.md](plan.md#decisiones-técnicas)).
 
@@ -34,5 +34,10 @@ Las tasks de endpoints (T-USR-18 a 23) agregan la operación a `docs/openapi.jso
 | [x] | T-USR-24 | Test de guarda: toda ruta no pública responde `401` sin sesión | USR-16 | Tests | TC-USR-16d en verde, y en rojo si se quita temporalmente `login_required` de un endpoint |
 | [x] | T-USR-25 | Comando `create-admin` en `app/cli.py`, registrado en `create_app` | USR-20 | App | TC-USR-20a a 20d en verde |
 | [x] | T-USR-26 | Cierre del área: `ruff`, cobertura ≥ 90 %, diagramas sincronizados, README de specs y `MEMORY.md` actualizados | Todas | — | `ruff check`, `ruff format --check` y `pytest --cov=app --cov-fail-under=90` en verde; `diagrams/classes.md` y `diagrams/sequences/01-users.md` coinciden con el código |
+| [x] | T-USR-29 | `PasswordHasher.dummy_hash()`: `WerkzeugPasswordHasher` lo calcula una vez por proceso; `FakePasswordHasher` lo implementa y registra las llamadas a `verify` | USR-24 | Services / tests | TC-USR-24c en verde |
+| [x] | T-USR-30 | `authenticate` verifica contra `dummy_hash()` cuando el email no existe o el usuario está inactivo | USR-24 | Services | TC-USR-24a y 24b en verde |
+| [x] | T-USR-31 | Rechazo de tipos de dato inválidos en el alta, la modificación y el login (comportamiento existente sin spec, ahora trazado) | USR-25 | Services / Controllers | TC-USR-25a a 25f en verde |
+| [x] | T-USR-32 | `create-admin` pide la contraseña con `click.prompt` oculto y confirmado, sin opción `--password` | USR-20 | App | TC-USR-20e en verde y TC-USR-20a a 20d siguen en verde |
+| [x] | T-USR-33 | Cierre del hardening: `ruff`, cobertura ≥ 90 %, diagrama de secuencia del login y `MEMORY.md` actualizados | USR-20, 24, 25 | — | `ruff check`, `ruff format --check` y `pytest --cov=app --cov-fail-under=90` en verde; `diagrams/sequences/01-users.md` muestra el `verify` de relleno |
 
 Pendiente fuera de esta área: TC-USR-10d (un ticket de un usuario inactivo conserva sus hitos y su historial de estados) se implementa en `04-tickets`.
