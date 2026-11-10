@@ -85,7 +85,7 @@ sequenceDiagram
 
 ## 3. Baja de categoría o de tipo de producto
 
-Specs: SPEC-PTY-07, 13, 14 (SPEC-PTY-08 se implementa en `03-products`)
+Specs: SPEC-PTY-07, 08, 13, 14 (SPEC-PTY-08 se implementó en `03-products`)
 
 ```mermaid
 sequenceDiagram
@@ -122,9 +122,16 @@ sequenceDiagram
         CS-->>PC: raise ProductTypeNotFoundError
         PC-->>Admin: 404 product_type_not_found
     else existe
-        CS->>TR: delete(product_type) con flush
-        CS->>CS: commit()
-        PC-->>Admin: 204 No Content (SPEC-PTY-07)
+        CS->>TR: has_products(id) con una consulta exists, activos e inactivos
+        alt tiene productos
+            CS-->>PC: raise ProductTypeInUseError
+            PC-->>Admin: 409 product_type_in_use con el motivo (SPEC-PTY-08)
+        else no tiene productos
+            CS->>TR: delete(product_type) con flush
+            Note over TR: la FK ON DELETE RESTRICT de products rechaza la baja si apareció un producto<br/>y el repositorio traduce el IntegrityError a ProductTypeInUseError
+            CS->>CS: commit()
+            PC-->>Admin: 204 No Content (SPEC-PTY-07)
+        end
     end
 ```
 

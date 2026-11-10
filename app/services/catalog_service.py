@@ -8,6 +8,7 @@ from app.domain.errors import (
     CategoryNotFoundError,
     DuplicateCategoryError,
     DuplicateProductTypeError,
+    ProductTypeInUseError,
     ProductTypeNotFoundError,
 )
 from app.domain.products import Category, ProductType
@@ -36,6 +37,8 @@ class ProductTypeRepository(Protocol):
     def get(self, product_type_id: int) -> ProductType | None: ...
 
     def find_by_name_in_category(self, name: str, category_id: int) -> ProductType | None: ...
+
+    def has_products(self, product_type_id: int) -> bool: ...
 
     def delete(self, product_type: ProductType) -> None: ...
 
@@ -110,8 +113,11 @@ class CatalogService:
         return product_type
 
     def delete_product_type(self, product_type_id: int) -> None:
-        """Physical deletion of a product type."""
-        self._product_types.delete(self._get_product_type(product_type_id))
+        """Physical deletion of a product type that has no products, active or inactive."""
+        product_type = self._get_product_type(product_type_id)
+        if self._product_types.has_products(product_type.id):
+            raise ProductTypeInUseError()
+        self._product_types.delete(product_type)
         self._commit()
 
     def list_product_types(self, category_id: Any = None) -> list[Category]:

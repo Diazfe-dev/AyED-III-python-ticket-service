@@ -6,7 +6,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.domain.products import Category, ProductType
-from tests.conftest import LoginAs, MakeCategory, MakeProductType, MakeUser
+from tests.conftest import LoginAs, MakeCategory, MakeProduct, MakeProductType, MakeUser
 
 
 @pytest.fixture
@@ -206,6 +206,23 @@ def test_delete_unknown_product_type_is_not_found(admin_client: FlaskClient) -> 
 
     assert response.status_code == 404
     assert response.get_json() == {"error": "product_type_not_found"}
+
+
+def test_delete_product_type_with_products_is_a_conflict(
+    admin_client: FlaskClient,
+    db_session: Session,
+    notebook: ProductType,
+    hardware: Category,
+    make_product: MakeProduct,
+) -> None:
+    """SPEC-PTY-08 · TC-PTY-08c"""
+    make_product(notebook, "XPS 13")
+
+    response = admin_client.delete(f"/product-types/{notebook.id}")
+
+    assert response.status_code == 409
+    assert response.get_json() == {"error": "product_type_in_use"}
+    assert stored_types(db_session) == [("Notebook", hardware.id)]
 
 
 def test_any_user_lists_product_types_grouped_by_category(

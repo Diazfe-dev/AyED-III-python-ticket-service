@@ -11,13 +11,14 @@ from app import create_app
 from app.auth import USER_ID_KEY
 from app.db import EXTENSION_KEY, create_schema, get_engine
 from app.domain.base import Base
-from app.domain.products import Category, ProductType
+from app.domain.products import Category, Product, ProductType
 from app.domain.users import ROLE_CLASSES, User
 from app.services.passwords import WerkzeugPasswordHasher
 
 MakeUser = Callable[..., User]
 MakeCategory = Callable[..., Category]
 MakeProductType = Callable[..., ProductType]
+MakeProduct = Callable[..., Product]
 LoginAs = Callable[[FlaskClient, User], None]
 
 
@@ -145,5 +146,23 @@ def make_product_type(db_session: Session) -> MakeProductType:
         db_session.add(product_type)
         db_session.commit()
         return product_type
+
+    return make
+
+
+@pytest.fixture
+def make_product(db_session: Session) -> MakeProduct:
+    """Persist and commit a product of the type; names are unique unless given."""
+    sequence = itertools.count(1)
+
+    def make(product_type: ProductType, name: str | None = None, is_active: bool = True) -> Product:
+        product = Product(
+            name=name or f"Product {next(sequence)}",
+            product_type=product_type,
+            is_active=is_active,
+        )
+        db_session.add(product)
+        db_session.commit()
+        return product
 
     return make

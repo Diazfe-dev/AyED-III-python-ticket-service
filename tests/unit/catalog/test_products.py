@@ -1,4 +1,4 @@
-from app.domain.products import Category, ProductType, normalize_name
+from app.domain.products import Category, Product, ProductType, normalize_name
 
 
 def test_normalize_name_trims_and_casefolds_non_ascii_letters() -> None:
@@ -41,3 +41,39 @@ def test_product_type_name_is_trimmed_on_every_assignment() -> None:
 
     assert product_type.name == "Ultrabook"
     assert product_type.name_key == "ultrabook"
+
+
+def notebook_type() -> ProductType:
+    return ProductType(name="Notebook", category=Category(name="Hardware"))
+
+
+def test_product_belongs_to_its_product_type() -> None:
+    """SPEC-PRD-01 · TC-PRD-01a"""
+    notebook = notebook_type()
+
+    product = Product(name="XPS 13", product_type=notebook, is_active=True)
+
+    assert product.product_type is notebook
+    assert product in notebook.products
+
+
+def test_deactivated_product_is_inactive() -> None:
+    """SPEC-PRD-05 · TC-PRD-05a"""
+    product = Product(name="XPS 13", product_type=notebook_type(), is_active=True)
+
+    product.deactivate()
+
+    assert product.is_active is False
+
+
+def test_product_name_is_trimmed_on_every_assignment() -> None:
+    """SPEC-PRD-14 · TC-PRD-14a"""
+    product = Product(name="  XPS  13 ", product_type=notebook_type())
+
+    assert product.name == "XPS  13"
+    assert product.name_key == "xps  13"
+
+    product.name = " XPS 15 "
+
+    assert product.name == "XPS 15"
+    assert product.name_key == "xps 15"

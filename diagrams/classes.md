@@ -111,16 +111,19 @@ classDiagram
         +str name_key
         +int category_id
         +Category category
+        +list~Product~ products
     }
     class Product {
         +int id
         +str name
+        +str name_key
+        +int product_type_id
         +ProductType product_type
         +bool is_active
         +deactivate() None
     }
     Category "1" -- "*" ProductType : product_types y category
-    Product "*" --> "1" ProductType : product_type
+    ProductType "1" -- "*" Product : products y product_type
 
     class Notification {
         +int id
@@ -159,7 +162,7 @@ classDiagram
 - **Agregación** (rombo vacío): `Client`, `Representative` y `Product` tienen un ciclo de vida independiente del ticket.
 - **Inmutables**: `Milestone` y `StateChange` no se pueden modificar ni borrar. Los protegen listeners del ORM y triggers de SQLite (RNF 5 y 6).
 - **Baja lógica**: `User` y `Product` tienen `is_active` y nunca se borran físicamente.
-- **Catálogo**: `Category` y `ProductType` guardan el `name` sin espacios en los extremos y una columna `name_key = normalize_name(name)` (`strip().casefold()`) que completa un `@validates("name")` común (mixin `CatalogName`). La unicidad sin distinguir mayúsculas la impone la base con `UNIQUE (name_key)` en `categories` y `UNIQUE (category_id, name_key)` en `product_types`. `product_types.category_id` es FK `ON DELETE RESTRICT` y `Category.product_types` usa `passive_deletes="all"` y `order_by=(name_key, id)`: borrar una categoría nunca toca sus tipos, y la base rechaza la baja si tiene alguno. La baja de categorías y tipos es física. `Product` llega en `03-products`.
+- **Catálogo**: `Category` y `ProductType` guardan el `name` sin espacios en los extremos y una columna `name_key = normalize_name(name)` (`strip().casefold()`) que completa un `@validates("name")` común (mixin `CatalogName`). La unicidad sin distinguir mayúsculas la impone la base con `UNIQUE (name_key)` en `categories` y `UNIQUE (category_id, name_key)` en `product_types`. `product_types.category_id` es FK `ON DELETE RESTRICT` y `Category.product_types` usa `passive_deletes="all"` y `order_by=(name_key, id)`: borrar una categoría nunca toca sus tipos, y la base rechaza la baja si tiene alguno. La baja de categorías y tipos es física. `Product` usa el mismo mixin, con `UNIQUE (product_type_id, name_key)`: el nombre es único por tipo y un producto inactivo también lo reserva. `products.product_type_id` es FK `ON DELETE RESTRICT` y `ProductType.products` usa `passive_deletes="all"`, así la base rechaza borrar un tipo con productos (SPEC-PTY-08). La categoría de un producto no se guarda: es `product.product_type.category`.
 - **Usuarios**: herencia de tabla única (tabla `users`) con el discriminador `role`; el registro `ROLE_CLASSES` resuelve la subclase a partir del rol. El email se normaliza al asignarlo (`normalize_email`) y `preferred_channel` solo admite `mail` o `whatsapp` (`NOTIFICATION_CHANNELS`). `User` no verifica contraseñas: el dominio solo importa `sqlalchemy`, así que el hash vive en `PasswordHasher` (capa de services).
 - **Patrón Strategy**: `NotificationService` elige la estrategia según `recipient.preferred_channel`. Ambas estrategias simulan el envío.
 
@@ -214,6 +217,7 @@ classDiagram
     class wiring {
         <<module>>
         +get_catalog_service() CatalogService
+        +get_product_service() ProductService
     }
     class CatalogController {
         +list_categories()
@@ -224,10 +228,10 @@ classDiagram
         +update_product_type(product_type_id, body)
         +delete_product_type(product_type_id)
         +list_product_types(category_id)
-        +create_product(name, product_type_id)
-        +update_product(product_id, form)
+        +create_product(body)
+        +update_product(product_id, body)
         +deactivate_product(product_id)
-        +list_products(filters)
+        +list_products(category_id, product_type_id)
         +list_available_products()
     }
 
@@ -284,10 +288,14 @@ classDiagram
         +raise_if_invalid(errors) None
     }
     class ProductService {
+        +ProductRepository products
+        +ProductTypeRepository product_types
+        +CategoryRepository categories
+        +Callable commit
         +create_product(name, product_type_id) Product
-        +update_product(product_id, data) Product
-        +deactivate_product(product_id) None
-        +list_products(filters) list
+        +update_product(product_id, name, product_type_id) Product
+        +deactivate_product(product_id) Product
+        +list_products(category_id, product_type_id) list
         +list_available_products() list
     }
     class NotificationService {
@@ -320,11 +328,15 @@ classDiagram
         +add(product_type) None
         +get(product_type_id) ProductType
         +find_by_name_in_category(name, category_id) ProductType
+        +has_products(product_type_id) bool
         +delete(product_type) None
     }
     class ProductRepository {
+        +add(product) None
+        +get(product_id) Product
+        +find_by_name_in_type(name, product_type_id) Product
+        +list_matching(category_id, product_type_id, active_only) list
         +get_many(product_ids) list
-        +list(filters) list
     }
     class NotificationRepository {
         +add(notification) None
@@ -342,9 +354,10 @@ classDiagram
     CatalogController --> auth : login_required y admin_required
     CatalogController ..> errors : DomainError a HTTP
     wiring --> CatalogService
+    wiring --> ProductService
     CatalogService ..> validation
     UserService ..> validation
-    CatalogController --> ProductService
+    ProductService ..> validation
 
     UserService --> UserRepository
     UserService --> PasswordHasher
@@ -357,6 +370,7 @@ classDiagram
     CatalogService --> ProductTypeRepository
     ProductService --> ProductRepository
     ProductService --> ProductTypeRepository
+    ProductService --> CategoryRepository
     NotificationService --> NotificationRepository
     NotificationService --> NotificationStrategy
 ```
@@ -367,6 +381,7 @@ classDiagram
 - Los **services** reciben sus dependencias por constructor (repositorios, `NotificationService`, un `clock` inyectable y la función `commit`, que en producción es `session.commit`) y deciden cuándo confirmar la transacción. `UserService` recibe además un `PasswordHasher`.
 - `app/auth.py` arma `UserService` para cada request (o comando CLI) y expone `current_user()` y los decoradores `login_required` (`401`) y `admin_required` (`403`). `app/controllers/errors.py` traduce cada `DomainError` a su status y código JSON con una tabla, y con una segunda tabla (`HTTP_ERROR_RESPONSES`) responde en JSON las rutas inexistentes (`404` `not_found`), los métodos no admitidos (`405` `method_not_allowed`) y los errores no manejados (`500` `internal_error`, registrado sobre `InternalServerError` para que el teardown siga haciendo rollback). El comando `create-admin` (`app/cli.py`) reutiliza `create_user`.
 - Los **repositories** encapsulan la `Session` de SQLAlchemy y nunca hacen commit. `UserRepository.add` hace `flush()` y traduce el `IntegrityError` del email único a `DuplicateUserError`, y `UserRepository.get` devuelve `None` para un id fuera del `INTEGER` de SQLite (`fits_integer_column`). `TicketRepository.get_visible` aplica el filtro de privacidad (RNF 4).
-- `app/wiring.py` arma `CatalogService` para cada request con `get_session()` y los dos repositorios del catálogo, así los controllers nunca tocan la `Session`. `app/services/validation.py` reúne los validadores de campos que comparten `UserService` y `CatalogService` (`text_error`, `id_error`, `parse_id`, `provided`, `raise_if_invalid`).
+- `app/wiring.py` arma `CatalogService` y `ProductService` para cada request con `get_session()` y sus repositorios, así los controllers nunca tocan la `Session`. `ProductService` recibe también `CategoryRepository` para responder `404` a un filtro por categoría inexistente (SPEC-PRD-16). `app/services/validation.py` reúne los validadores de campos que comparten `UserService`, `CatalogService` y `ProductService` (`text_error`, `id_error`, `parse_id`, `provided`, `raise_if_invalid`).
 - `CategoryRepository.add` y `ProductTypeRepository.add` hacen `flush()` y traducen el `IntegrityError` de los `UNIQUE` a `DuplicateCategoryError` y `DuplicateProductTypeError`. `CategoryRepository.delete` traduce el de la FK `RESTRICT` a `CategoryInUseError`. `list_with_product_types` carga las categorías con `selectinload(Category.product_types)` (2 consultas en total). Los dos `get` devuelven `None` para un id que no entra en el `INTEGER` de SQLite (`fits_integer_column` de `app/db.py`).
+- `ProductRepository.add` traduce el `IntegrityError` del `UNIQUE` a `DuplicateProductError` y `ProductTypeRepository.delete` traduce el de la FK `RESTRICT` de `products` a `ProductTypeInUseError`; `CatalogService.delete_product_type` además lo chequea antes con `has_products`. `ProductRepository.list_matching` filtra por categoría con un `join` sobre el tipo, ordena por `(name_key, id)` y carga tipo y categoría con `selectinload` (3 consultas como máximo). Se llama `list_matching` y no `list` porque un método `list` taparía al tipo `list` en las anotaciones de la clase. `ProductRepository` no tiene métodos de borrado. `get_many` llega con `04-tickets`.
 - No hay `MilestoneService`: los hitos forman parte del agregado `Ticket` y se gestionan desde `TicketService`.

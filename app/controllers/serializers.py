@@ -4,7 +4,7 @@ from typing import Any
 
 from flask import request
 
-from app.domain.products import Category, ProductType
+from app.domain.products import Category, Product, ProductType
 from app.domain.users import User
 
 
@@ -42,4 +42,15 @@ def category_group_json(category: Category) -> dict[str, Any]:
     """A category with its product types, already ordered by name."""
     return category_json(category) | {
         "product_types": [product_type_json(t) for t in category.product_types]
+    }
+
+
+def product_json(product: Product) -> dict[str, Any]:
+    """A product with its type and the category of that type."""
+    return {
+        "id": product.id,
+        "name": product.name,
+        "is_active": product.is_active,
+        "product_type": product_type_json(product.product_type),
+        "category": category_json(product.product_type.category),
     }

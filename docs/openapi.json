@@ -599,7 +599,7 @@
       },
       "delete": {
         "summary": "Delete a product type",
-        "description": "Admin only. Physical deletion of a product type.",
+        "description": "Admin only. Physical deletion of a product type that has no products, active or inactive (`409` otherwise).",
         "operationId": "deleteProductType",
         "tags": ["catalog"],
         "responses": {
@@ -614,6 +614,196 @@
           },
           "404": {
             "$ref": "#/components/responses/ProductTypeNotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/ProductTypeInUse"
+          }
+        }
+      }
+    },
+    "/products": {
+      "get": {
+        "summary": "List products",
+        "description": "Any authenticated user. Every product, active and inactive, ordered by name without case. `category_id` and `product_type_id` are optional filters: both are validated together (`400`), then each must exist (`404`), and the result keeps only the products matching every filter given. A product type outside the category gives an empty list.",
+        "operationId": "listProducts",
+        "tags": ["catalog"],
+        "parameters": [
+          {
+            "name": "category_id",
+            "in": "query",
+            "required": false,
+            "description": "Positive integer of an existing category; matches the products whose type belongs to it. Anything else is `invalid` (`400`).",
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            }
+          },
+          {
+            "name": "product_type_id",
+            "in": "query",
+            "required": false,
+            "description": "Positive integer of an existing product type. Anything else is `invalid` (`400`).",
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/ProductList"
+          },
+          "400": {
+            "$ref": "#/components/responses/ValidationFailed"
+          },
+          "401": {
+            "$ref": "#/components/responses/AuthenticationRequired"
+          },
+          "404": {
+            "$ref": "#/components/responses/CategoryOrProductTypeNotFound"
+          }
+        }
+      },
+      "post": {
+        "summary": "Create a product",
+        "description": "Admin only. Creates an active product of an existing product type. `name` and `product_type_id` are validated together (`400`); then the product type must exist (`404`) and the name must be free inside it (`409`).",
+        "operationId": "createProduct",
+        "tags": ["catalog"],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateProductRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Product created.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Product"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/ValidationFailed"
+          },
+          "401": {
+            "$ref": "#/components/responses/AuthenticationRequired"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/ProductTypeNotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/DuplicateProduct"
+          }
+        }
+      }
+    },
+    "/products/available": {
+      "get": {
+        "summary": "List the products available for tickets",
+        "description": "Any authenticated user. Only the active products, ordered by name without case. Query parameters are ignored.",
+        "operationId": "listAvailableProducts",
+        "tags": ["catalog"],
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/ProductList"
+          },
+          "401": {
+            "$ref": "#/components/responses/AuthenticationRequired"
+          }
+        }
+      }
+    },
+    "/products/{product_id}": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/ProductId"
+        }
+      ],
+      "patch": {
+        "summary": "Rename or move a product",
+        "description": "Admin only. Works on active and inactive products and never changes `is_active`. Missing or `null` fields keep their value; any other key is ignored. The final name must be free in the target product type, compared without case.",
+        "operationId": "updateProduct",
+        "tags": ["catalog"],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateProductRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Product updated.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Product"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/ValidationFailed"
+          },
+          "401": {
+            "$ref": "#/components/responses/AuthenticationRequired"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/ProductOrProductTypeNotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/DuplicateProduct"
+          }
+        }
+      }
+    },
+    "/products/{product_id}/deactivate": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/ProductId"
+        }
+      ],
+      "post": {
+        "summary": "Deactivate a product",
+        "description": "Admin only. Logical deletion: the product is kept with `is_active: false` and stays in the tickets that already have it, but it can no longer be added to new tickets. Deactivating an inactive product succeeds without changes.",
+        "operationId": "deactivateProduct",
+        "tags": ["catalog"],
+        "responses": {
+          "200": {
+            "description": "Product deactivated.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Product"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/AuthenticationRequired"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/ProductNotFound"
           }
         }
       }
@@ -785,6 +975,84 @@
             },
             "example": {
               "error": "product_type_not_found"
+            }
+          }
+        }
+      },
+      "DuplicateProduct": {
+        "description": "Another product of the product type, active or inactive, already has this name without case (`duplicate_product`).",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            },
+            "example": {
+              "error": "duplicate_product"
+            }
+          }
+        }
+      },
+      "ProductList": {
+        "description": "Products ordered by name without case.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "array",
+              "items": {
+                "$ref": "#/components/schemas/Product"
+              }
+            }
+          }
+        }
+      },
+      "CategoryOrProductTypeNotFound": {
+        "description": "The `category_id` filter names no category (`category_not_found`), or the `product_type_id` filter names no product type (`product_type_not_found`).",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            },
+            "example": {
+              "error": "category_not_found"
+            }
+          }
+        }
+      },
+      "ProductNotFound": {
+        "description": "No product has this id (`product_not_found`).",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            },
+            "example": {
+              "error": "product_not_found"
+            }
+          }
+        }
+      },
+      "ProductOrProductTypeNotFound": {
+        "description": "No product has this id (`product_not_found`), or the target product type does not exist (`product_type_not_found`).",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            },
+            "example": {
+              "error": "product_not_found"
+            }
+          }
+        }
+      },
+      "ProductTypeInUse": {
+        "description": "The product type has products, active or inactive, and cannot be deleted (`product_type_in_use`).",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            },
+            "example": {
+              "error": "product_type_in_use"
             }
           }
         }
@@ -1030,6 +1298,62 @@
             }
           }
         }
+      },
+      "Product": {
+        "type": "object",
+        "required": ["id", "name", "is_active", "product_type", "category"],
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "name": {
+            "type": "string"
+          },
+          "is_active": {
+            "type": "boolean",
+            "description": "`false` once deactivated; an inactive product cannot be added to new tickets."
+          },
+          "product_type": {
+            "$ref": "#/components/schemas/ProductType"
+          },
+          "category": {
+            "$ref": "#/components/schemas/Category",
+            "description": "Category of the product type."
+          }
+        }
+      },
+      "CreateProductRequest": {
+        "type": "object",
+        "required": ["name", "product_type_id"],
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 120,
+            "description": "Stored without surrounding spaces; unique without case inside its product type, inactive products included."
+          },
+          "product_type_id": {
+            "type": "integer",
+            "minimum": 1,
+            "description": "Positive integer of an existing product type. Anything else is `invalid`."
+          }
+        }
+      },
+      "UpdateProductRequest": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 120,
+            "description": "New name. Missing or `null` keeps the current one."
+          },
+          "product_type_id": {
+            "type": "integer",
+            "minimum": 1,
+            "description": "Product type to move the product to. Missing or `null` keeps the current one; anything but a positive integer is `invalid`."
+          }
+        }
       }
     },
     "parameters": {
@@ -1051,6 +1375,14 @@
       },
       "ProductTypeId": {
         "name": "product_type_id",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "integer"
+        }
+      },
+      "ProductId": {
+        "name": "product_id",
         "in": "path",
         "required": true,
         "schema": {
