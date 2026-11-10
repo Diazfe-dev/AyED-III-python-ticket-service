@@ -8,12 +8,14 @@ from flask.testing import FlaskClient, FlaskCliRunner
 from sqlalchemy.orm import Session
 
 from app import create_app
+from app.auth import USER_ID_KEY
 from app.db import EXTENSION_KEY, create_schema, get_engine
 from app.domain.base import Base
 from app.domain.users import ROLE_CLASSES, User
 from app.services.passwords import WerkzeugPasswordHasher
 
 MakeUser = Callable[..., User]
+LoginAs = Callable[[FlaskClient, User], None]
 
 
 @pytest.fixture
@@ -83,3 +85,25 @@ def make_user(db_session: Session) -> MakeUser:
         return user
 
     return make
+
+
+def _login_as(client: FlaskClient, user: User) -> None:
+    with client.session_transaction() as session:
+        session[USER_ID_KEY] = user.id
+
+
+@pytest.fixture
+def login_as() -> LoginAs:
+    """Store the user id in the client's session without going through POST /login."""
+    return _login_as
+
+
+@pytest.fixture
+def admin(make_user: MakeUser) -> User:
+    return make_user(role="Admin", email="admin@x.com")
+
+
+@pytest.fixture
+def admin_client(client: FlaskClient, admin: User) -> FlaskClient:
+    _login_as(client, admin)
+    return client
