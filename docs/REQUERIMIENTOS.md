@@ -51,3 +51,4 @@
 4. El sistema deberá garantizar la privacidad, asegurando que un cliente solo pueda visualizar e interactuar con sus propios tickets.
 5. El sistema deberá impedir la modificación o eliminación de los hitos una vez registrados, para preservar la integridad del historial en caso de disputas.
 6. El sistema deberá registrar qué usuario (cliente o representante) y en qué momento exacto realizó un cambio de estado en el ticket.
+7. El sistema deberá documentar su API HTTP con una especificación OpenAPI y exponerla de forma navegable mediante Swagger UI.

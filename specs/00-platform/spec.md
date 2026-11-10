@@ -1,6 +1,6 @@
 # 00 — Plataforma
 
-Origen: RNF 1, RNF 2 y decisiones técnicas de [AGENTS.md](../../AGENTS.md) · Diagramas: [clases — capas](../../diagrams/classes.md#2-capas-de-aplicación)
+Origen: RNF 1, RNF 2, RNF 7 y decisiones técnicas de [AGENTS.md](../../AGENTS.md) · Diagramas: [clases — capas](../../diagrams/classes.md#2-capas-de-aplicación)
 
 Comportamiento técnico transversal que necesitan todas las demás áreas: configuración, conexión a la base, ciclo de vida de la sesión y comandos de administración. No contiene reglas de negocio.
 
@@ -30,10 +30,24 @@ Comportamiento técnico transversal que necesitan todas las demás áreas: confi
 | SPEC-PLT-10 | Ubicuo | **El sistema deberá** emitir la cookie de sesión con los atributos `HttpOnly` y `SameSite=Lax`. | RNF 2 |
 | SPEC-PLT-11 | Por evento | **Cuando** se solicita `GET /health`, **el sistema deberá** responder `200` con `{"status": "ok"}`, sin requerir autenticación. | AGENTS.md (verificación de CI) |
 
+## Documentación de la API
+
+| ID | Tipo | Especificación | Origen |
+|----|------|----------------|--------|
+| SPEC-PLT-12 | Por evento | **Cuando** se solicita `GET /openapi.json`, **el sistema deberá** responder `200` con el contrato OpenAPI 3.1 de la API, sin requerir autenticación. | RNF 7 |
+| SPEC-PLT-13 | Por evento | **Cuando** se solicita `GET /docs`, **el sistema deberá** responder `200` con una página de Swagger UI que carga el contrato de `/openapi.json`, sin requerir autenticación. | RNF 7 |
+| SPEC-PLT-14 | Ubicuo | **El sistema deberá** exponer exactamente las rutas y métodos HTTP que describe su contrato OpenAPI, ni más ni menos. | RNF 7 |
+
 ## Decisiones
 
 Aprobadas el 2026-11-10 y registradas en [MEMORY.md](../../MEMORY.md):
 
 1. La plataforma se trata como un área más (`00-platform`), para que el esqueleto respete spec-as-source y TDD sin crear excepciones a la constitución.
 2. `create-admin` (SPEC-USR-20) **no** forma parte del esqueleto: se implementa con el área `01-users`, cuando esa área tenga sus cuatro archivos.
-3. `/health` es la única ruta sin autenticación además del login. Sirve como prueba de humo del esqueleto y del CI.
+3. `/health` es la única ruta sin autenticación además del login. Sirve como prueba de humo del esqueleto y del CI. **Ampliada por la decisión 6.**
+
+Aprobadas el 2026-11-10 (RNF 7):
+
+4. La interfaz HTTP del sistema es una API JSON.
+5. El contrato se escribe a mano primero (*contract-first*) en `docs/openapi.json` y la app lo sirve tal cual. No se genera desde el código, así que no suma dependencias de Python. Swagger UI se carga desde un CDN con una versión fija.
+6. `/openapi.json` y `/docs` también son públicas: el contrato no expone datos de usuarios y los endpoints que documenta siguen protegidos.

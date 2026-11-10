@@ -13,4 +13,7 @@ Estados: `[ ]` pendiente · `[~]` en curso · `[x]` hecha. Cada task es un ciclo
 | [x] | T-PLT-07 | `Base`, `create_schema` y comando `init-db` | PLT-09 | Dominio / Infra | TC-PLT-09a, 09b y 09c en verde |
 | [x] | T-PLT-08 | Atributos de la cookie de sesión | PLT-10 | App | TC-PLT-10a y 10b en verde |
 | [x] | T-PLT-09 | Blueprint `health` | PLT-11 | Controllers | TC-PLT-11a y 11b en verde |
+| [x] | T-PLT-11 | `docs/openapi.json` inicial y `GET /openapi.json` | PLT-12 | Contrato / Controllers | TC-PLT-12a y 12b en verde |
+| [x] | T-PLT-12 | `GET /docs` con Swagger UI | PLT-13 | Controllers | TC-PLT-13a y 13b en verde |
+| [x] | T-PLT-13 | Test de sincronización entre las rutas de Flask y el contrato | PLT-14 | Tests | TC-PLT-14a y 14b en verde |
 | [x] | T-PLT-10 | Cierre del área: `ruff`, cobertura ≥ 90 % y README de specs actualizado | Todas | — | `ruff check`, `ruff format --check` y `pytest --cov=app --cov-fail-under=90` en verde |

@@ -40,7 +40,7 @@ Cada área es una carpeta `NN-<área>/`. `spec.md` existe siempre. Los demás ar
 
 | Área | Descripción | RF | spec | plan | tasks | test-plan |
 |------|-------------|----|------|------|-------|-----------|
-| [00-platform/](00-platform/spec.md) | Plataforma: configuración, base de datos, sesión y comandos | RNF 1, 2 | ✅ | ✅ | ✅ | ✅ |
+| [00-platform/](00-platform/spec.md) | Plataforma: configuración, base de datos, sesión, comandos y documentación de la API | RNF 1, 2, 7 | ✅ | ✅ | ✅ | ✅ |
 | [01-users/](01-users/spec.md) | Gestión de usuarios y accesos | 1.1 | ✅ | ⬜ | ⬜ | ⬜ |
 | [02-product-types/](02-product-types/spec.md) | Gestión de tipos de producto y rubros | 1.2 | ✅ | ⬜ | ⬜ | ⬜ |
 | [03-products/](03-products/spec.md) | Gestión de productos | 1.3 | ✅ | ⬜ | ⬜ | ⬜ |

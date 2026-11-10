@@ -1,6 +1,6 @@
 # 00 — Plataforma · Plan de implementación
 
-Specs cubiertas: SPEC-PLT-01 a SPEC-PLT-11 ([spec.md](spec.md)).
+Specs cubiertas: SPEC-PLT-01 a SPEC-PLT-14 ([spec.md](spec.md)).
 
 ## Enfoque
 
@@ -15,6 +15,8 @@ Application factory de Flask (`create_app`) que arma la configuración, el engin
 | Infra | `app/db.py` | `init_app(app)`: crea el engine y el `sessionmaker` y los guarda en `app.extensions`. `get_session()`: sesión del request en `flask.g`. Teardown: rollback si hubo excepción y después `close()`. `create_schema(engine, metadata)`. Comando `init-db` | PLT-04 a 09 |
 | Dominio | `app/domain/base.py` | `class Base(DeclarativeBase)`. Por ahora sin entidades | PLT-09 |
 | Controllers | `app/controllers/health.py` | Blueprint `health` con `GET /health` | PLT-11 |
+| Controllers | `app/controllers/api_docs.py` | Blueprint `api_docs`: `GET /openapi.json` sirve `docs/openapi.json`; `GET /docs` devuelve el HTML de Swagger UI | PLT-12, 13 |
+| Contrato | `docs/openapi.json` | Contrato OpenAPI 3.1 escrito a mano. Por ahora documenta `/health`, `/openapi.json` y `/docs` | PLT-12, 14 |
 
 Carpetas que se crean vacías (con `__init__.py`) para respetar la estructura de [AGENTS.md](../../AGENTS.md): `app/services/`, `app/repositories/`.
 
@@ -39,16 +41,21 @@ Los `overrides` de `create_app` tienen prioridad sobre el entorno. Los tests los
 | `get_session()` crea la sesión de forma diferida en `g` | Los requests que no tocan la base (por ejemplo `/health`) no abren conexión. |
 | Teardown: `rollback()` si `exc` no es `None` y siempre `close()` | Garantiza que no queden transacciones a medias (PLT-07, 08). El commit es responsabilidad del service, nunca del teardown. |
 | `create_schema(engine, metadata)` separado del comando de CLI | El comando usa `Base.metadata`. Los tests pasan una `MetaData` propia, sin contaminar el modelo real. |
+| Contrato OpenAPI escrito a mano en `docs/openapi.json` (*contract-first*) | Va con spec-as-source: primero se define la interfaz y después el código. No suma dependencias. Se descartaron `flask-smorest` (dos dependencias y contrato derivado del código) y `flasgger` (docstrings YAML en los controllers y soporte parcial de OpenAPI 3). |
+| Swagger UI desde jsDelivr (`swagger-ui-dist@5.17.14`), con versión fija | Evita versionar los assets en el repo. La versión fija hace que la UI no cambie sola. |
+| Un test compara `app.url_map` con los `paths` del contrato, en los dos sentidos | Es lo que impide que el contrato escrito a mano se desincronice del código (PLT-14). Se ignoran la ruta `static` y los métodos `HEAD` y `OPTIONS`. Las rutas con parámetros de Flask (`<int:ticket_id>`) se convierten al formato OpenAPI (`{ticket_id}`). |
 | `create_all()` sin `drop_all()` | `create_all` solo crea las tablas que faltan, así que `init-db` es idempotente (PLT-09). |
 
 ## Dependencias con otras áreas
 
 - Todas las áreas usan `get_session()` y `Base`.
-- `01-users` agrega `create-admin` a la CLI y `login_required`, que protege todo salvo `/login` y `/health`.
+- `01-users` agrega `create-admin` a la CLI y `login_required`, que protege todo salvo `/login`, `/health`, `/openapi.json` y `/docs`.
+- Cada área que agregue un endpoint lo documenta antes en `docs/openapi.json`. Si no, el test de PLT-14 falla.
 
 ## Riesgos
 
 | Riesgo | Mitigación |
 |--------|------------|
 | Tests que comparten estado a través de la base | Fixture `app` nueva por test, con su propio engine en memoria. |
+| Sin conexión a internet, `/docs` no carga los assets del CDN | Solo afecta a la UI. `/openapi.json` sigue funcionando y se puede abrir con cualquier visor. |
 | Arrancar en producción con una clave insegura | PLT-03: sin `SECRET_KEY`, la app no arranca. |

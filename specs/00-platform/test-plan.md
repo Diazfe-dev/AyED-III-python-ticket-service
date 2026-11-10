@@ -31,6 +31,12 @@ Fixtures (`tests/conftest.py`):
 | PLT-10 | TC-PLT-10b | integration | Ruta de prueba que escribe en `session` | El header `Set-Cookie` incluye `HttpOnly` y `SameSite=Lax` | `tests/integration/platform/test_app.py` |
 | PLT-11 | TC-PLT-11a | integration | `GET /health` | `200` con JSON `{"status": "ok"}` | `tests/integration/platform/test_health.py` |
 | PLT-11 | TC-PLT-11b | integration | `GET /health` sin sesión | `200` (no redirige ni pide autenticación) | `tests/integration/platform/test_health.py` |
+| PLT-12 | TC-PLT-12a | integration | `GET /openapi.json` | `200`, `Content-Type: application/json` y el campo `openapi` empieza con `3.1` | `tests/integration/platform/test_api_docs.py` |
+| PLT-12 | TC-PLT-12b | integration | `GET /openapi.json` sin sesión | `200` (no pide autenticación) | `tests/integration/platform/test_api_docs.py` |
+| PLT-13 | TC-PLT-13a | integration | `GET /docs` sin sesión | `200`, `text/html` y el HTML apunta a `/openapi.json` | `tests/integration/platform/test_api_docs.py` |
+| PLT-13 | TC-PLT-13b | integration | `GET /docs` | Los assets de Swagger UI se cargan con la versión fija `swagger-ui-dist@5.17.14` | `tests/integration/platform/test_api_docs.py` |
+| PLT-14 | TC-PLT-14a | integration | Cada regla de `app.url_map` (sin `static`, `HEAD` ni `OPTIONS`) | Existe en los `paths` del contrato con el mismo método | `tests/integration/platform/test_api_docs.py` |
+| PLT-14 | TC-PLT-14b | integration | Cada par ruta-método de los `paths` del contrato | Existe en `app.url_map` | `tests/integration/platform/test_api_docs.py` |
 
 ## Casos borde
 
@@ -43,3 +49,4 @@ Fixtures (`tests/conftest.py`):
 |-----|-------|
 | RNF 1 (TDD, aislamiento) | TC-PLT-04a, 04b |
 | RNF 2 (seguridad) | TC-PLT-03a, 10a, 10b |
+| RNF 7 (documentación de la API) | TC-PLT-12a, 12b, 13a, 13b, 14a, 14b |
