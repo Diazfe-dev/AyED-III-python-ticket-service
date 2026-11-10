@@ -8,7 +8,7 @@ from flask import Flask
 
 from app import db
 from app.config import load_config
-from app.controllers import health
+from app.controllers import api_docs, health
 
 
 def create_app(overrides: Mapping[str, Any] | None = None) -> Flask:
@@ -18,6 +18,7 @@ def create_app(overrides: Mapping[str, Any] | None = None) -> Flask:
     _ensure_instance_folder(app)
     db.init_app(app)
     app.register_blueprint(health.bp)
+    app.register_blueprint(api_docs.bp)
     return app
 
 
