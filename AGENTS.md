@@ -68,36 +68,38 @@ app/
   __init__.py          # create_app(): config, blueprints, manejadores de errores y comandos
   config.py            # load_config(): configuración desde el entorno
   db.py                # engine, sessionmaker, sesión por request, comando init-db (create_all), fits_integer_column
-  wiring.py            # get_catalog_service: arma los services del request sin que los controllers toquen la Session
+  wiring.py            # get_catalog_service y get_product_service: arman los services del request sin que los controllers toquen la Session
   auth.py              # get_user_service, current_user y decoradores login_required (401) y admin_required (403)
   cli.py               # comando create-admin
   domain/              # Entidades mapeadas con SQLAlchemy; sin Flask ni HTTP
     base.py            # Base(DeclarativeBase)
-    errors.py          # DomainError y subclases (ValidationError, DuplicateUserError, CategoryInUseError, ...)
+    errors.py          # DomainError y subclases (ValidationError, DuplicateUserError, CategoryInUseError, ProductTypeInUseError, ...)
     ticket.py          # Ticket (agregado raíz)
     states.py          # State, NewState, InProgressState, ClosedState
     milestone.py       # Milestone (inmutable)
     state_change.py    # StateChange (registro de auditoría)
     users.py           # User, Admin, Representative, Client (tabla única) y ROLE_CLASSES
-    products.py        # Category, ProductType (name + name_key) y normalize_name; Product en 03-products
+    products.py        # Category, ProductType y Product (mixin CatalogName: name + name_key), normalize_name
     notifications.py   # Notification (interfaz), MailNotification, WhatsappNotification
   services/            # Casos de uso: orquestan dominio, repositorios y notificaciones
     passwords.py       # PasswordHasher (protocolo) y WerkzeugPasswordHasher
     validation.py      # validadores de campos compartidos (text_error, id_error, parse_id, raise_if_invalid)
     user_service.py    # UserService
     catalog_service.py # CatalogService: ABM y listados de categorías y tipos de producto
+    product_service.py # ProductService: alta, modificación, baja lógica y listados de productos
   repositories/        # Consultas con la Session de SQLAlchemy; devuelven y reciben entidades
     user_repository.py # SqlAlchemyUserRepository
     category_repository.py      # SqlAlchemyCategoryRepository
     product_type_repository.py  # SqlAlchemyProductTypeRepository
+    product_repository.py       # SqlAlchemyProductRepository (sin métodos de borrado)
   controllers/         # Blueprints de Flask: HTTP de entrada y salida, nada más
     health.py          # /health
     api_docs.py        # /openapi.json y /docs
     auth.py            # POST /login y POST /logout
     users.py           # gestión de usuarios (solo Admin)
-    catalog.py         # categorías y tipos de producto (CatalogController)
+    catalog.py         # categorías, tipos de producto y productos (CatalogController)
     errors.py          # tabla DomainError → status y código JSON
-    serializers.py     # lectura del cuerpo JSON y representación de usuarios, categorías y tipos
+    serializers.py     # lectura del cuerpo JSON y representación de usuarios, categorías, tipos y productos
 tests/
   conftest.py          # fixtures: app con base en memoria, client, usuarios de prueba
   unit/                # dominio y servicios, sin Flask ni disco (fakes.py: dobles compartidos, como CommitSpy)

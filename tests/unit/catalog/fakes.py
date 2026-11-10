@@ -1,9 +1,9 @@
 """In-memory test doubles for the catalog service: no Flask, no database."""
 
-from app.domain.products import Category, ProductType, normalize_name
+from app.domain.products import Category, Product, ProductType, normalize_name
 
 
-def _by_name(entity: Category | ProductType) -> tuple[str, int]:
+def _by_name(entity: Category | ProductType | Product) -> tuple[str, int]:
     return entity.name_key, entity.id
 
 
@@ -69,6 +69,50 @@ class FakeProductTypeRepository:
         )
         return next(found, None)
 
+    def has_products(self, product_type_id: int) -> bool:
+        return bool(self.product_types[product_type_id].products)
+
     def delete(self, product_type: ProductType) -> None:
         del self.product_types[product_type.id]
         product_type.category.product_types.remove(product_type)
+
+
+class FakeProductRepository:
+    """Dictionary-backed repository; `back_populates` keeps `ProductType.products` in sync."""
+
+    def __init__(self) -> None:
+        self.products: dict[int, Product] = {}
+        self._next_id = 1
+
+    def add(self, product: Product) -> None:
+        if product.id is None:
+            product.id = self._next_id
+            self._next_id += 1
+        self.products[product.id] = product
+
+    def get(self, product_id: int) -> Product | None:
+        return self.products.get(product_id)
+
+    def find_by_name_in_type(self, name: str, product_type_id: int) -> Product | None:
+        wanted = normalize_name(name)
+        found = (
+            p
+            for p in self.products.values()
+            if p.product_type.id == product_type_id and p.name_key == wanted
+        )
+        return next(found, None)
+
+    def list_matching(
+        self,
+        category_id: int | None = None,
+        product_type_id: int | None = None,
+        active_only: bool = False,
+    ) -> list[Product]:
+        matching = [
+            p
+            for p in self.products.values()
+            if category_id in (None, p.product_type.category.id)
+            and product_type_id in (None, p.product_type.id)
+            and (p.is_active or not active_only)
+        ]
+        return sorted(matching, key=_by_name)

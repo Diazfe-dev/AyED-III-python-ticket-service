@@ -3,10 +3,10 @@ from flask import Flask
 from sqlalchemy.orm import Session
 
 from app.db import EXTENSION_KEY
-from app.domain.errors import DuplicateProductTypeError
-from app.domain.products import Category, ProductType
+from app.domain.errors import DuplicateProductTypeError, ProductTypeInUseError
+from app.domain.products import Category, Product, ProductType
 from app.repositories.product_type_repository import SqlAlchemyProductTypeRepository
-from tests.conftest import MakeCategory
+from tests.conftest import MakeCategory, MakeProduct, MakeProductType
 
 
 def new_session(app: Flask) -> Session:
@@ -77,3 +77,44 @@ def test_deleted_product_type_is_gone_and_its_category_stays(
 def test_get_with_an_id_beyond_sqlite_integers_finds_nothing(db_session: Session) -> None:
     """SPEC-PTY-06 · TC-PTY-06g"""
     assert SqlAlchemyProductTypeRepository(db_session).get(2**63) is None
+
+
+def test_has_products_counts_inactive_products(
+    db_session: Session,
+    make_category: MakeCategory,
+    make_product_type: MakeProductType,
+    make_product: MakeProduct,
+) -> None:
+    """SPEC-PTY-08 · TC-PTY-08d"""
+    hardware = make_category("Hardware")
+    used, empty = make_product_type(hardware), make_product_type(hardware)
+    make_product(used, is_active=False)
+    repository = SqlAlchemyProductTypeRepository(db_session)
+
+    assert repository.has_products(used.id) is True
+    assert repository.has_products(empty.id) is False
+
+
+def test_deleting_a_product_type_with_products_raises_in_use_and_keeps_both_rows(
+    app: Flask,
+    db_session: Session,
+    make_category: MakeCategory,
+    make_product_type: MakeProductType,
+    make_product: MakeProduct,
+) -> None:
+    """SPEC-PTY-08 · TC-PTY-08b"""
+    product_type = make_product_type(make_category("Hardware"))
+    product = make_product(product_type)
+    assert product_type.products == [product]
+
+    with pytest.raises(ProductTypeInUseError) as raised:
+        SqlAlchemyProductTypeRepository(db_session).delete(product_type)
+    db_session.rollback()
+
+    assert "FOREIGN KEY" in str(raised.value.__cause__)
+
+    with new_session(app) as other_session:
+        assert other_session.get(ProductType, product_type.id) is not None
+        stored_product = other_session.get(Product, product.id)
+        assert stored_product is not None
+        assert stored_product.product_type_id == product_type.id

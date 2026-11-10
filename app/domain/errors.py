@@ -64,3 +64,15 @@ class CategoryNotFoundError(DomainError):
 
 class ProductTypeNotFoundError(DomainError):
     message = "Product type not found."
+
+
+class DuplicateProductError(DomainError):
+    message = "A product with this name already exists in the product type."
+
+
+class ProductTypeInUseError(DomainError):
+    message = "The product type has products and cannot be deleted."
+
+
+class ProductNotFoundError(DomainError):
+    message = "Product not found."

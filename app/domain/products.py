@@ -1,4 +1,4 @@
-"""Product catalog classification: categories and their product types."""
+"""Product catalog: categories, their product types and the products of each type."""
 
 from sqlalchemy import ForeignKey, String, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship, validates
@@ -52,3 +52,25 @@ class ProductType(CatalogName, Base):
         ForeignKey("categories.id", ondelete="RESTRICT"), index=True
     )
     category: Mapped[Category] = relationship(back_populates="product_types")
+    products: Mapped[list["Product"]] = relationship(
+        back_populates="product_type", passive_deletes="all"
+    )
+
+
+class Product(CatalogName, Base):
+    """A product of one product type; it is deactivated, never deleted."""
+
+    __tablename__ = "products"
+    __table_args__ = (
+        UniqueConstraint("product_type_id", "name_key", name="uq_products_type_name"),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    product_type_id: Mapped[int] = mapped_column(
+        ForeignKey("product_types.id", ondelete="RESTRICT"), index=True
+    )
+    is_active: Mapped[bool] = mapped_column(default=True)
+    product_type: Mapped[ProductType] = relationship(back_populates="products")
+
+    def deactivate(self) -> None:
+        self.is_active = False

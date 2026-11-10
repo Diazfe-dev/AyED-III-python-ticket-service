@@ -8,10 +8,11 @@ from app.domain.errors import (
     CategoryNotFoundError,
     DuplicateCategoryError,
     DuplicateProductTypeError,
+    ProductTypeInUseError,
     ProductTypeNotFoundError,
     ValidationError,
 )
-from app.domain.products import Category, ProductType
+from app.domain.products import Category, Product, ProductType
 from app.services.catalog_service import CatalogService
 from tests.unit.catalog.fakes import FakeCategoryRepository, FakeProductTypeRepository
 from tests.unit.fakes import CommitSpy
@@ -429,6 +430,20 @@ def test_delete_unknown_product_type_is_rejected(sut: ServiceUnderTest) -> None:
     with pytest.raises(ProductTypeNotFoundError):
         sut.service.delete_product_type(9999)
 
+    assert sut.commit.calls == 0
+
+
+def test_delete_product_type_with_an_inactive_product_is_rejected(
+    sut: ServiceUnderTest, hardware: Category
+) -> None:
+    """SPEC-PTY-08 · TC-PTY-08a"""
+    notebook = add_type(sut, "Notebook", hardware)
+    Product(name="XPS 13", product_type=notebook, is_active=False)
+
+    with pytest.raises(ProductTypeInUseError):
+        sut.service.delete_product_type(notebook.id)
+
+    assert sut.product_types.get(notebook.id) is notebook
     assert sut.commit.calls == 0
 
 

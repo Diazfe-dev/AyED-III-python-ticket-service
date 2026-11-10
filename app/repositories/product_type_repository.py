@@ -1,12 +1,12 @@
 """Persistence of product types on top of the SQLAlchemy session."""
 
-from sqlalchemy import select
+from sqlalchemy import exists, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.db import fits_integer_column
-from app.domain.errors import DuplicateProductTypeError
-from app.domain.products import ProductType, normalize_name
+from app.domain.errors import DuplicateProductTypeError, ProductTypeInUseError
+from app.domain.products import Product, ProductType, normalize_name
 
 
 class SqlAlchemyProductTypeRepository:
@@ -36,6 +36,15 @@ class SqlAlchemyProductTypeRepository:
         )
         return self._session.scalars(statement).one_or_none()
 
+    def has_products(self, product_type_id: int) -> bool:
+        """Whether any product, active or inactive, belongs to the type."""
+        statement = select(exists().where(Product.product_type_id == product_type_id))
+        return bool(self._session.scalar(statement))
+
     def delete(self, product_type: ProductType) -> None:
+        """Delete and flush; the foreign key rejects a product type that still has products."""
         self._session.delete(product_type)
-        self._session.flush()
+        try:
+            self._session.flush()
+        except IntegrityError as error:
+            raise ProductTypeInUseError() from error
