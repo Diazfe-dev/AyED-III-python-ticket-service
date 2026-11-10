@@ -9,7 +9,6 @@ from app.domain.errors import (
     InvalidCredentialsError,
     SelfDeactivationError,
     UserNotFoundError,
-    ValidationError,
 )
 from app.domain.users import (
     DEFAULT_CHANNEL,
@@ -19,10 +18,9 @@ from app.domain.users import (
     normalize_email,
 )
 from app.services.passwords import PasswordHasher
+from app.services.validation import INVALID, provided, raise_if_invalid, text_error
 
 EMAIL_PATTERN = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
-REQUIRED = "required"
-INVALID = "invalid"
 TOO_SHORT = "too_short"
 MIN_PASSWORD_LENGTH = 8
 
@@ -57,9 +55,9 @@ class UserService:
         preferred_channel: Any = None,
     ) -> User:
         """Create an active user; input comes unchecked from the caller and is validated here."""
-        _raise_if_invalid(
+        raise_if_invalid(
             {
-                "name": _text_error(name),
+                "name": text_error(name),
                 "email": _email_error(email),
                 "role": _role_error(role),
                 "password": _password_error(password),
@@ -88,8 +86,8 @@ class UserService:
     ) -> User:
         """Change the given data of a user; a field left as `None` keeps its value."""
         user = self._get_existing(user_id)
-        changes = _provided(name=name, email=email, preferred_channel=preferred_channel)
-        _raise_if_invalid(
+        changes = provided(name=name, email=email, preferred_channel=preferred_channel)
+        raise_if_invalid(
             {field: UPDATABLE_FIELDS[field](value) for field, value in changes.items()}
         )
         if "email" in changes:
@@ -142,40 +140,22 @@ class UserService:
             raise DuplicateUserError()
 
 
-def _provided(**values: Any) -> dict[str, Any]:
-    return {field: value for field, value in values.items() if value is not None}
-
-
-def _raise_if_invalid(errors: dict[str, str | None]) -> None:
-    fields = {field: reason for field, reason in errors.items() if reason is not None}
-    if fields:
-        raise ValidationError(fields)
-
-
-def _text_error(value: Any) -> str | None:
-    if value is None:
-        return REQUIRED
-    if not isinstance(value, str):
-        return INVALID
-    return None if value.strip() else REQUIRED
-
-
 def _email_error(value: Any) -> str | None:
-    error = _text_error(value)
+    error = text_error(value)
     if error is not None:
         return error
     return None if EMAIL_PATTERN.match(normalize_email(value)) else INVALID
 
 
 def _role_error(value: Any) -> str | None:
-    error = _text_error(value)
+    error = text_error(value)
     if error is not None:
         return error
     return None if value in ROLE_CLASSES else INVALID
 
 
 def _password_error(value: Any) -> str | None:
-    error = _text_error(value)
+    error = text_error(value)
     if error is not None:
         return error
     return TOO_SHORT if len(value) < MIN_PASSWORD_LENGTH else None
@@ -189,7 +169,7 @@ def _channel_error(value: Any) -> str | None:
 
 
 UPDATABLE_FIELDS: dict[str, Callable[[Any], str | None]] = {
-    "name": _text_error,
+    "name": text_error,
     "email": _email_error,
     "preferred_channel": _channel_error,
 }
