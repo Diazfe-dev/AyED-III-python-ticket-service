@@ -14,7 +14,8 @@ Memoria persistente del proyecto. Se lee al empezar cada sesión y se actualiza 
   - [AGENTS.md](AGENTS.md): stack, convenciones, patrones, spec-as-source, prohibiciones, flujo de trabajo, testing/CI y estilo de commits.
   - [specs/](specs/): 90 specs EARS en 6 áreas (USR 21, PTY 14, PRD 10, TKT 22, MLS 10, NTF 13), todas con su sección **Decisiones** y sin preguntas abiertas. Migradas el 2026-11-09 a una carpeta por área (`specs/NN-<área>/spec.md`). Todavía no hay `plan.md`, `tasks.md` ni `test-plan.md`; el avance de cada área se sigue en el índice de [specs/README.md](specs/README.md).
   - [diagrams/](diagrams/): todo en Mermaid. [classes.md](diagrams/classes.md) tiene 2 vistas (dominio y capas) y [sequences/](diagrams/sequences/) tiene 22 diagramas en 6 archivos, uno por área. Se borraron los 4 diagramas de secuencia viejos (`.md` y `.jpg`); hay una copia de respaldo solo en el scratchpad de la sesión del 2026-11-09. `Diagrama.drawio` y `Diagrama-clases.jpg` también se eliminaron (2026-11-10): Mermaid es la única fuente. Los Mermaid pasaron una validación estática, pero todavía no se renderizaron con `mermaid-cli`.
-- No existe todavía: `app/`, `tests/`, `requirements*.txt`, configuración de `ruff`, CI, ni los archivos `plan.md`, `tasks.md` y `test-plan.md`.
+- Scaffolding (2026-11-10): repo git en GitHub ([Diazfe-dev/AyED-III-python-ticket-service](https://github.com/Diazfe-dev/AyED-III-python-ticket-service)), identidad local con el email noreply de `Diazfe-dev`, `.venv` con Python 3.14.8, `requirements.txt`, `requirements-dev.txt`, `pyproject.toml` (configuración de ruff y pytest) y `.gitignore` completo.
+- No existe todavía: `app/`, `tests/`, CI, ni los archivos `plan.md`, `tasks.md` y `test-plan.md`.
 
 ## Decisiones (y por qué)
 
@@ -37,6 +38,9 @@ Memoria persistente del proyecto. Se lee al empezar cada sesión y se actualiza 
 | 2026-11-09 | Supuestos provisionales en specs: reapertura → `InProgress`; no se aceptan hitos en tickets cerrados; baja de productos o tipos en uso → rechazada; notificaciones simuladas | Permiten avanzar con las specs, pero cada uno figura como pregunta abierta hasta que el equipo lo confirme. **Resueltos por las decisiones siguientes**: la baja de productos cambia a lógica; los demás se confirman. |
 | 2026-11-09 | `plan.md`, `tasks.md` y `test-plan.md` se crean de forma incremental, al empezar a trabajar cada área, y no todos por adelantado | Evita planes especulativos que quedan viejos antes de implementarse. Lo que aprendamos en un área se aplica al planificar la siguiente. Regla: un área no se implementa hasta tener sus cuatro archivos. |
 | 2026-11-09 | Diagramas de secuencia en Mermaid, uno por área, en `diagrams/sequences/` (22 diagramas que citan sus SPEC-ID) | Se versionan como texto y se ven en GitHub y VS Code. Siguen la arquitectura Controller → Service → Repository de AGENTS.md y usan nombres en `snake_case`. No van en `specs/NN-<área>/` porque esas carpetas admiten como máximo 4 archivos. |
+| 2026-11-10 | Venv local con Python 3.14; `requires-python >= 3.12` y ruff con `target-version = py312` | Se usa la 3.14 porque es estable y tiene wheels para todas las dependencias. La 3.15 está instalada pero es muy reciente. El código se escribe compatible con 3.12, que es el mínimo de la constitución. |
+| 2026-11-10 | Dependencias con versión exacta: Flask 3.1.3, SQLAlchemy 2.0.57, pytest 9.2.0, pytest-cov 7.1.0, ruff 0.17.4 | Builds reproducibles. **SQLAlchemy se mantiene en 2.0.x** aunque ya existe la 2.1 (2.1.8), porque la constitución fija 2.0. Pasar a 2.1 requiere modificar la constitución. |
+| 2026-11-10 | Reglas de ruff: E, W, F, I, N, B, UP, T20 | Además de PEP 8 incluyen naming (N), bugbear (B), modernización (UP) y la prohibición de `print()` (T20), que hace cumplir una prohibición de AGENTS.md. |
 | 2026-11-09 | Diagrama de clases reescrito en Mermaid (`diagrams/classes.md`) y alineado con las secuencias. **Reemplaza al de `Diagrama.drawio`** | Una sola fuente en texto, versionable y visible en GitHub. Respecto del drawio se eliminan `TicketManager` (objeto dios), `MilestoneService`/`MilestoneRepository` (los hitos son parte del agregado `Ticket`) y `NotificationController` (las notificaciones son internas y no se exponen por HTTP). `ProductsController` pasa a llamarse `CatalogController`. Se agregan `CatalogService`, `ProductService`, `AuthController` y la entidad `Notification`. |
 | 2026-11-09 | Rol `Admin` propio, como subclase de `User`. El primer admin se crea con el comando CLI `create-admin` y un admin no puede darse de baja a sí mismo | Los diagramas 1 y 4 lo usaban como actor sin clase. Separa la administración de la atención de tickets. Por CLI se evita el problema de quién crea al primer admin. RF 1.1.5, SPEC-USR-20 y SPEC-USR-21. |
 | 2026-11-09 | Baja lógica de usuarios (`is_active`) | La baja física rompería la auditoría de hitos y cambios de estado (RNF 5 y 6). Un usuario inactivo no puede iniciar sesión y su email sigue reservado. |
@@ -72,10 +76,9 @@ Memoria persistente del proyecto. Se lee al empezar cada sesión y se actualiza 
 ## Próximos pasos
 
 1. Verificar en GitHub que los diagramas Mermaid se rendericen correctamente.
-2. Inicializar git, `.gitignore` (`.venv`, `*.db`, `.env`, `__pycache__`) y la rama `main`. Considerar un `CODEOWNERS` para `AGENTS.md` y `docs/constitution.md`.
-3. Crear `requirements.txt` (Flask, SQLAlchemy) y `requirements-dev.txt` (pytest, pytest-cov, ruff), y configurar `ruff` en `pyproject.toml`.
-4. Esqueleto: `create_app()`, `db.py` (engine, sesión por request, `init-db`, `create-admin`), `conftest.py` con base en memoria.
-5. Configurar el CI en GitHub Actions (ruff + pytest con cobertura ≥ 90 %).
-6. Crear `plan.md`, `tasks.md` y `test-plan.md` de `specs/01-users/` (con revisión) antes de su primer ciclo TDD.
-7. Primer ciclo TDD (área 01-users): `User` con roles e `is_active`, alta con email único (RNF 3) y login (RNF 2).
-8. Después: `Ticket` con el patrón State y `StateChange` (RNF 6), hitos inmutables (RNF 5), privacidad (RNF 4), catálogo y notificaciones.
+2. Considerar un `CODEOWNERS` para `AGENTS.md` y `docs/constitution.md`, y activar la protección de rama de `main` en GitHub.
+3. Esqueleto: `create_app()`, `db.py` (engine, sesión por request, `init-db`, `create-admin`), `conftest.py` con base en memoria.
+4. Configurar el CI en GitHub Actions (ruff + pytest con cobertura ≥ 90 %).
+5. Crear `plan.md`, `tasks.md` y `test-plan.md` de `specs/01-users/` (con revisión) antes de su primer ciclo TDD.
+6. Primer ciclo TDD (área 01-users): `User` con roles e `is_active`, alta con email único (RNF 3) y login (RNF 2).
+7. Después: `Ticket` con el patrón State y `StateChange` (RNF 6), hitos inmutables (RNF 5), privacidad (RNF 4), catálogo y notificaciones.

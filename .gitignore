@@ -1,2 +1,23 @@
+# Local tooling
 .atl
+.codegraph/
 .DS_Store
+
+# Python
+.venv/
+__pycache__/
+*.py[cod]
+
+# Tests and coverage
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Lint
+.ruff_cache/
+
+# Local data and secrets
+*.db
+*.sqlite3
+.env
+instance/
