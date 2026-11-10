@@ -1,4 +1,6 @@
-from collections.abc import Iterator
+import itertools
+from collections.abc import Callable, Iterator
+from functools import cache
 
 import pytest
 from flask import Flask
@@ -8,6 +10,10 @@ from sqlalchemy.orm import Session
 from app import create_app
 from app.db import EXTENSION_KEY, create_schema, get_engine
 from app.domain.base import Base
+from app.domain.users import ROLE_CLASSES, User
+from app.services.passwords import WerkzeugPasswordHasher
+
+MakeUser = Callable[..., User]
 
 
 @pytest.fixture
@@ -45,3 +51,35 @@ def db_session(app: Flask, schema: None) -> Iterator[Session]:
     session = app.extensions[EXTENSION_KEY]["session_factory"]()
     yield session
     session.close()
+
+
+@cache
+def _hash(password: str) -> str:
+    """Hash each test password once: the real scrypt hash is slow."""
+    return WerkzeugPasswordHasher().hash(password)
+
+
+@pytest.fixture
+def make_user(db_session: Session) -> MakeUser:
+    """Persist and commit a user with a real hash; emails are unique unless given."""
+    sequence = itertools.count(1)
+
+    def make(
+        role: str = "Client",
+        email: str | None = None,
+        password: str = "password1",
+        is_active: bool = True,
+        name: str = "Test User",
+    ) -> User:
+        user = ROLE_CLASSES[role](
+            name=name,
+            email=email or f"{role.lower()}{next(sequence)}@x.com",
+            password_hash=_hash(password),
+            preferred_channel="mail",
+            is_active=is_active,
+        )
+        db_session.add(user)
+        db_session.commit()
+        return user
+
+    return make
