@@ -5,7 +5,7 @@ Spec: [specs/01-users/spec.md](../../specs/01-users/spec.md)
 Convenciones comunes a los cuatro diagramas:
 
 - `UserService` recibe por constructor el repositorio, un `PasswordHasher` y la función `commit` (en producción, `session.commit`). El repositorio nunca hace commit.
-- Las excepciones de dominio llegan a `register_error_handlers`, que las traduce a JSON con una tabla: `ValidationError` → `400`, `InvalidCredentialsError` → `401`, `UserNotFoundError` → `404`, `DuplicateUserError` y `SelfDeactivationError` → `409`.
+- Las excepciones de dominio llegan a `register_error_handlers`, que las traduce a JSON con una tabla: `ValidationError` → `400`, `InvalidCredentialsError` → `401`, `UserNotFoundError` → `404`, `DuplicateUserError` y `SelfDeactivationError` → `409`. Una ruta o un método que la API no expone responde `404` `not_found` o `405` `method_not_allowed` (SPEC-PLT-15) y un error no manejado `500` `internal_error` (SPEC-PLT-16).
 - `admin_required` responde `401` `authentication_required` sin sesión y `403` `forbidden` si el usuario no es `Admin`. Un usuario inexistente o inactivo cuenta como sin sesión.
 
 ## 1. Alta de usuario
@@ -125,10 +125,10 @@ sequenceDiagram
             UC-->>Admin: 409 self_deactivation (SPEC-USR-21)
         else otro usuario
             US->>UR: get(user_id)
-            UR-->>US: user o None
+            UR-->>US: user o None (None también para un id fuera del rango de SQLite)
             alt el usuario no existe
                 US-->>UC: raise UserNotFoundError
-                UC-->>Admin: 404 user_not_found
+                UC-->>Admin: 404 user_not_found (SPEC-USR-26)
             else el usuario existe
                 US->>US: user.deactivate() pone is_active = False (SPEC-USR-09)
                 US->>US: commit()

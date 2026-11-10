@@ -1,9 +1,11 @@
-"""Translation of domain exceptions into JSON HTTP responses."""
+"""Translation of domain and HTTP errors into JSON HTTP responses."""
 
+import json
 from collections.abc import Callable
 
 from flask import Flask, jsonify
 from flask.typing import ResponseReturnValue
+from werkzeug.exceptions import HTTPException, InternalServerError, MethodNotAllowed, NotFound
 
 from app.domain.errors import (
     CategoryInUseError,
@@ -33,13 +35,36 @@ ERROR_RESPONSES: dict[type[DomainError], tuple[int, str]] = {
 }
 
 
+# `InternalServerError` and not `Exception`: Flask calls it once the error escaped the view, so
+# the teardown still receives the exception and rolls back. Its body never carries the message.
+HTTP_ERROR_RESPONSES: dict[type[HTTPException], str] = {
+    NotFound: "not_found",
+    MethodNotAllowed: "method_not_allowed",
+    InternalServerError: "internal_error",
+}
+
+
 def register_error_handlers(app: Flask) -> None:
     for error_class, (status, code) in ERROR_RESPONSES.items():
         app.register_error_handler(error_class, _json_error(status, code))
+    for http_error_class, http_code in HTTP_ERROR_RESPONSES.items():
+        app.register_error_handler(http_error_class, _json_http_error(http_code))
 
 
 def _json_error(status: int, code: str) -> Callable[[DomainError], ResponseReturnValue]:
     def handle(error: DomainError) -> ResponseReturnValue:
         return jsonify(error=code, **error.details), status
+
+    return handle
+
+
+def _json_http_error(code: str) -> Callable[[HTTPException], ResponseReturnValue]:
+    """Keep werkzeug's status and headers (such as `Allow`) and replace the HTML body."""
+
+    def handle(error: HTTPException) -> ResponseReturnValue:
+        response = error.get_response()
+        response.set_data(json.dumps({"error": code}))
+        response.mimetype = "application/json"
+        return response
 
     return handle

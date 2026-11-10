@@ -30,6 +30,15 @@ def app() -> Iterator[Flask]:
 
 
 @pytest.fixture
+def unpropagated_app() -> Iterator[Flask]:
+    """A testing app that handles unhandled errors as in production instead of re-raising them."""
+    app = create_app({"TESTING": True, "PROPAGATE_EXCEPTIONS": False})
+    yield app
+    with app.app_context():
+        get_engine().dispose()
+
+
+@pytest.fixture
 def client(app: Flask) -> FlaskClient:
     return app.test_client()
 

@@ -132,6 +132,28 @@ def test_unhandled_exception_rolls_back_before_closing(
     assert rows == 0
 
 
+def test_unhandled_exception_rolls_back_with_the_internal_error_handler_active(
+    unpropagated_app: Flask, metadata: MetaData, session_calls: list[str]
+) -> None:
+    """SPEC-PLT-08 · TC-PLT-08b"""
+    parent = metadata.tables["parent"]
+    with unpropagated_app.app_context():
+        metadata.create_all(get_engine())
+
+    @unpropagated_app.get("/test/failure")
+    def fail_after_add() -> str:
+        get_session().execute(insert(parent).values(id=1))
+        raise RuntimeError("boom")
+
+    response = unpropagated_app.test_client().get("/test/failure")
+
+    with unpropagated_app.app_context(), get_engine().connect() as connection:
+        rows = connection.execute(select(func.count()).select_from(parent)).scalar_one()
+    assert response.status_code == 500
+    assert session_calls == ["rollback", "close"]
+    assert rows == 0
+
+
 def test_create_schema_creates_metadata_tables(app: Flask, metadata: MetaData) -> None:
     """SPEC-PLT-09 · TC-PLT-09a"""
     with app.app_context():

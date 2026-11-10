@@ -164,7 +164,7 @@ def test_admin_updates_name_email_and_channel_but_not_role(
 
 
 def test_update_of_unknown_user_is_not_found(admin_client: FlaskClient) -> None:
-    """SPEC-USR-07 · TC-USR-07e"""
+    """SPEC-USR-26 · TC-USR-26c"""
     response = admin_client.patch("/users/9999", json={"name": "Nobody"})
 
     assert response.status_code == 404
@@ -237,8 +237,22 @@ def test_admin_deactivates_a_user(admin_client: FlaskClient, make_user: MakeUser
 
 
 def test_deactivating_an_unknown_user_is_not_found(admin_client: FlaskClient) -> None:
-    """SPEC-USR-09 · TC-USR-09d"""
+    """SPEC-USR-26 · TC-USR-26d"""
     response = admin_client.post("/users/9999/deactivate")
+
+    assert response.status_code == 404
+    assert response.get_json() == {"error": "user_not_found"}
+
+
+@pytest.mark.parametrize(
+    ("method", "path"),
+    [("PATCH", f"/users/{2**63}"), ("POST", f"/users/{2**63}/deactivate")],
+)
+def test_user_id_beyond_sqlite_integers_is_not_found(
+    admin_client: FlaskClient, method: str, path: str
+) -> None:
+    """SPEC-USR-26 · TC-USR-26f"""
+    response = admin_client.open(path, method=method, json={"name": "Nobody"})
 
     assert response.status_code == 404
     assert response.get_json() == {"error": "user_not_found"}

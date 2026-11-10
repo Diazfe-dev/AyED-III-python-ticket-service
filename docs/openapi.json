@@ -3,7 +3,7 @@
   "info": {
     "title": "Ticket Service API",
     "version": "0.1.0",
-    "description": "JSON API of the support ticket management system."
+    "description": "JSON API of the support ticket management system.\n\nEvery error response is a JSON object with an `error` code, in the shape of the `Error` schema. Besides the errors of each operation, any request can get:\n\n- `404` `{\"error\": \"not_found\"}` for a path the API does not expose, including a non-numeric id in the URL.\n- `405` `{\"error\": \"method_not_allowed\"}` for a method the path does not accept; the `Allow` header lists the accepted ones.\n- `500` `{\"error\": \"internal_error\"}` for an unexpected failure, without internal details."
   },
   "security": [
     {
