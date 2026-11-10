@@ -1,6 +1,6 @@
 # 00 — Plataforma · Tasks
 
-Estados: `[ ]` pendiente · `[~]` en curso · `[x]` hecha. Cada task es un ciclo TDD con los casos de [test-plan.md](test-plan.md).
+Estados: `[ ]` pendiente · `[~]` en curso · `[x]` hecha. Cada task es un ciclo TDD con los casos de [test-plan.md](test-plan.md). T-PLT-14 a 16 se agregaron el 2026-11-10 (SPEC-PLT-15 y 16) sin renumerar las demás.
 
 | Estado | ID | Task | Specs | Capa | Terminado cuando |
 |--------|----|------|-------|------|------------------|
@@ -16,4 +16,7 @@ Estados: `[ ]` pendiente · `[~]` en curso · `[x]` hecha. Cada task es un ciclo
 | [x] | T-PLT-11 | `docs/openapi.json` inicial y `GET /openapi.json` | PLT-12 | Contrato / Controllers | TC-PLT-12a y 12b en verde |
 | [x] | T-PLT-12 | `GET /docs` con Swagger UI | PLT-13 | Controllers | TC-PLT-13a y 13b en verde |
 | [x] | T-PLT-13 | Test de sincronización entre las rutas de Flask y el contrato | PLT-14 | Tests | TC-PLT-14a y 14b en verde |
+| [x] | T-PLT-14 | Respuestas JSON para rutas y métodos que la API no expone: tabla `HTTP_ERROR_RESPONSES` en `app/controllers/errors.py` | PLT-15 | Controllers | TC-PLT-15a, 15b y 15c en verde |
+| [x] | T-PLT-15 | `500` JSON genérico sobre `InternalServerError`, sin tragarse las `DomainError` ni las `HTTPException`, y rollback de PLT-08 con el manejador activo. Fixture `unpropagated_app` | PLT-08, 16 | Controllers / tests | TC-PLT-16a, 16b, 16c y 08b en verde, y TC-PLT-08a sigue en verde |
+| [x] | T-PLT-16 | Contrato (`info.description` con los errores comunes) y cierre: `ruff`, cobertura ≥ 90 % y `MEMORY.md` | PLT-15, 16 | Contrato | TC-PLT-14a y 14b siguen en verde; `ruff check`, `ruff format --check` y `pytest --cov=app --cov-fail-under=90` en verde |
 | [x] | T-PLT-10 | Cierre del área: `ruff`, cobertura ≥ 90 % y README de specs actualizado | Todas | — | `ruff check`, `ruff format --check` y `pytest --cov=app --cov-fail-under=90` en verde |

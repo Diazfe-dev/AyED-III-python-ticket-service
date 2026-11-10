@@ -47,16 +47,16 @@ Contraseña válida de referencia en los casos: `"password1"` (9 caracteres).
 | USR-06 | TC-USR-06c | integration | `POST /users` sin `preferred_channel` | La respuesta tiene `preferred_channel: "mail"` | `tests/integration/users/test_users_api.py` |
 | USR-07 | TC-USR-07a | unit | `update_user(id, name=..., email=..., preferred_channel=...)` | Los tres datos cambian (email normalizado) y hay un commit | `tests/unit/users/test_user_service.py` |
 | USR-07 | TC-USR-07b | unit | `update_user` con el propio email en mayúsculas | No lanza y el email queda normalizado | `tests/unit/users/test_user_service.py` |
-| USR-07 | TC-USR-07c | unit | `update_user` con un id inexistente | Lanza `UserNotFoundError` y no hay commit | `tests/unit/users/test_user_service.py` |
+| USR-07 | TC-USR-07c | unit | **Reemplazado por TC-USR-26a** (SPEC-USR-26, 2026-11-10): el usuario inexistente tiene spec propia | — | — |
 | USR-07 | TC-USR-07d | integration | `PATCH /users/{id}` con `name`, `email`, `preferred_channel` y además `role: "Admin"` | `200` con los datos nuevos; el `role` no cambia | `tests/integration/users/test_users_api.py` |
-| USR-07 | TC-USR-07e | integration | `PATCH /users/9999` | `404` `{"error": "user_not_found"}` | `tests/integration/users/test_users_api.py` |
+| USR-07 | TC-USR-07e | integration | **Reemplazado por TC-USR-26c** (SPEC-USR-26, 2026-11-10) | — | — |
 | USR-08 | TC-USR-08a | unit | Existen A y B; `update_user(A, email=B.email.upper())` | Lanza `DuplicateUserError` y no hay commit | `tests/unit/users/test_user_service.py` |
 | USR-08 | TC-USR-08b | integration | `PATCH /users/{A}` con el email de B | `409` `{"error": "duplicate_email"}` | `tests/integration/users/test_users_api.py` |
 | USR-08 | TC-USR-08c | integration | Se cambia el email de un usuario persistido por el de otro y se llama a `add` | Lanza `DuplicateUserError` (carrera cubierta por el `flush`) | `tests/integration/users/test_user_repository.py` |
 | USR-09 | TC-USR-09a | unit | `user.deactivate()` | `is_active is False` | `tests/unit/users/test_user.py` |
 | USR-09 | TC-USR-09b | unit | `deactivate_user(id, actor=admin)` sobre otro usuario | Queda inactivo, sigue en el repositorio y hay un commit | `tests/unit/users/test_user_service.py` |
 | USR-09 | TC-USR-09c | integration | `POST /users/{id}/deactivate` | `200` con `is_active: false` | `tests/integration/users/test_users_api.py` |
-| USR-09 | TC-USR-09d | integration | `POST /users/9999/deactivate` | `404` `{"error": "user_not_found"}` | `tests/integration/users/test_users_api.py` |
+| USR-09 | TC-USR-09d | integration | **Reemplazado por TC-USR-26d** (SPEC-USR-26, 2026-11-10) | — | — |
 | USR-10 | TC-USR-10a | integration | Baja por API y lectura con `db_session` después de `expire_all()` | La fila existe con el mismo nombre, email, rol y hash | `tests/integration/users/test_users_api.py` |
 | USR-10 | TC-USR-10b | integration | Atributos públicos de `SqlAlchemyUserRepository` | No existe ningún método `delete` ni `remove` | `tests/integration/users/test_user_repository.py` |
 | USR-10 | TC-USR-10c | integration | Reglas de `app.url_map` que empiezan con `/users`, `/clients` o `/representatives` | Ninguna acepta `DELETE` | `tests/integration/users/test_users_api.py` |
@@ -113,6 +113,12 @@ Contraseña válida de referencia en los casos: `"password1"` (9 caracteres).
 | USR-25 | TC-USR-25d | integration | `POST /users` con `name: 123` y `preferred_channel: ["mail"]` | `400` `{"error": "validation_error", "fields": {"name": "invalid", "preferred_channel": "invalid"}}` y sin usuario creado | `tests/integration/users/test_users_api.py` |
 | USR-25 | TC-USR-25e | integration | `PATCH /users/{id}` con `email: 123` | `400` con `fields == {"email": "invalid"}` y la fila no cambia | `tests/integration/users/test_users_api.py` |
 | USR-25 | TC-USR-25f | integration | `POST /login` con `email: 123` y con `password: ["password1"]` | `401` `{"error": "invalid_credentials"}` en los dos casos y sin sesión | `tests/integration/users/test_auth_api.py` |
+| USR-26 | TC-USR-26a | unit | `update_user` con un id inexistente (antes TC-USR-07c) | Lanza `UserNotFoundError` y no hay commit | `tests/unit/users/test_user_service.py` |
+| USR-26 | TC-USR-26b | unit | `deactivate_user(999, actor=admin)` | Lanza `UserNotFoundError` y no hay commit | `tests/unit/users/test_user_service.py` |
+| USR-26 | TC-USR-26c | integration | `PATCH /users/9999` (antes TC-USR-07e) | `404` `{"error": "user_not_found"}` | `tests/integration/users/test_users_api.py` |
+| USR-26 | TC-USR-26d | integration | `POST /users/9999/deactivate` (antes TC-USR-09d) | `404` `{"error": "user_not_found"}` | `tests/integration/users/test_users_api.py` |
+| USR-26 | TC-USR-26e | integration | `SqlAlchemyUserRepository.get(2**63)` | Devuelve `None` (no lanza `OverflowError`) | `tests/integration/users/test_user_repository.py` |
+| USR-26 | TC-USR-26f | integration | Parametrizado: `PATCH /users/9223372036854775808` y `POST /users/9223372036854775808/deactivate` (`2**63`) | `404` `{"error": "user_not_found"}` en los dos (antes `500`) | `tests/integration/users/test_users_api.py` |
 
 Además, cada task de endpoint deja en verde TC-PLT-14a y 14b (sincronización entre las rutas y el contrato).
 
@@ -128,7 +134,8 @@ Además, cada task de endpoint deja en verde TC-PLT-14a y 14b (sincronización e
 - Cookie vigente de un usuario dado de baja o inexistente: TC-USR-16b y 16c.
 - Autobaja del administrador: TC-USR-21a y 21b.
 - Claves que `PATCH` no admite (`role`): TC-USR-07d.
-- Usuario inexistente en la modificación y en la baja: TC-USR-07c, 07e y 09d.
+- Usuario inexistente en la modificación y en la baja: TC-USR-26a a 26d.
+- Id mayor que el entero más grande de SQLite (`2**63`): TC-USR-26e y 26f.
 - Modificación con nombre solo con espacios o email vacío: TC-USR-22a y 22c.
 - Canal preferido desconocido en el alta y en la modificación: TC-USR-23a a 23d.
 - Login con email inexistente o usuario inactivo: igual cantidad de `verify` que un login real (TC-USR-24a y 24b).

@@ -6,6 +6,7 @@ Fixtures (`tests/conftest.py`):
 - `app`: `create_app({"TESTING": True})`, nueva para cada test y con su propia base en memoria.
 - `client`: `app.test_client()`.
 - `runner`: `app.test_cli_runner()`.
+- `unpropagated_app`: `create_app({"TESTING": True, "PROPAGATE_EXCEPTIONS": False})`. Con `TESTING`, Flask relanza las excepciones no manejadas; con la propagación apagada sigue el camino de producción y llama al manejador del `500` (SPEC-PLT-16, TC-PLT-08b).
 
 ## Matriz spec → casos
 
@@ -24,6 +25,7 @@ Fixtures (`tests/conftest.py`):
 | PLT-06 | TC-PLT-06b | integration | Dos requests a la misma ruta de prueba | Cada request recibe una sesión distinta | `tests/integration/platform/test_db.py` |
 | PLT-07 | TC-PLT-07a | integration | Espía sobre `Session.close` en un request que usa la sesión | `close()` se invocó una vez al terminar el request | `tests/integration/platform/test_db.py` |
 | PLT-08 | TC-PLT-08a | integration | Ruta de prueba que hace `add()` de una fila y lanza una excepción | Se invoca `rollback()` antes de `close()` y la fila no queda persistida | `tests/integration/platform/test_db.py` |
+| PLT-08 | TC-PLT-08b | integration | Igual que 08a sobre `unpropagated_app` (manejador del `500` activo, como en producción) | `500`; se invoca `rollback()` antes de `close()` y la fila no queda persistida | `tests/integration/platform/test_db.py` |
 | PLT-09 | TC-PLT-09a | integration | `create_schema(engine, metadata_de_prueba)` | Las tablas de la metadata existen | `tests/integration/platform/test_db.py` |
 | PLT-09 | TC-PLT-09b | integration | Insertar una fila y volver a ejecutar `create_schema` | La fila sigue existiendo | `tests/integration/platform/test_db.py` |
 | PLT-09 | TC-PLT-09c | integration | `runner.invoke(args=["init-db"])` | Termina con código 0 e informa que la base se inicializó | `tests/integration/platform/test_cli.py` |
@@ -37,16 +39,26 @@ Fixtures (`tests/conftest.py`):
 | PLT-13 | TC-PLT-13b | integration | `GET /docs` | Los assets de Swagger UI se cargan con la versión fija `swagger-ui-dist@5.17.14` | `tests/integration/platform/test_api_docs.py` |
 | PLT-14 | TC-PLT-14a | integration | Cada regla de `app.url_map` (sin `static`, `HEAD` ni `OPTIONS`) | Existe en los `paths` del contrato con el mismo método | `tests/integration/platform/test_api_docs.py` |
 | PLT-14 | TC-PLT-14b | integration | Cada par ruta-método de los `paths` del contrato | Existe en `app.url_map` | `tests/integration/platform/test_api_docs.py` |
+| PLT-15 | TC-PLT-15a | integration | `GET /no-such-route` sin sesión | `404` `{"error": "not_found"}` en JSON | `tests/integration/platform/test_errors.py` |
+| PLT-15 | TC-PLT-15b | integration | Parametrizado: `PATCH /categories/abc`, `PATCH /users/abc` y `POST /users/abc/deactivate`, sin sesión | `404` `{"error": "not_found"}` en todos (el ruteo corre antes que la autenticación) | `tests/integration/platform/test_errors.py` |
+| PLT-15 | TC-PLT-15c | integration | `DELETE /health` | `405` `{"error": "method_not_allowed"}` en JSON y el header `Allow` incluye `GET` | `tests/integration/platform/test_errors.py` |
+| PLT-16 | TC-PLT-16a | integration | Ruta de prueba en `unpropagated_app` que lanza `RuntimeError("secret-detail")` | `500` `{"error": "internal_error"}` en JSON; el cuerpo no contiene `secret-detail` ni `Traceback` | `tests/integration/platform/test_errors.py` |
+| PLT-16 | TC-PLT-16b | integration | Ruta de prueba en `unpropagated_app` que lanza `UserNotFoundError` | `404` `{"error": "user_not_found"}`: el manejador del `500` no se traga las `DomainError` | `tests/integration/platform/test_errors.py` |
+| PLT-16 | TC-PLT-16c | integration | `GET /no-such-route` en `unpropagated_app` | `404` `{"error": "not_found"}`: el manejador del `500` no se traga las `HTTPException` | `tests/integration/platform/test_errors.py` |
 
 ## Casos borde
 
 - `DATABASE_URL` definida en el entorno y también en los `overrides`: ganan los `overrides` (cubierto en TC-PLT-01b con una variante).
 - Requests que no usan la base: no se abre sesión, así que el teardown no hace nada (cubierto en TC-PLT-11a, porque `/health` no llama `get_session()`).
+- Rollback de PLT-08 con el manejador del `500` activo (configuración de producción): TC-PLT-08b.
+- Identificador no numérico en la URL de un endpoint protegido, sin sesión: TC-PLT-15b.
+- `405` conserva el header `Allow`: TC-PLT-15c.
+- El `500` no se superpone con las `DomainError` ni con los errores HTTP: TC-PLT-16b y 16c.
 
 ## RNF cubiertos
 
 | RNF | Casos |
 |-----|-------|
 | RNF 1 (TDD, aislamiento) | TC-PLT-04a, 04b |
-| RNF 2 (seguridad) | TC-PLT-03a, 10a, 10b |
-| RNF 7 (documentación de la API) | TC-PLT-12a, 12b, 13a, 13b, 14a, 14b |
+| RNF 2 (seguridad) | TC-PLT-03a, 10a, 10b, 16a |
+| RNF 7 (documentación de la API) | TC-PLT-12a, 12b, 13a, 13b, 14a, 14b, 15a a 15c, 16a a 16c |

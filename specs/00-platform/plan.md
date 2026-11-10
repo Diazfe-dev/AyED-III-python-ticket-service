@@ -1,6 +1,6 @@
 # 00 — Plataforma · Plan de implementación
 
-Specs cubiertas: SPEC-PLT-01 a SPEC-PLT-14 ([spec.md](spec.md)).
+Specs cubiertas: SPEC-PLT-01 a SPEC-PLT-16 ([spec.md](spec.md)).
 
 ## Enfoque
 
@@ -16,7 +16,8 @@ Application factory de Flask (`create_app`) que arma la configuración, el engin
 | Dominio | `app/domain/base.py` | `class Base(DeclarativeBase)`. Por ahora sin entidades | PLT-09 |
 | Controllers | `app/controllers/health.py` | Blueprint `health` con `GET /health` | PLT-11 |
 | Controllers | `app/controllers/api_docs.py` | Blueprint `api_docs`: `GET /openapi.json` sirve `docs/openapi.json`; `GET /docs` devuelve el HTML de Swagger UI | PLT-12, 13 |
-| Contrato | `docs/openapi.json` | Contrato OpenAPI 3.1 escrito a mano. Por ahora documenta `/health`, `/openapi.json` y `/docs` | PLT-12, 14 |
+| Controllers | `app/controllers/errors.py` | `register_error_handlers(app)` suma a la tabla de `DomainError` (de `01-users`) una segunda tabla `HTTP_ERROR_RESPONSES = {NotFound: "not_found", MethodNotAllowed: "method_not_allowed", InternalServerError: "internal_error"}` con un único manejador que responde `{"error": "<código>"}` | PLT-15, 16 |
+| Contrato | `docs/openapi.json` | Contrato OpenAPI 3.1 escrito a mano. Por ahora documenta `/health`, `/openapi.json` y `/docs`. `info.description` explica las respuestas de error comunes a toda la API (`404`, `405` y `500`) | PLT-12, 14, 15, 16 |
 
 Carpetas que se crean vacías (con `__init__.py`) para respetar la estructura de [AGENTS.md](../../AGENTS.md): `app/services/`, `app/repositories/`.
 
@@ -45,6 +46,11 @@ Los `overrides` de `create_app` tienen prioridad sobre el entorno. Los tests los
 | Swagger UI desde jsDelivr (`swagger-ui-dist@5.17.14`), con versión fija | Evita versionar los assets en el repo. La versión fija hace que la UI no cambie sola. |
 | Un test compara `app.url_map` con los `paths` del contrato, en los dos sentidos | Es lo que impide que el contrato escrito a mano se desincronice del código (PLT-14). Se ignoran la ruta `static` y los métodos `HEAD` y `OPTIONS`. Las rutas con parámetros de Flask (`<int:ticket_id>`) se convierten al formato OpenAPI (`{ticket_id}`). |
 | `create_all()` sin `drop_all()` | `create_all` solo crea las tablas que faltan, así que `init-db` es idempotente (PLT-09). |
+| Errores HTTP en JSON (PLT-15): el manejador parte de `error.get_response()` y solo reemplaza el cuerpo por `{"error": "<código>"}` con `mimetype` `application/json` | Conserva el status y los headers que arma werkzeug, por ejemplo `Allow` en un `405`. Un id no numérico (`/categories/abc`) no coincide con el conversor `<int:...>`, así que es un `404` de ruteo y no necesita código propio. El ruteo corre antes que `login_required`, así que el `404` o `405` se responde también sin sesión: no revela nada que el contrato público no diga. |
+| Solo `NotFound` y `MethodNotAllowed`, no toda `HTTPException` | Son los dos casos de PLT-15. Un manejador para toda `HTTPException` daría formato a errores que ninguna spec define (hoy no ocurren: `json_body()` usa `get_json(silent=True)`). Si aparece otro error HTTP, se agrega su spec y su fila en la tabla. |
+| El `500` genérico (PLT-16) se registra sobre `InternalServerError` y **no** sobre `Exception` | Flask llama al manejador de `InternalServerError` desde `handle_exception`, cuando la excepción ya salió de `full_dispatch_request`: `wsgi_app` guarda el error original y se lo pasa a `ctx.pop(error)`, así que el teardown recibe `exc` y hace el rollback de PLT-08. Un manejador sobre `Exception` corre dentro de `handle_user_exception`: el request termina "manejado", el teardown recibe `exc=None` y no hay rollback explícito. Además capturaría las `HTTPException` (heredan de `Exception`) y convertiría un `404` en `500`. Las `DomainError` se resuelven antes, por su propia clase, así que su tabla no cambia. El cuerpo es fijo, sin el mensaje ni la traza; Flask registra la excepción en el log (`log_exception`). |
+| El `500` JSON se ve con la configuración de producción (sin `TESTING` ni `DEBUG`) | Con `TESTING` o `DEBUG`, `PROPAGATE_EXCEPTIONS` vale `True` por defecto y Flask relanza la excepción (al test o al debugger) en lugar de llamar al manejador. Los tests de PLT-16 y TC-PLT-08b usan una app con `PROPAGATE_EXCEPTIONS: False`, que sigue el camino real de producción. TC-PLT-08a mantiene la propagación por defecto. |
+| PLT-15 y 16 se documentan en `info.description` del contrato, sin un `404`, `405` o `500` en cada operación | Un `404` o `405` de PLT-15 corresponde a pares ruta-método que justamente **no** están en `paths`, así que no hay operación donde describirlos. El `500` vale igual para todas las operaciones y OpenAPI 3.1 no tiene respuestas globales: repetirlo en cada operación agrega ruido sin información. El test de PLT-14 no cambia porque `paths` no cambia. |
 
 ## Dependencias con otras áreas
 
@@ -59,3 +65,4 @@ Los `overrides` de `create_app` tienen prioridad sobre el entorno. Los tests los
 | Tests que comparten estado a través de la base | Fixture `app` nueva por test, con su propio engine en memoria. |
 | Sin conexión a internet, `/docs` no carga los assets del CDN | Solo afecta a la UI. `/openapi.json` sigue funcionando y se puede abrir con cualquier visor. |
 | Arrancar en producción con una clave insegura | PLT-03: sin `SECRET_KEY`, la app no arranca. |
+| Un manejador de errores que se trague el rollback de PLT-08 | TC-PLT-08b verifica el rollback con el manejador del `500` activo (propagación apagada). |
