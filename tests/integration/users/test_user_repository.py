@@ -99,3 +99,8 @@ def test_repository_has_no_way_to_delete_users() -> None:
     public_names = {name for name in dir(SqlAlchemyUserRepository) if not name.startswith("_")}
 
     assert not {name for name in public_names if "delete" in name or "remove" in name}
+
+
+def test_get_with_an_id_beyond_sqlite_integers_finds_nothing(db_session: Session) -> None:
+    """SPEC-USR-26 · TC-USR-26e"""
+    assert SqlAlchemyUserRepository(db_session).get(2**63) is None

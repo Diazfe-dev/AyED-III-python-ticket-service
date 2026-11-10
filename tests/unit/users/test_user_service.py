@@ -184,7 +184,7 @@ def test_update_user_accepts_its_own_email_in_other_case(sut: ServiceUnderTest, 
 
 
 def test_update_user_with_unknown_id_raises_user_not_found(sut: ServiceUnderTest) -> None:
-    """SPEC-USR-07 · TC-USR-07c"""
+    """SPEC-USR-26 · TC-USR-26a"""
     with pytest.raises(UserNotFoundError):
         sut.service.update_user(999, name="Nobody")
 
@@ -268,6 +268,18 @@ def test_admin_cannot_deactivate_itself(sut: ServiceUnderTest, admin: User) -> N
         sut.service.deactivate_user(admin.id, actor=admin)
 
     assert admin.is_active is True
+    assert sut.commit.calls == commits_before
+
+
+def test_deactivate_user_with_unknown_id_raises_user_not_found(
+    sut: ServiceUnderTest, admin: User
+) -> None:
+    """SPEC-USR-26 · TC-USR-26b"""
+    commits_before = sut.commit.calls
+
+    with pytest.raises(UserNotFoundError):
+        sut.service.deactivate_user(999, actor=admin)
+
     assert sut.commit.calls == commits_before
 
 

@@ -4,6 +4,7 @@ from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
+from app.db import fits_integer_column
 from app.domain.errors import DuplicateUserError
 from app.domain.users import ROLE_CLASSES, User, normalize_email
 
@@ -23,6 +24,9 @@ class SqlAlchemyUserRepository:
             raise DuplicateUserError() from error
 
     def get(self, user_id: int) -> User | None:
+        """The user, or `None`; an id SQLite cannot store matches nothing."""
+        if not fits_integer_column(user_id):
+            return None
         return self._session.get(User, user_id)
 
     def find_by_email(self, email: str) -> User | None:
