@@ -76,6 +76,7 @@ Memoria persistente del proyecto. Se lee al empezar cada sesión y se actualiza 
 - Un comando de CLI agregado con `app.cli.add_command` necesita `@with_appcontext` para usar `current_app`; si no, falla con "Working outside of application context" (pasó con `init-db`).
 - En los tests, las respuestas del test client no siempre se cierran: servir archivos con `send_file` deja el archivo abierto (`ResourceWarning`). Para archivos chicos como el contrato, devolver `read_bytes()`. Además, cada app de test crea un engine en memoria que hay que liberar con `dispose()` al terminar.
 - Las rutas de prueba se registran sobre la app del fixture (nueva por test), nunca en `create_app`, para que el test de sincronización con el contrato (SPEC-PLT-14) vea solo las rutas reales.
+- PRs apilados: GitHub solo cambia la base de un PR a `dev` si se **borra** la rama base después del merge. Si no, el PR se mergea en la rama intermedia y nunca llega a `dev` (pasó el 2026-11-10 con #2 y #3, que se reemplazaron por #4 y #5). Antes de mergear, cambiar la base del PR siguiente a `dev`, o borrar la rama mergeada.
 - El archivo de memoria se llama `MEMORY.md`, en mayúsculas. GitHub distingue mayúsculas en los links aunque macOS no.
 - No hacer una baja física de entidades con historial (usuarios, productos): usar `is_active`.
 - No tomar el representante ni el estado inicial de los parámetros del request: el representante sale de la sesión y el estado lo fija el dominio.
@@ -84,7 +85,7 @@ Memoria persistente del proyecto. Se lee al empezar cada sesión y se actualiza 
 
 1. Verificar en GitHub que los diagramas Mermaid se rendericen correctamente.
 2. Considerar un `CODEOWNERS` para `AGENTS.md` y `docs/constitution.md`, y activar la protección de rama de `main` en GitHub.
-3. Esqueleto (área `00-platform`): **implementado** el 2026-11-10 (T-PLT-01 a T-PLT-13 hechas, 28 tests, cobertura 98 %). Se divide en dos PRs apilados: `feat/app-skeleton` (T-PLT-01 a 10, sobre `chore/scaffolding`, PR #1) y `feat/api-docs` (RNF 7, T-PLT-11 a 13, sobre `feat/app-skeleton`).
+3. Esqueleto (área `00-platform`): **implementado** el 2026-11-10 (T-PLT-01 a T-PLT-13 hechas, 28 tests, cobertura 98 %). PRs contra `dev`: #4 (`feat/platform-skeleton`, T-PLT-01 a 10) y después #5 (`feat/api-docs`, RNF 7, T-PLT-11 a 13). Al terminar, borrar las ramas `chore/scaffolding`, `feat/app-skeleton` y `feat/platform-skeleton`.
 4. Configurar el CI en GitHub Actions (ruff + pytest con cobertura ≥ 90 %).
 5. Crear `plan.md`, `tasks.md` y `test-plan.md` de `specs/01-users/` (con revisión) antes de su primer ciclo TDD.
 6. Primer ciclo TDD (área 01-users): `User` con roles e `is_active`, alta con email único (RNF 3) y login (RNF 2).
