@@ -92,6 +92,22 @@ def test_login_with_missing_fields_is_an_invalid_credentials_answer(
     assert response.get_json() == INVALID_CREDENTIALS
 
 
+@pytest.mark.parametrize(
+    "credentials",
+    [{"email": 123, "password": "password1"}, {"email": "ana@x.com", "password": ["password1"]}],
+    ids=["numeric-email", "list-password"],
+)
+def test_login_with_non_text_credentials_is_an_invalid_credentials_answer(
+    client: FlaskClient, ana: User, credentials: dict[str, Any]
+) -> None:
+    """SPEC-USR-25 · TC-USR-25f"""
+    response = client.post("/login", json=credentials)
+
+    assert response.status_code == 401
+    assert response.get_json() == INVALID_CREDENTIALS
+    assert USER_ID_KEY not in session_data(client)
+
+
 def log_in(client: FlaskClient) -> None:
     response = client.post("/login", json={"email": "ana@x.com", "password": "password1"})
     assert response.status_code == 200

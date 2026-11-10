@@ -116,6 +116,22 @@ def test_create_user_with_unknown_channel_is_rejected(
     assert count_users(db_session) == users_before
 
 
+def test_create_user_with_non_text_values_is_rejected(
+    admin_client: FlaskClient, db_session: Session
+) -> None:
+    """SPEC-USR-25 · TC-USR-25d"""
+    users_before = count_users(db_session)
+
+    response = create_user(admin_client, name=123, preferred_channel=["mail"])
+
+    assert response.status_code == 400
+    assert response.get_json() == {
+        "error": "validation_error",
+        "fields": {"name": "invalid", "preferred_channel": "invalid"},
+    }
+    assert count_users(db_session) == users_before
+
+
 def stored(db_session: Session, user: User) -> User:
     """Reload the user from the database, after the requests of the test committed."""
     db_session.expire_all()
@@ -195,6 +211,19 @@ def test_update_with_unknown_channel_is_rejected(
     assert response.status_code == 400
     assert response.get_json()["fields"] == {"preferred_channel": "invalid"}
     assert stored(db_session, user).preferred_channel == "mail"
+
+
+def test_update_with_non_text_email_is_rejected(
+    admin_client: FlaskClient, make_user: MakeUser, db_session: Session
+) -> None:
+    """SPEC-USR-25 · TC-USR-25e"""
+    user = make_user(email="ana@x.com")
+
+    response = admin_client.patch(f"/users/{user.id}", json={"email": 123})
+
+    assert response.status_code == 400
+    assert response.get_json()["fields"] == {"email": "invalid"}
+    assert stored(db_session, user).email == "ana@x.com"
 
 
 def test_admin_deactivates_a_user(admin_client: FlaskClient, make_user: MakeUser) -> None:

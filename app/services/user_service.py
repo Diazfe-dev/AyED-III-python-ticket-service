@@ -118,6 +118,7 @@ class UserService:
             raise InvalidCredentialsError()
         user = self._repository.find_by_email(email)
         if user is None or not user.is_active:
+            self._hasher.verify(self._hasher.dummy_hash(), password)
             raise InvalidCredentialsError()
         if not self._hasher.verify(user.password_hash, password):
             raise InvalidCredentialsError()

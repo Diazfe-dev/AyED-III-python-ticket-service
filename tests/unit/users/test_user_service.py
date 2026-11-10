@@ -19,14 +19,13 @@ class ServiceUnderTest:
     service: UserService
     repository: FakeUserRepository
     commit: CommitSpy
+    hasher: FakePasswordHasher
 
 
 @pytest.fixture
 def sut() -> ServiceUnderTest:
-    repository, commit = FakeUserRepository(), CommitSpy()
-    return ServiceUnderTest(
-        UserService(repository, FakePasswordHasher(), commit), repository, commit
-    )
+    repository, commit, hasher = FakeUserRepository(), CommitSpy(), FakePasswordHasher()
+    return ServiceUnderTest(UserService(repository, hasher, commit), repository, commit, hasher)
 
 
 def test_create_user_stores_an_active_user_of_the_requested_role(sut: ServiceUnderTest) -> None:
@@ -320,3 +319,63 @@ def test_authenticate_inactive_user_is_rejected_even_with_right_password(
 
     with pytest.raises(InvalidCredentialsError):
         sut.service.authenticate("ana@x.com", "password1")
+
+
+def test_authenticate_unknown_email_still_verifies_against_the_dummy_hash(
+    sut: ServiceUnderTest, ana: User
+) -> None:
+    """SPEC-USR-24 · TC-USR-24a"""
+    with pytest.raises(InvalidCredentialsError):
+        sut.service.authenticate("nobody@x.com", "password1")
+
+    assert sut.hasher.verify_calls == [(sut.hasher.dummy_hash(), "password1")]
+
+
+def test_authenticate_inactive_user_verifies_against_the_dummy_hash(
+    sut: ServiceUnderTest, ana: User
+) -> None:
+    """SPEC-USR-24 · TC-USR-24b"""
+    ana.deactivate()
+
+    with pytest.raises(InvalidCredentialsError):
+        sut.service.authenticate("ana@x.com", "password1")
+
+    assert sut.hasher.verify_calls == [(sut.hasher.dummy_hash(), "password1")]
+
+
+def test_create_user_with_non_text_values_reports_them_as_invalid(sut: ServiceUnderTest) -> None:
+    """SPEC-USR-25 · TC-USR-25a"""
+    fields = invalid_fields(
+        sut, name=123, email=123, role=1, password=12345678, preferred_channel=["mail"]
+    )
+
+    assert fields == dict.fromkeys(
+        ("name", "email", "role", "password", "preferred_channel"), "invalid"
+    )
+    assert sut.repository.users == {}
+    assert sut.commit.calls == 0
+
+
+def test_update_user_with_non_text_values_reports_them_as_invalid(
+    sut: ServiceUnderTest, ana: User
+) -> None:
+    """SPEC-USR-25 · TC-USR-25b"""
+    fields = invalid_update_fields(
+        sut, ana, name=1, email=["ana@x.com"], preferred_channel={"mail": 1}
+    )
+
+    assert fields == dict.fromkeys(("name", "email", "preferred_channel"), "invalid")
+    assert (ana.name, ana.email, ana.preferred_channel) == ("Ana", "ana@x.com", "mail")
+
+
+@pytest.mark.parametrize(
+    ("email", "password"),
+    [(123, "password1"), ("ana@x.com", 12345678), (["ana@x.com"], ["password1"])],
+    ids=["numeric-email", "numeric-password", "list-values"],
+)
+def test_authenticate_with_non_text_credentials_is_rejected(
+    sut: ServiceUnderTest, ana: User, email: object, password: object
+) -> None:
+    """SPEC-USR-25 · TC-USR-25c"""
+    with pytest.raises(InvalidCredentialsError):
+        sut.service.authenticate(email, password)

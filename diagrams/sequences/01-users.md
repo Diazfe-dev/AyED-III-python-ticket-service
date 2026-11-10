@@ -52,7 +52,7 @@ sequenceDiagram
 
 ## 2. Login y logout
 
-Specs: SPEC-USR-14, 15, 16, 17
+Specs: SPEC-USR-14, 15, 16, 17, 24, 25
 
 ```mermaid
 sequenceDiagram
@@ -66,17 +66,30 @@ sequenceDiagram
 
     U->>AC: POST /login (email, password)
     AC->>US: authenticate(email, password)
-    US->>UR: find_by_email(email)
-    UR-->>US: User o None
-    US->>H: verify(password_hash, password)
-    H-->>US: True o False
-    alt falta un campo, no existe, está inactivo o verify falla
+    alt falta un campo o no es texto
         US-->>AC: raise InvalidCredentialsError
-        AC-->>U: 401 invalid_credentials (mensaje genérico, SPEC-USR-15)
-    else credenciales válidas y usuario activo
-        US-->>AC: user
-        AC->>S: session.clear() y session["user_id"] = user.id
-        AC-->>U: 200 con id, name, email y role (SPEC-USR-14)
+        AC-->>U: 401 invalid_credentials (SPEC-USR-15, 25)
+    else email y password son texto
+        US->>UR: find_by_email(email)
+        UR-->>US: User o None
+        alt el email no existe o el usuario está inactivo
+            US->>H: verify(dummy_hash(), password)
+            Note over US,H: Hash de relleno calculado una vez por proceso. El login fallido<br/>cuesta un verify, igual que uno real (SPEC-USR-24)
+            H-->>US: False
+            US-->>AC: raise InvalidCredentialsError
+            AC-->>U: 401 invalid_credentials (mensaje genérico, SPEC-USR-15)
+        else usuario activo
+            US->>H: verify(user.password_hash, password)
+            H-->>US: True o False
+            alt verify falla
+                US-->>AC: raise InvalidCredentialsError
+                AC-->>U: 401 invalid_credentials (mensaje genérico, SPEC-USR-15)
+            else credenciales válidas
+                US-->>AC: user
+                AC->>S: session.clear() y session["user_id"] = user.id
+                AC-->>U: 200 con id, name, email y role (SPEC-USR-14)
+            end
+        end
     end
 
     Note over U,S: Cualquier ruta protegida sin sesión responde 401 authentication_required (SPEC-USR-16)
@@ -140,7 +153,8 @@ sequenceDiagram
     participant UR as UserRepository
 
     Op->>CLI: flask --app app create-admin --name N --email E
-    CLI->>Op: pide la contraseña dos veces, sin mostrarla
+    Note over Op,CLI: No existe la opción --password, click la rechaza con No such option
+    CLI->>Op: click.prompt pide la contraseña dos veces, sin mostrarla
     Op->>CLI: password
     CLI->>US: create_user(name, email, role="Admin", password)
     Note over US: Aplica las mismas validaciones que el alta normal<br/>(email único, password de 8 caracteres o más)

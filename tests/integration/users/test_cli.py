@@ -57,6 +57,19 @@ def test_create_admin_with_short_password_fails(
     assert users_with_email(db_session, "ana@x.com") == []
 
 
+def test_create_admin_rejects_the_password_on_the_command_line(
+    runner: FlaskCliRunner, db_session: Session
+) -> None:
+    """SPEC-USR-20 · TC-USR-20e"""
+    result = runner.invoke(
+        args=["create-admin", "--name", "Ana", "--email", "ana@x.com", "--password", "password1"]
+    )
+
+    assert result.exit_code != 0
+    assert "No such option" in result.output
+    assert users_with_email(db_session, "ana@x.com") == []
+
+
 def test_created_admin_can_log_in(runner: FlaskCliRunner, client: FlaskClient) -> None:
     """SPEC-USR-20 · TC-USR-20d"""
     create_admin(runner)
