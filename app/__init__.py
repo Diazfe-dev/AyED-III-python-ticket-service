@@ -8,7 +8,8 @@ from flask import Flask
 
 from app import db
 from app.config import load_config
-from app.controllers import api_docs, health
+from app.controllers import api_docs, auth, health, users
+from app.controllers.errors import register_error_handlers
 
 
 def create_app(overrides: Mapping[str, Any] | None = None) -> Flask:
@@ -19,6 +20,9 @@ def create_app(overrides: Mapping[str, Any] | None = None) -> Flask:
     db.init_app(app)
     app.register_blueprint(health.bp)
     app.register_blueprint(api_docs.bp)
+    app.register_blueprint(auth.bp)
+    app.register_blueprint(users.bp)
+    register_error_handlers(app)
     return app
 
 

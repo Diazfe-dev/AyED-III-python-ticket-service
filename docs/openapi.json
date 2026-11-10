@@ -5,6 +5,11 @@
     "version": "0.1.0",
     "description": "JSON API of the support ticket management system."
   },
+  "security": [
+    {
+      "sessionCookie": []
+    }
+  ],
   "paths": {
     "/health": {
       "get": {
@@ -70,6 +75,495 @@
               }
             }
           }
+        }
+      }
+    },
+    "/login": {
+      "post": {
+        "summary": "Start an authenticated session",
+        "description": "Checks the credentials and stores the user in the signed session cookie. Any failure (unknown email, wrong password, inactive user or missing fields) gets the same generic answer.",
+        "operationId": "login",
+        "tags": ["auth"],
+        "security": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LoginRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Authenticated. The response sets the `session` cookie.",
+            "headers": {
+              "Set-Cookie": {
+                "description": "Signed `session` cookie (HttpOnly, SameSite=Lax).",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SessionUser"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Invalid credentials (`invalid_credentials`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "error": "invalid_credentials"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/logout": {
+      "post": {
+        "summary": "End the current session",
+        "operationId": "logout",
+        "tags": ["auth"],
+        "responses": {
+          "204": {
+            "description": "Session ended. The `session` cookie is cleared."
+          },
+          "401": {
+            "$ref": "#/components/responses/AuthenticationRequired"
+          }
+        }
+      }
+    },
+    "/users": {
+      "post": {
+        "summary": "Create a user",
+        "description": "Admin only. Creates an active user with the given role. The email is stored without surrounding spaces and in lowercase, and must not belong to any other user, active or not.",
+        "operationId": "createUser",
+        "tags": ["users"],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateUserRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "User created.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/User"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/ValidationFailed"
+          },
+          "401": {
+            "$ref": "#/components/responses/AuthenticationRequired"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "409": {
+            "$ref": "#/components/responses/DuplicateEmail"
+          }
+        }
+      }
+    },
+    "/users/{user_id}": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/UserId"
+        }
+      ],
+      "patch": {
+        "summary": "Update a user",
+        "description": "Admin only. Changes the name, email or preferred channel of a user. Missing or `null` fields keep their value; any other key (such as `role`, `password` or `is_active`) is ignored. The fields sent are validated like on create.",
+        "operationId": "updateUser",
+        "tags": ["users"],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateUserRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "User updated.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/User"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/ValidationFailed"
+          },
+          "401": {
+            "$ref": "#/components/responses/AuthenticationRequired"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/UserNotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/DuplicateEmail"
+          }
+        }
+      }
+    },
+    "/users/{user_id}/deactivate": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/UserId"
+        }
+      ],
+      "post": {
+        "summary": "Deactivate a user",
+        "description": "Admin only. Logical deletion: the user is marked inactive and kept with all its data and history. An inactive user cannot log in and its email stays reserved. An administrator cannot deactivate itself.",
+        "operationId": "deactivateUser",
+        "tags": ["users"],
+        "responses": {
+          "200": {
+            "description": "User deactivated (`is_active` is `false`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/User"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/AuthenticationRequired"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/UserNotFound"
+          },
+          "409": {
+            "description": "The administrator tried to deactivate itself (`self_deactivation`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "error": "self_deactivation"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/clients": {
+      "get": {
+        "summary": "List clients",
+        "description": "Admin only. Every user with role `Client`, active or not, ordered by id.",
+        "operationId": "listClients",
+        "tags": ["users"],
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/UserList"
+          },
+          "401": {
+            "$ref": "#/components/responses/AuthenticationRequired"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          }
+        }
+      }
+    },
+    "/representatives": {
+      "get": {
+        "summary": "List representatives",
+        "description": "Admin only. Every user with role `Representative`, active or not, ordered by id.",
+        "operationId": "listRepresentatives",
+        "tags": ["users"],
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/UserList"
+          },
+          "401": {
+            "$ref": "#/components/responses/AuthenticationRequired"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "sessionCookie": {
+        "type": "apiKey",
+        "in": "cookie",
+        "name": "session",
+        "description": "Signed Flask session cookie set by `POST /login`."
+      }
+    },
+    "responses": {
+      "AuthenticationRequired": {
+        "description": "No authenticated session (`authentication_required`).",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            },
+            "example": {
+              "error": "authentication_required"
+            }
+          }
+        }
+      },
+      "Forbidden": {
+        "description": "The session user is not an administrator (`forbidden`).",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            },
+            "example": {
+              "error": "forbidden"
+            }
+          }
+        }
+      },
+      "ValidationFailed": {
+        "description": "Some fields are missing or invalid (`validation_error`). `fields` lists every invalid field with its reason.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ValidationErrorResponse"
+            },
+            "example": {
+              "error": "validation_error",
+              "fields": {
+                "name": "required",
+                "email": "invalid"
+              }
+            }
+          }
+        }
+      },
+      "DuplicateEmail": {
+        "description": "The email already belongs to another user, active or not (`duplicate_email`).",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            },
+            "example": {
+              "error": "duplicate_email"
+            }
+          }
+        }
+      },
+      "UserNotFound": {
+        "description": "No user has this id (`user_not_found`).",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            },
+            "example": {
+              "error": "user_not_found"
+            }
+          }
+        }
+      },
+      "UserList": {
+        "description": "Users of the requested role, each with its role and state.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "array",
+              "items": {
+                "$ref": "#/components/schemas/User"
+              }
+            }
+          }
+        }
+      }
+    },
+    "schemas": {
+      "Error": {
+        "type": "object",
+        "properties": {
+          "error": {
+            "type": "string",
+            "description": "Machine-readable error code."
+          }
+        },
+        "required": ["error"]
+      },
+      "LoginRequest": {
+        "type": "object",
+        "properties": {
+          "email": {
+            "type": "string",
+            "format": "email",
+            "description": "Compared without surrounding spaces and case-insensitively."
+          },
+          "password": {
+            "type": "string",
+            "format": "password"
+          }
+        },
+        "required": ["email", "password"]
+      },
+      "SessionUser": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "name": {
+            "type": "string"
+          },
+          "email": {
+            "type": "string",
+            "format": "email"
+          },
+          "role": {
+            "$ref": "#/components/schemas/Role"
+          }
+        },
+        "required": ["id", "name", "email", "role"]
+      },
+      "Role": {
+        "type": "string",
+        "enum": ["Admin", "Representative", "Client"]
+      },
+      "PreferredChannel": {
+        "type": "string",
+        "enum": ["mail", "whatsapp"],
+        "description": "Notification channel of the user."
+      },
+      "User": {
+        "type": "object",
+        "description": "A user as returned by the API. It never includes the password or its hash.",
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "name": {
+            "type": "string"
+          },
+          "email": {
+            "type": "string",
+            "format": "email"
+          },
+          "role": {
+            "$ref": "#/components/schemas/Role"
+          },
+          "preferred_channel": {
+            "$ref": "#/components/schemas/PreferredChannel"
+          },
+          "is_active": {
+            "type": "boolean"
+          }
+        },
+        "required": ["id", "name", "email", "role", "preferred_channel", "is_active"]
+      },
+      "CreateUserRequest": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1
+          },
+          "email": {
+            "type": "string",
+            "format": "email"
+          },
+          "role": {
+            "$ref": "#/components/schemas/Role"
+          },
+          "password": {
+            "type": "string",
+            "format": "password",
+            "minLength": 8
+          },
+          "preferred_channel": {
+            "$ref": "#/components/schemas/PreferredChannel",
+            "default": "mail"
+          }
+        },
+        "required": ["name", "email", "role", "password"]
+      },
+      "ValidationErrorResponse": {
+        "type": "object",
+        "properties": {
+          "error": {
+            "type": "string",
+            "const": "validation_error"
+          },
+          "fields": {
+            "type": "object",
+            "description": "Invalid field name mapped to its reason.",
+            "additionalProperties": {
+              "type": "string",
+              "enum": ["required", "invalid", "too_short"]
+            }
+          }
+        },
+        "required": ["error", "fields"]
+      },
+      "UpdateUserRequest": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1
+          },
+          "email": {
+            "type": "string",
+            "format": "email"
+          },
+          "preferred_channel": {
+            "$ref": "#/components/schemas/PreferredChannel"
+          }
+        }
+      }
+    },
+    "parameters": {
+      "UserId": {
+        "name": "user_id",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "integer"
         }
       }
     }
