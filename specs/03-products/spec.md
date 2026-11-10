@@ -20,6 +20,11 @@ Origen: RF 1.3 · Diagramas: [secuencias](../../diagrams/sequences/03-products.m
 | SPEC-PRD-14 | Ubicuo | **El sistema deberá** guardar los nombres de los productos sin espacios al inicio ni al final. | RF 1.3.1 |
 | SPEC-PRD-15 | No deseado | **Si** el identificador de tipo de producto de un alta o de una modificación, o el de categoría o tipo usado como filtro del listado, no es un entero positivo, **entonces el sistema deberá** rechazar la solicitud e indicar qué campo es inválido (`400`). | RF 1.3.2, RF 1.3.3 |
 | SPEC-PRD-16 | No deseado | **Si** el listado se filtra por una categoría o un tipo de producto inexistente, **entonces el sistema deberá** responder que no existe (`404`). | RF 1.3.3 |
+| SPEC-PRD-17 | No deseado | **Si** se intenta modificar o dar de baja un producto inexistente, incluido un identificador fuera del rango que admite la base, **entonces el sistema deberá** responder que el producto no existe (`404`). | RF 1.3.1 |
+| SPEC-PRD-18 | Por evento | **Cuando** un administrador da de baja un producto que ya está inactivo, **el sistema deberá** responder con éxito sin modificarlo. | RF 1.3.1 |
+| SPEC-PRD-19 | Complejo | **Mientras** un producto está inactivo, **cuando** un administrador modifica su nombre o su tipo, **el sistema deberá** guardar los cambios y mantenerlo inactivo. | RF 1.3.1 |
+| SPEC-PRD-20 | Por evento | **Cuando** el listado se filtra a la vez por una categoría y por un tipo de producto que no pertenece a esa categoría, **el sistema deberá** devolver una lista vacía. | RF 1.3.3 |
+| SPEC-PRD-21 | Ubicuo | **El sistema deberá** devolver los listados de productos ordenados alfabéticamente por nombre. | RF 1.3.3 |
 
 ## Decisiones
 
@@ -33,3 +38,4 @@ Aprobadas el 2026-11-10 (revisión transversal de huecos, mismo criterio que `02
 3. SPEC-PRD-10 aplica a cualquier usuario autenticado: SPEC-PRD-07 ya permite listar todos los productos, así que restringir los disponibles al representante no protegía nada.
 4. SPEC-PTY-08 (no borrar un tipo con productos) se implementa en esta área, porque recién acá existe `Product`.
 5. SPEC-PRD-06 depende de `04-tickets`: se verifica lo posible y el caso completo queda pendiente para esa área.
+6. Al aprobar el plan (2026-11-10): producto inexistente o id fuera de rango → `404` (SPEC-PRD-17), la baja de un producto inactivo es idempotente (SPEC-PRD-18), un producto inactivo se puede modificar y sigue inactivo (SPEC-PRD-19), filtros incompatibles → lista vacía (SPEC-PRD-20) y orden alfabético (SPEC-PRD-21). La reactivación de productos o usuarios queda fuera: ningún RF la pide.

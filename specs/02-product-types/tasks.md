@@ -50,4 +50,4 @@ Notas de la implementación (2026-11-10):
 - Las filas de `ERROR_RESPONSES` se agregaron en la task del primer endpoint que necesitaba cada una (T-PTY-21, 23, 24, 25 y 26), no todas en T-PTY-21, para que cada fila nazca con un test en rojo.
 - TC-PTY-14d pasó sin fase roja propia: la FK `ON DELETE RESTRICT` ya existía desde T-PTY-03. TC-PTY-14c se reforzó para exigir que el rechazo venga de la FK (`FOREIGN KEY` en la causa) y no del `NOT NULL` que aparece sin `passive_deletes="all"`.
 
-Pendiente fuera de esta área: SPEC-PTY-08 (TC-PTY-08a a 08c) se implementa en `03-products`, junto con `Product`, `ProductTypeRepository.has_products` y `ProductTypeInUseError`.
+SPEC-PTY-08 (TC-PTY-08a a 08c, más TC-PTY-08d) quedó implementada el 2026-11-10 en `03-products`, junto con `Product`, `ProductTypeRepository.has_products` y `ProductTypeInUseError`: TC-PTY-08a con T-PRD-21, 08b con T-PRD-10 y 08c con T-PRD-27 (ver [03-products/tasks.md](../03-products/tasks.md)).
