@@ -11,7 +11,8 @@ from app.domain.errors import (
 )
 from app.domain.users import Representative, User
 from app.services.user_service import UserService
-from tests.unit.users.fakes import CommitSpy, FakePasswordHasher, FakeUserRepository
+from tests.unit.fakes import CommitSpy
+from tests.unit.users.fakes import FakePasswordHasher, FakeUserRepository
 
 
 @dataclass
