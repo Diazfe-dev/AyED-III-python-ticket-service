@@ -37,6 +37,8 @@ Comportamiento técnico transversal que necesitan todas las demás áreas: confi
 | SPEC-PLT-12 | Por evento | **Cuando** se solicita `GET /openapi.json`, **el sistema deberá** responder `200` con el contrato OpenAPI 3.1 de la API, sin requerir autenticación. | RNF 7 |
 | SPEC-PLT-13 | Por evento | **Cuando** se solicita `GET /docs`, **el sistema deberá** responder `200` con una página de Swagger UI que carga el contrato de `/openapi.json`, sin requerir autenticación. | RNF 7 |
 | SPEC-PLT-14 | Ubicuo | **El sistema deberá** exponer exactamente las rutas y métodos HTTP que describe su contrato OpenAPI, ni más ni menos. | RNF 7 |
+| SPEC-PLT-15 | No deseado | **Si** se solicita una ruta o un método HTTP que la API no expone (incluido un identificador no numérico en la URL), **entonces el sistema deberá** responder `404` o `405` con un cuerpo JSON de error. | RNF 7 |
+| SPEC-PLT-16 | No deseado | **Si** ocurre un error no manejado durante un request, **entonces el sistema deberá** responder `500` con un cuerpo JSON de error genérico, sin exponer detalles internos. | RNF 2, RNF 7 |
 
 ## Decisiones
 
@@ -51,3 +53,7 @@ Aprobadas el 2026-11-10 (RNF 7):
 4. La interfaz HTTP del sistema es una API JSON.
 5. El contrato se escribe a mano primero (*contract-first*) en `docs/openapi.json` y la app lo sirve tal cual. No se genera desde el código, así que no suma dependencias de Python. Swagger UI se carga desde un CDN con una versión fija.
 6. `/openapi.json` y `/docs` también son públicas: el contrato no expone datos de usuarios y los endpoints que documenta siguen protegidos.
+
+Aprobadas el 2026-11-10 (revisión transversal de huecos):
+
+7. Todas las respuestas de error de la API son JSON, también las de rutas inexistentes (SPEC-PLT-15) y las de errores inesperados (SPEC-PLT-16). Antes Flask devolvía páginas HTML.

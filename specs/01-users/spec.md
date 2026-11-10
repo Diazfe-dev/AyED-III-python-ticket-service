@@ -28,6 +28,7 @@ Roles: `Admin`, `Representative`, `Client`.
 | SPEC-USR-09 | Por evento | **Cuando** un administrador da de baja un usuario, **el sistema deberá** marcarlo como inactivo sin eliminarlo. | RF 1.1.1 |
 | SPEC-USR-10 | Ubicuo | **El sistema deberá** conservar los tickets, hitos y registros de auditoría asociados a un usuario inactivo. | RF 1.1.1, RNF 5, RNF 6 |
 | SPEC-USR-21 | No deseado | **Si** un administrador intenta dar de baja su propio usuario, **entonces el sistema deberá** rechazar la operación. | RF 1.1.5 |
+| SPEC-USR-26 | No deseado | **Si** se intenta modificar o dar de baja un usuario inexistente, incluido un identificador fuera del rango que admite la base, **entonces el sistema deberá** responder que el usuario no existe (`404`). | RF 1.1.1 |
 | SPEC-USR-22 | No deseado | **Si** una modificación incluye un nombre vacío o un email inválido, **entonces el sistema deberá** rechazarla e indicar qué campos son inválidos. | RF 1.1.1 |
 
 ## Listados
@@ -62,3 +63,5 @@ Resuelta el 2026-11-10:
 4. Como la interfaz es una API JSON (RNF 7), un acceso sin sesión responde `401` en lugar de redirigir al login (SPEC-USR-16). La spec todavía no estaba implementada, así que se corrige en el lugar.
 5. La modificación aplica las mismas validaciones de formato que el alta (SPEC-USR-22) y el canal preferido solo admite `mail` o `whatsapp` (SPEC-USR-23), los dos canales que definen las specs de notificaciones.
 6. Hardening (2026-11-10): el login compara siempre contra un hash, aunque el email no exista (SPEC-USR-24), y los tipos de dato inválidos se rechazan explícitamente (SPEC-USR-25). El comando `create-admin` pide la contraseña solo con un prompt oculto y confirmado: no acepta `--password`, para que no quede en el historial de la shell (SPEC-USR-20 sin cambios de comportamiento).
+
+7. Revisión transversal (2026-11-10): el `404` de usuario inexistente pasa a tener spec propia (SPEC-USR-26), que cubre también los identificadores fuera de rango (antes respondían `500`).

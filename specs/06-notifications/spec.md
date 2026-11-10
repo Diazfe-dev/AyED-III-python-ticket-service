@@ -41,3 +41,7 @@ Resueltas el 2026-11-09 y registradas en [MEMORY.md](../../MEMORY.md):
 
 1. Cuando el cliente cierra un ticket, se notifica al representante (RF 1.6.3 ampliado).
 2. Las notificaciones se simulan: las estrategias `MailNotification` y `WhatsappNotification` solo registran el envío. El patrón Strategy permite conectar envíos reales más adelante sin cambiar los services.
+
+Confirmada el 2026-11-10 (revisión transversal de huecos):
+
+3. Las notificaciones son internas: no tienen endpoint propio (no hay `NotificationController`). Se verifican con tests y consultando la base.
