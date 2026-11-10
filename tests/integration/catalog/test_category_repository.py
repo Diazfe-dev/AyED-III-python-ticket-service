@@ -1,10 +1,6 @@
-from collections.abc import Iterator
-from contextlib import contextmanager
-from typing import Any
-
 import pytest
 from flask import Flask
-from sqlalchemy import event, text
+from sqlalchemy import text
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
@@ -13,6 +9,7 @@ from app.domain.errors import CategoryInUseError, DuplicateCategoryError
 from app.domain.products import Category, ProductType
 from app.repositories.category_repository import SqlAlchemyCategoryRepository
 from tests.conftest import MakeCategory, MakeProductType
+from tests.integration.catalog.queries import count_statements
 
 
 def test_added_category_can_be_read_from_another_session(app: Flask, db_session: Session) -> None:
@@ -162,21 +159,6 @@ def test_list_with_product_types_orders_groups_and_types_by_name(db_session: Ses
         ("Hardware", ["Notebook"]),
         ("Redes", ["Access point", "Router"]),
     ]
-
-
-@contextmanager
-def count_statements(session: Session) -> Iterator[list[str]]:
-    statements: list[str] = []
-
-    def record(_conn: Any, _cursor: Any, statement: str, *_args: Any) -> None:
-        statements.append(statement)
-
-    engine = session.get_bind()
-    event.listen(engine, "before_cursor_execute", record)
-    try:
-        yield statements
-    finally:
-        event.remove(engine, "before_cursor_execute", record)
 
 
 def test_list_with_product_types_loads_everything_in_two_queries(
