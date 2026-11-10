@@ -14,6 +14,7 @@ Roles: `Admin`, `Representative`, `Client`.
 | SPEC-USR-04 | No deseado | **Si** el email de un alta ya pertenece a otro usuario, activo o inactivo, **entonces el sistema deberá** rechazar el alta e informar que el email ya existe. | RNF 3 |
 | SPEC-USR-05 | No deseado | **Si** el alta no incluye nombre, email válido, rol válido o contraseña, **entonces el sistema deberá** rechazarla e indicar qué campos son inválidos. | RF 1.1.1 |
 | SPEC-USR-06 | Por evento | **Cuando** se crea un usuario sin canal de notificación preferido, **el sistema deberá** asignarle el canal por defecto (`mail`). | RF 1.6, Diagrama de clases |
+| SPEC-USR-23 | No deseado | **Si** un alta o una modificación indica un canal de notificación preferido distinto de `mail` o `whatsapp`, **entonces el sistema deberá** rechazarla e indicar que el canal es inválido. | RF 1.6.1 |
 | SPEC-USR-19 | No deseado | **Si** la contraseña de un alta tiene menos de 8 caracteres, **entonces el sistema deberá** rechazar el alta. | RNF 2 |
 | SPEC-USR-20 | Por evento | **Cuando** se ejecuta el comando de inicialización `create-admin` con nombre, email y contraseña, **el sistema deberá** crear un usuario con rol `Admin`. | RF 1.1.5 |
 
@@ -26,6 +27,7 @@ Roles: `Admin`, `Representative`, `Client`.
 | SPEC-USR-09 | Por evento | **Cuando** un administrador da de baja un usuario, **el sistema deberá** marcarlo como inactivo sin eliminarlo. | RF 1.1.1 |
 | SPEC-USR-10 | Ubicuo | **El sistema deberá** conservar los tickets, hitos y registros de auditoría asociados a un usuario inactivo. | RF 1.1.1, RNF 5, RNF 6 |
 | SPEC-USR-21 | No deseado | **Si** un administrador intenta dar de baja su propio usuario, **entonces el sistema deberá** rechazar la operación. | RF 1.1.5 |
+| SPEC-USR-22 | No deseado | **Si** una modificación incluye un nombre vacío o un email inválido, **entonces el sistema deberá** rechazarla e indicar qué campos son inválidos. | RF 1.1.1 |
 
 ## Listados
 
@@ -41,7 +43,7 @@ Roles: `Admin`, `Representative`, `Client`.
 |----|------|----------------|--------|
 | SPEC-USR-14 | Por evento | **Cuando** un usuario envía un email y una contraseña que coinciden con un usuario activo, **el sistema deberá** iniciar una sesión autenticada para ese usuario. | RNF 2 |
 | SPEC-USR-15 | No deseado | **Si** el email no existe, la contraseña no coincide o el usuario está inactivo, **entonces el sistema deberá** rechazar el login con un mensaje genérico de credenciales inválidas, sin indicar el motivo. | RF 1.1.1, RNF 2 |
-| SPEC-USR-16 | No deseado | **Si** un usuario sin sesión intenta acceder a cualquier funcionalidad que no sea el login, **entonces el sistema deberá** denegar el acceso y redirigirlo al login. | RNF 2 |
+| SPEC-USR-16 | No deseado | **Si** un usuario sin sesión intenta acceder a cualquier funcionalidad que no sea el login, **entonces el sistema deberá** denegar el acceso con un `401` que indique que se requiere autenticación. | RNF 2, RNF 7 |
 | SPEC-USR-17 | Por evento | **Cuando** un usuario cierra sesión, **el sistema deberá** invalidar su sesión. | RNF 2 |
 | SPEC-USR-18 | No deseado | **Si** un usuario sin rol `Admin` intenta gestionar usuarios, **entonces el sistema deberá** denegar la operación. | RF 1.1.5, RNF 2 |
 
@@ -52,3 +54,8 @@ Resueltas el 2026-11-09 y registradas en [MEMORY.md](../../MEMORY.md):
 1. Se crea un rol `Admin` propio, como subclase de `User`. El primer administrador se crea con un comando CLI (SPEC-USR-20).
 2. La baja de usuarios es lógica (`is_active`).
 3. Las contraseñas deben tener al menos 8 caracteres, sin reglas de complejidad.
+
+Resuelta el 2026-11-10:
+
+4. Como la interfaz es una API JSON (RNF 7), un acceso sin sesión responde `401` en lugar de redirigir al login (SPEC-USR-16). La spec todavía no estaba implementada, así que se corrige en el lugar.
+5. La modificación aplica las mismas validaciones de formato que el alta (SPEC-USR-22) y el canal preferido solo admite `mail` o `whatsapp` (SPEC-USR-23), los dos canales que definen las specs de notificaciones.
