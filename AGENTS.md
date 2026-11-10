@@ -13,6 +13,7 @@ Fuentes de verdad, en este orden:
 1. [docs/REQUERIMIENTOS.md](docs/REQUERIMIENTOS.md): requerimientos funcionales (RF) y no funcionales (RNF).
 2. [specs/](specs/): una carpeta por área con `spec.md` (RF descompuestos en EARS, `SPEC-<ÁREA>-<NN>`), `plan.md`, `tasks.md` y `test-plan.md`. Bajo **spec-as-source**, `spec.md` es la fuente de verdad del comportamiento y el código se deriva de ella.
 3. [diagrams/](diagrams/): diagramas en **Mermaid**: [classes.md](diagrams/classes.md) (modelo de dominio y capas) y [sequences/](diagrams/sequences/) (un archivo por área de specs).
+4. [docs/openapi.json](docs/openapi.json): contrato OpenAPI 3.1 de la API HTTP, escrito a mano (*contract-first*). Se sirve en `/openapi.json` y se navega con Swagger UI en `/docs`.
 
 Si el código y los diagramas no coinciden, no lo resuelvas por tu cuenta: avisá la discrepancia y actualizá el diagrama en el mismo PR que el código.
 
@@ -96,6 +97,7 @@ diagrams/              # UML en Mermaid (no borrar, mantener sincronizado con sp
   sequences/           # Diagramas de secuencia, un archivo por área (NN-<área>.md)
 docs/
   constitution.md      # Principios innegociables (máxima precedencia)
+  openapi.json         # Contrato OpenAPI 3.1 de la API (contract-first)
 MEMORY.md              # Memoria persistente del proyecto
 ```
 
@@ -133,7 +135,7 @@ Cada carpeta `specs/NN-<área>/` tiene como máximo estos cuatro archivos. `spec
 
 1. **Spec**: escribir o modificar las specs en `spec.md` y que el equipo las apruebe.
 2. **Plan**: actualizar `plan.md` con el impacto por capa y en el modelo de datos.
-3. **Tasks**: desglosar el trabajo en `tasks.md`.
+3. **Tasks**: desglosar el trabajo en `tasks.md`. Si el cambio agrega o modifica un endpoint, una task actualiza `docs/openapi.json` antes del código.
 4. **Test plan**: agregar los casos en `test-plan.md` para cada spec nueva o modificada.
 5. **Implementar** las tasks con TDD (red → green → refactor) y marcarlas como `[x]` a medida que se terminan.
 6. **Cerrar**: verificar que cada spec del cambio tenga sus tests en verde, que el diagrama esté sincronizado y que `MEMORY.md` esté actualizado.
@@ -158,11 +160,12 @@ Cada RNF tiene una regla concreta en el código y al menos un test que la proteg
 | RNF | Regla de implementación | Test obligatorio |
 |-----|-------------------------|------------------|
 | 1. TDD estricto | No se escribe código de producción sin un test que falle antes. Ciclo red → green → refactor. | El historial de commits muestra el test antes o junto con la implementación. |
-| 2. Autenticación robusta | Contraseñas hasheadas con `generate_password_hash` y comparadas con `check_password_hash`. Todas las rutas salvo `/login` requieren `login_required`. `SECRET_KEY` desde el entorno; la cookie de sesión es `HttpOnly` y `SameSite=Lax`. El mensaje de error del login es genérico (no revela si el email existe). | Login correcto, contraseña incorrecta, usuario inexistente, ruta protegida sin sesión → redirect/401. |
+| 2. Autenticación robusta | Contraseñas hasheadas con `generate_password_hash` y comparadas con `check_password_hash`. Todas las rutas salvo `/login`, `/health`, `/openapi.json` y `/docs` requieren `login_required`. `SECRET_KEY` desde el entorno; la cookie de sesión es `HttpOnly` y `SameSite=Lax`. El mensaje de error del login es genérico (no revela si el email existe). | Login correcto, contraseña incorrecta, usuario inexistente, ruta protegida sin sesión → redirect/401. |
 | 3. Usuarios únicos | Email normalizado (`strip().lower()`) antes de guardar. `mapped_column(unique=True)` en `User.email` **y** chequeo previo en el service. Si igual ocurre un `IntegrityError`, el repositorio lo traduce a `DuplicateUserError`. | Alta duplicada (incluso con distinto uso de mayúsculas) es rechazada. |
 | 4. Privacidad de tickets | El filtro por dueño se aplica en el service, no en el template. Un cliente que pide un ticket ajeno recibe **404** (no 403, para no confirmar que existe). | Cliente A no puede ver, listar, responder ni cerrar tickets del cliente B. |
 | 5. Hitos inmutables | No existen métodos, rutas ni repositorios que actualicen o borren hitos. Tres barreras: (a) listeners `before_update` y `before_delete` de SQLAlchemy sobre `Milestone` que lanzan `ImmutableRecordError`; (b) triggers de SQLite que hacen `RAISE(ABORT)` ante `UPDATE` o `DELETE` sobre `milestones`, registrados con `event.listen(table, "after_create", DDL(...))`; (c) la relación `Ticket.milestones` sin `delete-orphan`. Lo mismo aplica a `StateChange`. | Modificar o borrar un hito falla en el ORM y también con SQL directo. |
 | 6. Auditoría de estado | Toda transición crea un `StateChange(user, state, timestamp)` con timestamp UTC del reloj inyectado. No hay forma de cambiar el estado sin pasar por el objeto `State`. | Cada transición deja un registro con el usuario y el instante correctos. |
+| 7. API documentada | `docs/openapi.json` se escribe antes que el endpoint y la app lo sirve tal cual en `/openapi.json`. Swagger UI en `/docs`, desde CDN con versión fija. Sin librerías de generación. | Las rutas de `app.url_map` y los `paths` del contrato coinciden en los dos sentidos. |
 
 Reglas funcionales que suelen romperse, a tener en cuenta:
 
