@@ -17,7 +17,7 @@ Cada spec usa exactamente uno de estos patrones. Las palabras clave van en **neg
 
 ## Convenciones
 
-- **ID**: `SPEC-<ÁREA>-<NN>`. Áreas: `USR` (usuarios y accesos), `PTY` (tipos de producto), `PRD` (productos), `TKT` (ciclo de vida del ticket), `MLS` (hitos), `NTF` (notificaciones).
+- **ID**: `SPEC-<ÁREA>-<NN>`. Áreas: `PLT` (plataforma), `USR` (usuarios y accesos), `PTY` (tipos de producto), `PRD` (productos), `TKT` (ciclo de vida del ticket), `MLS` (hitos), `NTF` (notificaciones).
 - **Atómica**: una spec, un comportamiento. Si hace falta "y" para describir dos respuestas independientes, son dos specs.
 - **Verificable**: cada spec se puede probar con al menos un test. El test referencia el ID en su docstring.
 - **Trazable**: cada spec indica el RF de origen y, si aplica, los RNF y el diagrama relacionados.
@@ -40,6 +40,7 @@ Cada área es una carpeta `NN-<área>/`. `spec.md` existe siempre. Los demás ar
 
 | Área | Descripción | RF | spec | plan | tasks | test-plan |
 |------|-------------|----|------|------|-------|-----------|
+| [00-platform/](00-platform/spec.md) | Plataforma: configuración, base de datos, sesión y comandos | RNF 1, 2 | ✅ | ✅ | ✅ | ✅ |
 | [01-users/](01-users/spec.md) | Gestión de usuarios y accesos | 1.1 | ✅ | ⬜ | ⬜ | ⬜ |
 | [02-product-types/](02-product-types/spec.md) | Gestión de tipos de producto y rubros | 1.2 | ✅ | ⬜ | ⬜ | ⬜ |
 | [03-products/](03-products/spec.md) | Gestión de productos | 1.3 | ✅ | ⬜ | ⬜ | ⬜ |
