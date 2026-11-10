@@ -2,9 +2,15 @@
 
 Spec: [specs/01-users/spec.md](../../specs/01-users/spec.md)
 
+Convenciones comunes a los cuatro diagramas:
+
+- `UserService` recibe por constructor el repositorio, un `PasswordHasher` y la función `commit` (en producción, `session.commit`). El repositorio nunca hace commit.
+- Las excepciones de dominio llegan a `register_error_handlers`, que las traduce a JSON con una tabla: `ValidationError` → `400`, `InvalidCredentialsError` → `401`, `UserNotFoundError` → `404`, `DuplicateUserError` y `SelfDeactivationError` → `409`.
+- `admin_required` responde `401` `authentication_required` sin sesión y `403` `forbidden` si el usuario no es `Admin`. Un usuario inexistente o inactivo cuenta como sin sesión.
+
 ## 1. Alta de usuario
 
-Specs: SPEC-USR-01, 02, 03, 04, 05, 06, 18, 19
+Specs: SPEC-USR-01, 02, 03, 04, 05, 06, 18, 19, 23
 
 ```mermaid
 sequenceDiagram
@@ -12,31 +18,33 @@ sequenceDiagram
     actor Admin
     participant UC as UserController
     participant US as UserService
+    participant H as PasswordHasher
     participant UR as UserRepository
 
     Admin->>UC: POST /users (name, email, role, password, preferred_channel?)
-    alt current_user no es Admin
-        UC-->>Admin: 403 Forbidden (SPEC-USR-18)
+    alt sin sesión o current_user no es Admin
+        UC-->>Admin: 401 authentication_required o 403 forbidden (SPEC-USR-16, 18)
     else current_user es Admin
         UC->>US: create_user(name, email, role, password, preferred_channel)
-        US->>US: email = email.strip().lower() (SPEC-USR-03)
-        alt datos faltantes o inválidos, o password con menos de 8 caracteres
+        alt datos faltantes o inválidos, password con menos de 8 caracteres o canal desconocido
             US-->>UC: raise ValidationError(fields)
-            UC-->>Admin: 400 Bad Request con campos inválidos (SPEC-USR-05, 19)
+            UC-->>Admin: 400 validation_error con fields (SPEC-USR-05, 19, 23)
         else datos válidos
             US->>UR: find_by_email(email)
+            Note over UR: Compara el email normalizado, strip y lower (SPEC-USR-03)
             UR-->>US: User o None
             alt el email ya existe (activo o inactivo)
                 US-->>UC: raise DuplicateUserError
-                UC-->>Admin: 409 Conflict (SPEC-USR-04)
+                UC-->>Admin: 409 duplicate_email (SPEC-USR-04)
             else email libre
-                US->>US: password_hash = generate_password_hash(password) (SPEC-USR-02)
-                US->>US: user = User(role, is_active=True, preferred_channel or "mail") (SPEC-USR-06)
+                US->>H: hash(password)
+                H-->>US: password_hash (SPEC-USR-02)
+                US->>US: user = ROLE_CLASSES[role](is_active=True, preferred_channel o "mail") (SPEC-USR-06)
                 US->>UR: add(user)
-                US->>UR: commit()
-                Note over UR: Si la base lanza IntegrityError por UNIQUE(email),<br/>se traduce a DuplicateUserError
+                Note over UR: add hace flush. Un IntegrityError por UNIQUE(email)<br/>se traduce a DuplicateUserError
+                US->>US: commit()
                 US-->>UC: user
-                UC-->>Admin: 201 Created (SPEC-USR-01)
+                UC-->>Admin: 201 Created con el User, sin password_hash (SPEC-USR-01)
             end
         end
     end
@@ -53,26 +61,33 @@ sequenceDiagram
     participant AC as AuthController
     participant US as UserService
     participant UR as UserRepository
+    participant H as PasswordHasher
     participant S as Flask session
 
     U->>AC: POST /login (email, password)
     AC->>US: authenticate(email, password)
-    US->>UR: find_by_email(email.strip().lower())
+    US->>UR: find_by_email(email)
     UR-->>US: User o None
-    alt no existe, está inactivo o check_password_hash falla
+    US->>H: verify(password_hash, password)
+    H-->>US: True o False
+    alt falta un campo, no existe, está inactivo o verify falla
         US-->>AC: raise InvalidCredentialsError
-        AC-->>U: 401 "Credenciales inválidas" (mensaje genérico, SPEC-USR-15)
+        AC-->>U: 401 invalid_credentials (mensaje genérico, SPEC-USR-15)
     else credenciales válidas y usuario activo
         US-->>AC: user
-        AC->>S: session["user_id"] = user.id
-        AC-->>U: 302 redirect al inicio (SPEC-USR-14)
+        AC->>S: session.clear() y session["user_id"] = user.id
+        AC-->>U: 200 con id, name, email y role (SPEC-USR-14)
     end
 
-    Note over U,S: Cualquier ruta protegida sin sesión → login_required → 302 /login (SPEC-USR-16)
+    Note over U,S: Cualquier ruta protegida sin sesión responde 401 authentication_required (SPEC-USR-16)
 
     U->>AC: POST /logout
-    AC->>S: session.clear()
-    AC-->>U: 302 redirect a /login (SPEC-USR-17)
+    alt sin sesión
+        AC-->>U: 401 authentication_required (SPEC-USR-16)
+    else con sesión
+        AC->>S: session.clear()
+        AC-->>U: 204 sin contenido (SPEC-USR-17)
+    end
 ```
 
 ## 3. Baja lógica de usuario
@@ -88,20 +103,26 @@ sequenceDiagram
     participant UR as UserRepository
 
     Admin->>UC: POST /users/{id}/deactivate
-    alt current_user no es Admin
-        UC-->>Admin: 403 Forbidden (SPEC-USR-18)
+    alt sin sesión o current_user no es Admin
+        UC-->>Admin: 401 authentication_required o 403 forbidden (SPEC-USR-16, 18)
     else current_user es Admin
         UC->>US: deactivate_user(user_id, actor=current_user)
         alt user_id es el del propio admin
             US-->>UC: raise SelfDeactivationError
-            UC-->>Admin: 409 Conflict (SPEC-USR-21)
+            UC-->>Admin: 409 self_deactivation (SPEC-USR-21)
         else otro usuario
             US->>UR: get(user_id)
-            UR-->>US: user
-            US->>US: user.deactivate() → is_active = False (SPEC-USR-09)
-            US->>UR: commit()
-            Note over UR: No se borra nada: tickets, hitos y StateChange<br/>del usuario se conservan (SPEC-USR-10)
-            UC-->>Admin: 200 OK
+            UR-->>US: user o None
+            alt el usuario no existe
+                US-->>UC: raise UserNotFoundError
+                UC-->>Admin: 404 user_not_found
+            else el usuario existe
+                US->>US: user.deactivate() pone is_active = False (SPEC-USR-09)
+                US->>US: commit()
+                Note over UR: No se borra nada. Tickets, hitos y StateChange<br/>del usuario se conservan (SPEC-USR-10)
+                US-->>UC: user
+                UC-->>Admin: 200 con el User e is_active false
+            end
         end
     end
 ```
@@ -118,10 +139,18 @@ sequenceDiagram
     participant US as UserService
     participant UR as UserRepository
 
-    Op->>CLI: flask --app app create-admin (name, email, password)
+    Op->>CLI: flask --app app create-admin --name N --email E
+    CLI->>Op: pide la contraseña dos veces, sin mostrarla
+    Op->>CLI: password
     CLI->>US: create_user(name, email, role="Admin", password)
     Note over US: Aplica las mismas validaciones que el alta normal<br/>(email único, password de 8 caracteres o más)
-    US->>UR: add(user) y commit()
-    US-->>CLI: user
-    CLI-->>Op: "Admin creado"
+    alt datos inválidos o email existente
+        US-->>CLI: raise ValidationError o DuplicateUserError
+        CLI-->>Op: "Error: ..." y código de salida 1
+    else datos válidos
+        US->>UR: add(user)
+        US->>US: commit()
+        US-->>CLI: user
+        CLI-->>Op: "Admin created."
+    end
 ```
