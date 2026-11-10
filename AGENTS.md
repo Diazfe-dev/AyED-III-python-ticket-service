@@ -67,34 +67,40 @@ flask --app app run --debug
 app/
   __init__.py          # create_app(): config, blueprints, manejadores de errores y comandos
   config.py            # load_config(): configuración desde el entorno
-  db.py                # engine, sessionmaker, sesión por request, comando init-db (create_all)
+  db.py                # engine, sessionmaker, sesión por request, comando init-db (create_all), fits_integer_column
+  wiring.py            # get_catalog_service: arma los services del request sin que los controllers toquen la Session
   auth.py              # get_user_service, current_user y decoradores login_required (401) y admin_required (403)
   cli.py               # comando create-admin
   domain/              # Entidades mapeadas con SQLAlchemy; sin Flask ni HTTP
     base.py            # Base(DeclarativeBase)
-    errors.py          # DomainError y subclases (ValidationError, DuplicateUserError, ...)
+    errors.py          # DomainError y subclases (ValidationError, DuplicateUserError, CategoryInUseError, ...)
     ticket.py          # Ticket (agregado raíz)
     states.py          # State, NewState, InProgressState, ClosedState
     milestone.py       # Milestone (inmutable)
     state_change.py    # StateChange (registro de auditoría)
     users.py           # User, Admin, Representative, Client (tabla única) y ROLE_CLASSES
-    products.py        # Product, ProductType, Category
+    products.py        # Category, ProductType (name + name_key) y normalize_name; Product en 03-products
     notifications.py   # Notification (interfaz), MailNotification, WhatsappNotification
   services/            # Casos de uso: orquestan dominio, repositorios y notificaciones
     passwords.py       # PasswordHasher (protocolo) y WerkzeugPasswordHasher
+    validation.py      # validadores de campos compartidos (text_error, id_error, parse_id, raise_if_invalid)
     user_service.py    # UserService
+    catalog_service.py # CatalogService: ABM y listados de categorías y tipos de producto
   repositories/        # Consultas con la Session de SQLAlchemy; devuelven y reciben entidades
     user_repository.py # SqlAlchemyUserRepository
+    category_repository.py      # SqlAlchemyCategoryRepository
+    product_type_repository.py  # SqlAlchemyProductTypeRepository
   controllers/         # Blueprints de Flask: HTTP de entrada y salida, nada más
     health.py          # /health
     api_docs.py        # /openapi.json y /docs
     auth.py            # POST /login y POST /logout
     users.py           # gestión de usuarios (solo Admin)
+    catalog.py         # categorías y tipos de producto (CatalogController)
     errors.py          # tabla DomainError → status y código JSON
-    serializers.py     # lectura del cuerpo JSON y representación de usuarios
+    serializers.py     # lectura del cuerpo JSON y representación de usuarios, categorías y tipos
 tests/
   conftest.py          # fixtures: app con base en memoria, client, usuarios de prueba
-  unit/                # dominio y servicios, sin Flask ni disco
+  unit/                # dominio y servicios, sin Flask ni disco (fakes.py: dobles compartidos, como CommitSpy)
   integration/         # repositorios contra SQLite en memoria y endpoints con test client
 specs/
   README.md            # Sintaxis EARS, convenciones e índice de áreas

@@ -14,6 +14,7 @@ from app.domain.base import Base
 
 EXTENSION_KEY = "sqlalchemy"
 SESSION_KEY = "db_session"
+SQLITE_MAX_INTEGER = 2**63 - 1
 
 
 def init_app(app: Flask) -> None:
@@ -38,6 +39,11 @@ def init_db_command() -> None:
     """Create every table of the domain model that does not exist yet."""
     create_schema(get_engine(), Base.metadata)
     click.echo("Database initialized.")
+
+
+def fits_integer_column(value: int) -> bool:
+    """Whether SQLite can bind the value; a bigger one raises `OverflowError` in `sqlite3`."""
+    return -SQLITE_MAX_INTEGER - 1 <= value <= SQLITE_MAX_INTEGER
 
 
 def get_engine() -> Engine:

@@ -11,10 +11,13 @@ from app import create_app
 from app.auth import USER_ID_KEY
 from app.db import EXTENSION_KEY, create_schema, get_engine
 from app.domain.base import Base
+from app.domain.products import Category, ProductType
 from app.domain.users import ROLE_CLASSES, User
 from app.services.passwords import WerkzeugPasswordHasher
 
 MakeUser = Callable[..., User]
+MakeCategory = Callable[..., Category]
+MakeProductType = Callable[..., ProductType]
 LoginAs = Callable[[FlaskClient, User], None]
 
 
@@ -107,3 +110,31 @@ def admin(make_user: MakeUser) -> User:
 def admin_client(client: FlaskClient, admin: User) -> FlaskClient:
     _login_as(client, admin)
     return client
+
+
+@pytest.fixture
+def make_category(db_session: Session) -> MakeCategory:
+    """Persist and commit a category; names are unique unless given."""
+    sequence = itertools.count(1)
+
+    def make(name: str | None = None) -> Category:
+        category = Category(name=name or f"Category {next(sequence)}")
+        db_session.add(category)
+        db_session.commit()
+        return category
+
+    return make
+
+
+@pytest.fixture
+def make_product_type(db_session: Session) -> MakeProductType:
+    """Persist and commit a product type of the category; names are unique unless given."""
+    sequence = itertools.count(1)
+
+    def make(category: Category, name: str | None = None) -> ProductType:
+        product_type = ProductType(name=name or f"Type {next(sequence)}", category=category)
+        db_session.add(product_type)
+        db_session.commit()
+        return product_type
+
+    return make

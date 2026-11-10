@@ -44,3 +44,23 @@ class InvalidCredentialsError(DomainError):
     """Same error for an unknown email, a wrong password or an inactive user."""
 
     message = "Invalid credentials."
+
+
+class DuplicateCategoryError(DomainError):
+    message = "A category with this name already exists."
+
+
+class CategoryInUseError(DomainError):
+    message = "The category has product types and cannot be deleted."
+
+
+class DuplicateProductTypeError(DomainError):
+    message = "A product type with this name already exists in the category."
+
+
+class CategoryNotFoundError(DomainError):
+    message = "Category not found."
+
+
+class ProductTypeNotFoundError(DomainError):
+    message = "Product type not found."

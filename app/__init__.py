@@ -9,7 +9,7 @@ from flask import Flask
 from app import db
 from app.cli import register_commands
 from app.config import load_config
-from app.controllers import api_docs, auth, health, users
+from app.controllers import api_docs, auth, catalog, health, users
 from app.controllers.errors import register_error_handlers
 
 
@@ -23,6 +23,7 @@ def create_app(overrides: Mapping[str, Any] | None = None) -> Flask:
     app.register_blueprint(api_docs.bp)
     app.register_blueprint(auth.bp)
     app.register_blueprint(users.bp)
+    app.register_blueprint(catalog.bp)
     register_error_handlers(app)
     register_commands(app)
     return app
