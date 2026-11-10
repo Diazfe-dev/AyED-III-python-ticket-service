@@ -1,6 +1,6 @@
 # 01 — Usuarios y accesos · Tasks
 
-Estados: `[ ]` pendiente · `[~]` en curso · `[x]` hecha. Cada task es un ciclo TDD con los casos de [test-plan.md](test-plan.md). La tabla está en orden de ejecución: T-USR-27 y 28 se agregaron después (SPEC-USR-22 y 23) y se ubican donde corresponden, sin renumerar las demás. T-USR-29 a 33 son el hardening del 2026-11-10 (SPEC-USR-24, 25 y la decisión 6).
+Estados: `[ ]` pendiente · `[~]` en curso · `[x]` hecha. Cada task es un ciclo TDD con los casos de [test-plan.md](test-plan.md). La tabla está en orden de ejecución: T-USR-27 y 28 se agregaron después (SPEC-USR-22 y 23) y se ubican donde corresponden, sin renumerar las demás. T-USR-29 a 33 son el hardening del 2026-11-10 (SPEC-USR-24, 25 y la decisión 6). T-USR-34 a 36 implementan SPEC-USR-26 (revisión transversal del 2026-11-10).
 
 Las tasks de endpoints (T-USR-18 a 23) agregan la operación a `docs/openapi.json` y la ruta en el mismo ciclo: en la fase roja fallan el test del endpoint y TC-PLT-14b, y en la verde pasan los dos (ver [plan.md](plan.md#decisiones-técnicas)).
 
@@ -39,5 +39,9 @@ Las tasks de endpoints (T-USR-18 a 23) agregan la operación a `docs/openapi.jso
 | [x] | T-USR-31 | Rechazo de tipos de dato inválidos en el alta, la modificación y el login (comportamiento existente sin spec, ahora trazado) | USR-25 | Services / Controllers | TC-USR-25a a 25f en verde |
 | [x] | T-USR-32 | `create-admin` pide la contraseña con `click.prompt` oculto y confirmado, sin opción `--password` | USR-20 | App | TC-USR-20e en verde y TC-USR-20a a 20d siguen en verde |
 | [x] | T-USR-33 | Cierre del hardening: `ruff`, cobertura ≥ 90 %, diagrama de secuencia del login y `MEMORY.md` actualizados | USR-20, 24, 25 | — | `ruff check`, `ruff format --check` y `pytest --cov=app --cov-fail-under=90` en verde; `diagrams/sequences/01-users.md` muestra el `verify` de relleno |
+
+| [x] | T-USR-34 | Trazar el usuario inexistente a SPEC-USR-26: TC-USR-07c, 07e y 09d pasan a ser TC-USR-26a, 26c y 26d (docstrings), y se suma el caso unitario de la baja de un usuario inexistente | USR-26 | Services / tests | TC-USR-26a a 26d en verde |
+| [x] | T-USR-35 | `SqlAlchemyUserRepository.get` devuelve `None` para un id fuera del rango de SQLite (`fits_integer_column`); `PATCH` y `deactivate` con ese id responden `404` | USR-26 | Repositories | TC-USR-26e y 26f en verde |
+| [x] | T-USR-36 | Cierre de SPEC-USR-26: `ruff`, cobertura ≥ 90 % y `MEMORY.md` actualizado | USR-26 | — | `ruff check`, `ruff format --check` y `pytest --cov=app --cov-fail-under=90` en verde |
 
 Pendiente fuera de esta área: TC-USR-10d (un ticket de un usuario inactivo conserva sus hitos y su historial de estados) se implementa en `04-tickets`.
