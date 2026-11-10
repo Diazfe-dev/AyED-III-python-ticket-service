@@ -15,10 +15,10 @@ def register_commands(app: Flask) -> None:
 @click.command("create-admin")
 @click.option("--name", required=True, help="Name of the administrator.")
 @click.option("--email", required=True, help="Email used to log in.")
-@click.password_option(help="Asked for twice and hidden; never pass it on the command line.")
 @with_appcontext
-def create_admin_command(name: str, email: str, password: str) -> None:
-    """Create an administrator with the same rules as any other user."""
+def create_admin_command(name: str, email: str) -> None:
+    """Create an administrator; the password is only asked for, hidden and twice."""
+    password = click.prompt("Password", hide_input=True, confirmation_prompt=True)
     try:
         get_user_service().create_user(name=name, email=email, role="Admin", password=password)
     except DomainError as error:

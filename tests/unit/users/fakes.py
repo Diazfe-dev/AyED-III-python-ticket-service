@@ -32,13 +32,20 @@ class FakeUserRepository:
 
 
 class FakePasswordHasher:
-    """Readable, instant hash: `hashed:<password>`."""
+    """Readable, instant hash: `hashed:<password>`. Records every `verify` call."""
+
+    def __init__(self) -> None:
+        self.verify_calls: list[tuple[str, str]] = []
 
     def hash(self, password: str) -> str:
         return f"hashed:{password}"
 
     def verify(self, password_hash: str, password: str) -> bool:
+        self.verify_calls.append((password_hash, password))
         return password_hash == self.hash(password)
+
+    def dummy_hash(self) -> str:
+        return self.hash("dummy-password")
 
 
 class CommitSpy:
