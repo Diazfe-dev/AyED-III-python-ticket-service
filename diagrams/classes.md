@@ -102,10 +102,14 @@ classDiagram
     class Category {
         +int id
         +str name
+        +str name_key
+        +list~ProductType~ product_types
     }
     class ProductType {
         +int id
         +str name
+        +str name_key
+        +int category_id
         +Category category
     }
     class Product {
@@ -115,7 +119,7 @@ classDiagram
         +bool is_active
         +deactivate() None
     }
-    ProductType "*" --> "1" Category : category
+    Category "1" -- "*" ProductType : product_types y category
     Product "*" --> "1" ProductType : product_type
 
     class Notification {
@@ -155,6 +159,7 @@ classDiagram
 - **Agregación** (rombo vacío): `Client`, `Representative` y `Product` tienen un ciclo de vida independiente del ticket.
 - **Inmutables**: `Milestone` y `StateChange` no se pueden modificar ni borrar. Los protegen listeners del ORM y triggers de SQLite (RNF 5 y 6).
 - **Baja lógica**: `User` y `Product` tienen `is_active` y nunca se borran físicamente.
+- **Catálogo**: `Category` y `ProductType` guardan el `name` sin espacios en los extremos y una columna `name_key = normalize_name(name)` (`strip().casefold()`) que completa un `@validates("name")` común (mixin `CatalogName`). La unicidad sin distinguir mayúsculas la impone la base con `UNIQUE (name_key)` en `categories` y `UNIQUE (category_id, name_key)` en `product_types`. `product_types.category_id` es FK `ON DELETE RESTRICT` y `Category.product_types` usa `passive_deletes="all"` y `order_by=(name_key, id)`: borrar una categoría nunca toca sus tipos, y la base rechaza la baja si tiene alguno. La baja de categorías y tipos es física. `Product` llega en `03-products`.
 - **Usuarios**: herencia de tabla única (tabla `users`) con el discriminador `role`; el registro `ROLE_CLASSES` resuelve la subclase a partir del rol. El email se normaliza al asignarlo (`normalize_email`) y `preferred_channel` solo admite `mail` o `whatsapp` (`NOTIFICATION_CHANNELS`). `User` no verifica contraseñas: el dominio solo importa `sqlalchemy`, así que el hash vive en `PasswordHasher` (capa de services).
 - **Patrón Strategy**: `NotificationService` elige la estrategia según `recipient.preferred_channel`. Ambas estrategias simulan el envío.
 
@@ -205,13 +210,18 @@ classDiagram
         +add_milestone(ticket_id, content, start_progress)
         +list_milestones(ticket_id)
     }
+    class wiring {
+        <<module>>
+        +get_catalog_service() CatalogService
+    }
     class CatalogController {
-        +create_category(name)
-        +update_category(category_id, name)
+        +list_categories()
+        +create_category(body)
+        +update_category(category_id, body)
         +delete_category(category_id)
-        +create_product_type(name, category_id)
-        +update_product_type(type_id, form)
-        +delete_product_type(type_id)
+        +create_product_type(body)
+        +update_product_type(product_type_id, body)
+        +delete_product_type(product_type_id)
         +list_product_types(category_id)
         +create_product(name, product_type_id)
         +update_product(product_id, form)
@@ -252,13 +262,25 @@ classDiagram
         +remove_product(ticket_id, product_id, actor) None
     }
     class CatalogService {
+        +CategoryRepository categories
+        +ProductTypeRepository product_types
+        +Callable commit
         +create_category(name) Category
         +update_category(category_id, name) Category
         +delete_category(category_id) None
+        +list_categories() list
         +create_product_type(name, category_id) ProductType
-        +update_product_type(type_id, data) ProductType
-        +delete_product_type(type_id) None
+        +update_product_type(product_type_id, name, category_id) ProductType
+        +delete_product_type(product_type_id) None
         +list_product_types(category_id) list
+    }
+    class validation {
+        <<module>>
+        +text_error(value) str
+        +id_error(value) str
+        +parse_id(value) int
+        +provided(values) dict
+        +raise_if_invalid(errors) None
     }
     class ProductService {
         +create_product(name, product_type_id) Product
@@ -284,8 +306,21 @@ classDiagram
         +list_by_representative(rep_id) list
         +add(ticket) None
     }
-    class CategoryRepository
-    class ProductTypeRepository
+    class CategoryRepository {
+        +add(category) None
+        +get(category_id) Category
+        +find_by_name(name) Category
+        +list_all() list
+        +list_with_product_types() list
+        +has_product_types(category_id) bool
+        +delete(category) None
+    }
+    class ProductTypeRepository {
+        +add(product_type) None
+        +get(product_type_id) ProductType
+        +find_by_name_in_category(name, category_id) ProductType
+        +delete(product_type) None
+    }
     class ProductRepository {
         +get_many(product_ids) list
         +list(filters) list
@@ -302,7 +337,12 @@ classDiagram
     UserController ..> errors : DomainError a HTTP
     TicketController --> TicketService
     MilestoneController --> TicketService
-    CatalogController --> CatalogService
+    CatalogController --> wiring
+    CatalogController --> auth : login_required y admin_required
+    CatalogController ..> errors : DomainError a HTTP
+    wiring --> CatalogService
+    CatalogService ..> validation
+    UserService ..> validation
     CatalogController --> ProductService
 
     UserService --> UserRepository
@@ -326,4 +366,6 @@ classDiagram
 - Los **services** reciben sus dependencias por constructor (repositorios, `NotificationService`, un `clock` inyectable y la función `commit`, que en producción es `session.commit`) y deciden cuándo confirmar la transacción. `UserService` recibe además un `PasswordHasher`.
 - `app/auth.py` arma `UserService` para cada request (o comando CLI) y expone `current_user()` y los decoradores `login_required` (`401`) y `admin_required` (`403`). `app/controllers/errors.py` traduce cada `DomainError` a su status y código JSON con una tabla. El comando `create-admin` (`app/cli.py`) reutiliza `create_user`.
 - Los **repositories** encapsulan la `Session` de SQLAlchemy y nunca hacen commit. `UserRepository.add` hace `flush()` y traduce el `IntegrityError` del email único a `DuplicateUserError`. `TicketRepository.get_visible` aplica el filtro de privacidad (RNF 4).
+- `app/wiring.py` arma `CatalogService` para cada request con `get_session()` y los dos repositorios del catálogo, así los controllers nunca tocan la `Session`. `app/services/validation.py` reúne los validadores de campos que comparten `UserService` y `CatalogService` (`text_error`, `id_error`, `parse_id`, `provided`, `raise_if_invalid`).
+- `CategoryRepository.add` y `ProductTypeRepository.add` hacen `flush()` y traducen el `IntegrityError` de los `UNIQUE` a `DuplicateCategoryError` y `DuplicateProductTypeError`. `CategoryRepository.delete` traduce el de la FK `RESTRICT` a `CategoryInUseError`. `list_with_product_types` carga las categorías con `selectinload(Category.product_types)` (2 consultas en total). Los dos `get` devuelven `None` para un id que no entra en el `INTEGER` de SQLite (`fits_integer_column` de `app/db.py`).
 - No hay `MilestoneService`: los hitos forman parte del agregado `Ticket` y se gestionan desde `TicketService`.

@@ -4,6 +4,7 @@ from typing import Any
 
 from flask import request
 
+from app.domain.products import Category, ProductType
 from app.domain.users import User
 
 
@@ -22,4 +23,23 @@ def user_json(user: User) -> dict[str, Any]:
     return session_user_json(user) | {
         "preferred_channel": user.preferred_channel,
         "is_active": user.is_active,
+    }
+
+
+def category_json(category: Category) -> dict[str, Any]:
+    return {"id": category.id, "name": category.name}
+
+
+def product_type_json(product_type: ProductType) -> dict[str, Any]:
+    return {
+        "id": product_type.id,
+        "name": product_type.name,
+        "category_id": product_type.category_id,
+    }
+
+
+def category_group_json(category: Category) -> dict[str, Any]:
+    """A category with its product types, already ordered by name."""
+    return category_json(category) | {
+        "product_types": [product_type_json(t) for t in category.product_types]
     }
