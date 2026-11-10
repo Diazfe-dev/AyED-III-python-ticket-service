@@ -1,6 +1,6 @@
 # Specs
 
-Descomposición de los requerimientos funcionales de [REQUERIMIENTOS.md](../REQUERIMIENTOS.md) en especificaciones atómicas y verificables, escritas con **EARS** (*Easy Approach to Requirements Syntax*).
+Descomposición de los requerimientos funcionales de [REQUERIMIENTOS.md](../docs/REQUERIMIENTOS.md) en especificaciones atómicas y verificables, escritas con **EARS** (*Easy Approach to Requirements Syntax*).
 
 ## Patrones EARS
 

@@ -10,7 +10,7 @@ Sistema de gestión de tickets de soporte (TP final de Algoritmos III). Un repre
 
 Fuentes de verdad, en este orden:
 
-1. [REQUERIMIENTOS.md](REQUERIMIENTOS.md): requerimientos funcionales (RF) y no funcionales (RNF).
+1. [docs/REQUERIMIENTOS.md](docs/REQUERIMIENTOS.md): requerimientos funcionales (RF) y no funcionales (RNF).
 2. [specs/](specs/): una carpeta por área con `spec.md` (RF descompuestos en EARS, `SPEC-<ÁREA>-<NN>`), `plan.md`, `tasks.md` y `test-plan.md`. Bajo **spec-as-source**, `spec.md` es la fuente de verdad del comportamiento y el código se deriva de ella.
 3. [diagrams/](diagrams/): diagramas en **Mermaid**: [classes.md](diagrams/classes.md) (modelo de dominio y capas) y [sequences/](diagrams/sequences/) (un archivo por área de specs).
 

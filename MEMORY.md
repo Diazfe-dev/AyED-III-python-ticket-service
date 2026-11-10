@@ -8,11 +8,12 @@ Memoria persistente del proyecto. Se lee al empezar cada sesión y se actualiza 
 
 - Fase: diseño y especificación terminados, sin preguntas abiertas. La implementación no empezó: todavía no hay código ni repositorio git.
 - Existe:
+  - [README.md](README.md) (2026-11-10): descripción del proyecto, stack, metodología (SDD spec-as-source + EARS + TDD), arquitectura y guía de contribución.
   - [docs/constitution.md](docs/constitution.md): 6 principios innegociables, con la máxima precedencia.
-  - [REQUERIMIENTOS.md](REQUERIMIENTOS.md): RF actualizados el 2026-11-09 con 3 RF nuevos (1.1.5 rol Admin, 1.2.3 ABM de rubros, 1.4.7 quitar productos) y 4 aclarados (1.1.1, 1.3.1, 1.4.5, 1.6.3).
+  - [docs/REQUERIMIENTOS.md](docs/REQUERIMIENTOS.md) (movido a `docs/` el 2026-11-10): RF actualizados el 2026-11-09 con 3 RF nuevos (1.1.5 rol Admin, 1.2.3 ABM de rubros, 1.4.7 quitar productos) y 4 aclarados (1.1.1, 1.3.1, 1.4.5, 1.6.3).
   - [AGENTS.md](AGENTS.md): stack, convenciones, patrones, spec-as-source, prohibiciones, flujo de trabajo, testing/CI y estilo de commits.
   - [specs/](specs/): 90 specs EARS en 6 áreas (USR 21, PTY 14, PRD 10, TKT 22, MLS 10, NTF 13), todas con su sección **Decisiones** y sin preguntas abiertas. Migradas el 2026-11-09 a una carpeta por área (`specs/NN-<área>/spec.md`). Todavía no hay `plan.md`, `tasks.md` ni `test-plan.md`; el avance de cada área se sigue en el índice de [specs/README.md](specs/README.md).
-  - [diagrams/](diagrams/): todo en Mermaid. [classes.md](diagrams/classes.md) tiene 2 vistas (dominio y capas) y [sequences/](diagrams/sequences/) tiene 22 diagramas en 6 archivos, uno por área. Se borraron los 4 diagramas de secuencia viejos (`.md` y `.jpg`); hay una copia de respaldo solo en el scratchpad de la sesión del 2026-11-09. Quedan `Diagrama.drawio` y `Diagrama-clases.jpg`, pendientes de decidir si se eliminan. Los Mermaid pasaron una validación estática, pero todavía no se renderizaron con `mermaid-cli`.
+  - [diagrams/](diagrams/): todo en Mermaid. [classes.md](diagrams/classes.md) tiene 2 vistas (dominio y capas) y [sequences/](diagrams/sequences/) tiene 22 diagramas en 6 archivos, uno por área. Se borraron los 4 diagramas de secuencia viejos (`.md` y `.jpg`); hay una copia de respaldo solo en el scratchpad de la sesión del 2026-11-09. `Diagrama.drawio` y `Diagrama-clases.jpg` también se eliminaron (2026-11-10): Mermaid es la única fuente. Los Mermaid pasaron una validación estática, pero todavía no se renderizaron con `mermaid-cli`.
 - No existe todavía: `app/`, `tests/`, `requirements*.txt`, configuración de `ruff`, CI, ni los archivos `plan.md`, `tasks.md` y `test-plan.md`.
 
 ## Decisiones (y por qué)
@@ -70,7 +71,7 @@ Memoria persistente del proyecto. Se lee al empezar cada sesión y se actualiza 
 
 ## Próximos pasos
 
-1. Verificar el render de los diagramas Mermaid (preview de VS Code o GitHub) y decidir si se eliminan `Diagrama.drawio` y `Diagrama-clases.jpg`.
+1. Verificar en GitHub que los diagramas Mermaid se rendericen correctamente.
 2. Inicializar git, `.gitignore` (`.venv`, `*.db`, `.env`, `__pycache__`) y la rama `main`. Considerar un `CODEOWNERS` para `AGENTS.md` y `docs/constitution.md`.
 3. Crear `requirements.txt` (Flask, SQLAlchemy) y `requirements-dev.txt` (pytest, pytest-cov, ruff), y configurar `ruff` en `pyproject.toml`.
 4. Esqueleto: `create_app()`, `db.py` (engine, sesión por request, `init-db`, `create-admin`), `conftest.py` con base en memoria.
