@@ -10,6 +10,7 @@ Un hito (`Milestone`) es un mensaje o evento registrado en un ticket, con conten
 | SPEC-MLS-02 | Complejo | **Mientras** el ticket no está en `Closed`, **cuando** el cliente dueño responde con un mensaje, **el sistema deberá** agregarlo al ticket como hito. | RF 1.5.1, RF 1.6.3 |
 | SPEC-MLS-03 | Por evento | **Cuando** se registra un hito, **el sistema deberá** guardar como autor al usuario autenticado y como fecha de creación el instante actual en UTC. | RF 1.5.1, Diagrama de clases |
 | SPEC-MLS-04 | No deseado | **Si** el contenido del hito está vacío o tiene solo espacios, **entonces el sistema deberá** rechazarlo. | RF 1.5.1 |
+| SPEC-MLS-11 | No deseado | **Si** el contenido del hito no es texto, **entonces el sistema deberá** rechazarlo e indicar que el contenido es inválido. | RF 1.5.1 |
 | SPEC-MLS-05 | No deseado | **Si** se intenta registrar un hito en un ticket en `Closed`, **entonces el sistema deberá** rechazarlo e indicar que primero hay que reabrir el ticket. | RF 1.4.5, RF 1.5.1 |
 | SPEC-MLS-06 | No deseado | **Si** quien intenta registrar el hito no es el cliente dueño ni el representante asignado, **entonces el sistema deberá** rechazarlo. | RNF 4 |
 | SPEC-MLS-07 | Por evento | **Cuando** se solicitan los hitos de un ticket, **el sistema deberá** devolverlos en orden cronológico ascendente por fecha de creación, desempatando por orden de registro. | RF 1.5.2 |
@@ -23,3 +24,7 @@ Resueltas el 2026-11-09 y registradas en [MEMORY.md](../../MEMORY.md):
 
 1. Los hitos son solo texto, sin adjuntos.
 2. Un ticket cerrado no acepta hitos: primero hay que reabrirlo (SPEC-MLS-05).
+
+Aprobada el 2026-11-10 (revisión transversal de huecos):
+
+3. Un contenido que no es texto se rechaza como inválido (SPEC-MLS-11), con el mismo criterio que SPEC-USR-25.
