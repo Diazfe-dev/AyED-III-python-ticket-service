@@ -20,8 +20,8 @@ classDiagram
         +str email
         +str password_hash
         +str preferred_channel
+        +str role
         +bool is_active
-        +check_password(password) bool
         +deactivate() None
     }
     class Admin
@@ -155,6 +155,7 @@ classDiagram
 - **Agregación** (rombo vacío): `Client`, `Representative` y `Product` tienen un ciclo de vida independiente del ticket.
 - **Inmutables**: `Milestone` y `StateChange` no se pueden modificar ni borrar. Los protegen listeners del ORM y triggers de SQLite (RNF 5 y 6).
 - **Baja lógica**: `User` y `Product` tienen `is_active` y nunca se borran físicamente.
+- **Usuarios**: herencia de tabla única (tabla `users`) con el discriminador `role`; el registro `ROLE_CLASSES` resuelve la subclase a partir del rol. El email se normaliza al asignarlo (`normalize_email`) y `preferred_channel` solo admite `mail` o `whatsapp` (`NOTIFICATION_CHANNELS`). `User` no verifica contraseñas: el dominio solo importa `sqlalchemy`, así que el hash vive en `PasswordHasher` (capa de services).
 - **Patrón Strategy**: `NotificationService` elige la estrategia según `recipient.preferred_channel`. Ambas estrategias simulan el envío.
 
 ## 2. Capas de aplicación
@@ -168,11 +169,28 @@ classDiagram
         +logout()
     }
     class UserController {
-        +create_user(form)
-        +update_user(user_id, form)
+        +create_user(body)
+        +update_user(user_id, body)
         +deactivate_user(user_id)
         +list_clients()
         +list_representatives()
+    }
+    class auth {
+        <<module>>
+        +get_user_service() UserService
+        +current_user() User
+        +authenticated_user() User
+        +login_required(view)
+        +admin_required(view)
+    }
+    class errors {
+        <<module>>
+        +ERROR_RESPONSES dict
+        +register_error_handlers(app) None
+    }
+    class cli {
+        <<module>>
+        +create_admin(name, email, password)
     }
     class TicketController {
         +create_ticket(client_id, product_ids, first_message)
@@ -203,11 +221,24 @@ classDiagram
     }
 
     class UserService {
+        +UserRepository repository
+        +PasswordHasher hasher
+        +Callable commit
         +create_user(name, email, role, password, preferred_channel) User
-        +update_user(user_id, data) User
-        +deactivate_user(user_id, actor) None
+        +update_user(user_id, name, email, preferred_channel) User
+        +deactivate_user(user_id, actor) User
         +authenticate(email, password) User
+        +find_active_user(user_id) User
         +list_by_role(role) list
+    }
+    class PasswordHasher {
+        <<interface>>
+        +hash(password) str
+        +verify(password_hash, password) bool
+    }
+    class WerkzeugPasswordHasher {
+        +hash(password) str
+        +verify(password_hash, password) bool
     }
     class TicketService {
         +create_ticket(client_id, product_ids, first_message, representative) Ticket
@@ -263,14 +294,20 @@ classDiagram
         +add(notification) None
     }
 
-    AuthController --> UserService
-    UserController --> UserService
+    AuthController --> auth
+    UserController --> auth
+    cli --> auth
+    auth --> UserService
+    AuthController ..> errors : DomainError a HTTP
+    UserController ..> errors : DomainError a HTTP
     TicketController --> TicketService
     MilestoneController --> TicketService
     CatalogController --> CatalogService
     CatalogController --> ProductService
 
     UserService --> UserRepository
+    UserService --> PasswordHasher
+    PasswordHasher <|.. WerkzeugPasswordHasher
     TicketService --> TicketRepository
     TicketService --> UserRepository
     TicketService --> ProductRepository
@@ -286,6 +323,7 @@ classDiagram
 ### Notas de las capas
 
 - Los **controllers** solo traducen HTTP: validan la entrada, obtienen `current_user` de la sesión y convierten las excepciones de dominio en códigos HTTP.
-- Los **services** reciben sus dependencias por constructor (repositorios, `NotificationService` y un `clock` inyectable) y manejan la transacción (`commit()`).
-- Los **repositories** encapsulan la `Session` de SQLAlchemy. `TicketRepository.get_visible` aplica el filtro de privacidad (RNF 4).
+- Los **services** reciben sus dependencias por constructor (repositorios, `NotificationService`, un `clock` inyectable y la función `commit`, que en producción es `session.commit`) y deciden cuándo confirmar la transacción. `UserService` recibe además un `PasswordHasher`.
+- `app/auth.py` arma `UserService` para cada request (o comando CLI) y expone `current_user()` y los decoradores `login_required` (`401`) y `admin_required` (`403`). `app/controllers/errors.py` traduce cada `DomainError` a su status y código JSON con una tabla. El comando `create-admin` (`app/cli.py`) reutiliza `create_user`.
+- Los **repositories** encapsulan la `Session` de SQLAlchemy y nunca hacen commit. `UserRepository.add` hace `flush()` y traduce el `IntegrityError` del email único a `DuplicateUserError`. `TicketRepository.get_visible` aplica el filtro de privacidad (RNF 4).
 - No hay `MilestoneService`: los hitos forman parte del agregado `Ticket` y se gestionan desde `TicketService`.

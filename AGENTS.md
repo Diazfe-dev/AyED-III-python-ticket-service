@@ -65,21 +65,33 @@ flask --app app run --debug
 
 ```
 app/
-  __init__.py          # create_app(): config, blueprints, engine y sesión
+  __init__.py          # create_app(): config, blueprints, manejadores de errores y comandos
+  config.py            # load_config(): configuración desde el entorno
   db.py                # engine, sessionmaker, sesión por request, comando init-db (create_all)
+  auth.py              # get_user_service, current_user y decoradores login_required (401) y admin_required (403)
+  cli.py               # comando create-admin
   domain/              # Entidades mapeadas con SQLAlchemy; sin Flask ni HTTP
     base.py            # Base(DeclarativeBase)
+    errors.py          # DomainError y subclases (ValidationError, DuplicateUserError, ...)
     ticket.py          # Ticket (agregado raíz)
     states.py          # State, NewState, InProgressState, ClosedState
     milestone.py       # Milestone (inmutable)
     state_change.py    # StateChange (registro de auditoría)
-    users.py           # User, Client, Representative
+    users.py           # User, Admin, Representative, Client (tabla única) y ROLE_CLASSES
     products.py        # Product, ProductType, Category
     notifications.py   # Notification (interfaz), MailNotification, WhatsappNotification
   services/            # Casos de uso: orquestan dominio, repositorios y notificaciones
+    passwords.py       # PasswordHasher (protocolo) y WerkzeugPasswordHasher
+    user_service.py    # UserService
   repositories/        # Consultas con la Session de SQLAlchemy; devuelven y reciben entidades
+    user_repository.py # SqlAlchemyUserRepository
   controllers/         # Blueprints de Flask: HTTP de entrada y salida, nada más
-  auth.py              # login, logout, decorador login_required y verificación de roles
+    health.py          # /health
+    api_docs.py        # /openapi.json y /docs
+    auth.py            # POST /login y POST /logout
+    users.py           # gestión de usuarios (solo Admin)
+    errors.py          # tabla DomainError → status y código JSON
+    serializers.py     # lectura del cuerpo JSON y representación de usuarios
 tests/
   conftest.py          # fixtures: app con base en memoria, client, usuarios de prueba
   unit/                # dominio y servicios, sin Flask ni disco
@@ -160,7 +172,7 @@ Cada RNF tiene una regla concreta en el código y al menos un test que la proteg
 | RNF | Regla de implementación | Test obligatorio |
 |-----|-------------------------|------------------|
 | 1. TDD estricto | No se escribe código de producción sin un test que falle antes. Ciclo red → green → refactor. | El historial de commits muestra el test antes o junto con la implementación. |
-| 2. Autenticación robusta | Contraseñas hasheadas con `generate_password_hash` y comparadas con `check_password_hash`. Todas las rutas salvo `/login`, `/health`, `/openapi.json` y `/docs` requieren `login_required`. `SECRET_KEY` desde el entorno; la cookie de sesión es `HttpOnly` y `SameSite=Lax`. El mensaje de error del login es genérico (no revela si el email existe). | Login correcto, contraseña incorrecta, usuario inexistente, ruta protegida sin sesión → redirect/401. |
+| 2. Autenticación robusta | Contraseñas hasheadas con `generate_password_hash` y comparadas con `check_password_hash`. Todas las rutas salvo `/login`, `/health`, `/openapi.json` y `/docs` requieren `login_required`. `SECRET_KEY` desde el entorno; la cookie de sesión es `HttpOnly` y `SameSite=Lax`. El mensaje de error del login es genérico (no revela si el email existe). | Login correcto, contraseña incorrecta, usuario inexistente, ruta protegida sin sesión → 401 en JSON. |
 | 3. Usuarios únicos | Email normalizado (`strip().lower()`) antes de guardar. `mapped_column(unique=True)` en `User.email` **y** chequeo previo en el service. Si igual ocurre un `IntegrityError`, el repositorio lo traduce a `DuplicateUserError`. | Alta duplicada (incluso con distinto uso de mayúsculas) es rechazada. |
 | 4. Privacidad de tickets | El filtro por dueño se aplica en el service, no en el template. Un cliente que pide un ticket ajeno recibe **404** (no 403, para no confirmar que existe). | Cliente A no puede ver, listar, responder ni cerrar tickets del cliente B. |
 | 5. Hitos inmutables | No existen métodos, rutas ni repositorios que actualicen o borren hitos. Tres barreras: (a) listeners `before_update` y `before_delete` de SQLAlchemy sobre `Milestone` que lanzan `ImmutableRecordError`; (b) triggers de SQLite que hacen `RAISE(ABORT)` ante `UPDATE` o `DELETE` sobre `milestones`, registrados con `event.listen(table, "after_create", DDL(...))`; (c) la relación `Ticket.milestones` sin `delete-orphan`. Lo mismo aplica a `StateChange`. | Modificar o borrar un hito falla en el ORM y también con SQL directo. |
