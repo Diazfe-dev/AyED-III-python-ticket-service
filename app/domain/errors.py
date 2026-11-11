@@ -76,3 +76,11 @@ class ProductTypeInUseError(DomainError):
 
 class ProductNotFoundError(DomainError):
     message = "Product not found."
+
+
+class InvalidTransitionError(DomainError):
+    pass
+
+
+class ProductNotInTicketError(DomainError):
+    pass
