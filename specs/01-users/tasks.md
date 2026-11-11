@@ -44,4 +44,4 @@ Las tasks de endpoints (T-USR-18 a 23) agregan la operación a `docs/openapi.jso
 | [x] | T-USR-35 | `SqlAlchemyUserRepository.get` devuelve `None` para un id fuera del rango de SQLite (`fits_integer_column`); `PATCH` y `deactivate` con ese id responden `404` | USR-26 | Repositories | TC-USR-26e y 26f en verde |
 | [x] | T-USR-36 | Cierre de SPEC-USR-26: `ruff`, cobertura ≥ 90 % y `MEMORY.md` actualizado | USR-26 | — | `ruff check`, `ruff format --check` y `pytest --cov=app --cov-fail-under=90` en verde |
 
-Pendiente fuera de esta área: TC-USR-10d (un ticket de un usuario inactivo conserva sus hitos y su historial de estados) se implementa en `04-tickets`.
+TC-USR-10d (un ticket de un usuario inactivo conserva sus hitos y su historial de estados) se implementó en `04-tickets` (T-TKT-36, `tests/integration/tickets/test_cross_area.py`): hecho.

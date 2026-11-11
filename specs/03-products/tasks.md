@@ -52,4 +52,4 @@ Notas de la implementación (2026-11-10):
 - La fila `ProductNotFoundError` de `ERROR_RESPONSES` se agregó después de la ruta de `PATCH`, para verla fallar sola (TC-PRD-17d y 17e respondían con la excepción sin traducir).
 - TC-PRD-02b y 02c son dos tests y no uno parametrizado, para que cada docstring cite un solo caso.
 
-Pendiente fuera de esta área: SPEC-PRD-06 (TC-PRD-06d) se completa en `04-tickets`, cuando existan los tickets y la asociación con productos.
+SPEC-PRD-06 (TC-PRD-06d) se completó en `04-tickets` (T-TKT-37, `tests/integration/tickets/test_cross_area.py`): hecho.

@@ -60,7 +60,7 @@ Contraseña válida de referencia en los casos: `"password1"` (9 caracteres).
 | USR-10 | TC-USR-10a | integration | Baja por API y lectura con `db_session` después de `expire_all()` | La fila existe con el mismo nombre, email, rol y hash | `tests/integration/users/test_users_api.py` |
 | USR-10 | TC-USR-10b | integration | Atributos públicos de `SqlAlchemyUserRepository` | No existe ningún método `delete` ni `remove` | `tests/integration/users/test_user_repository.py` |
 | USR-10 | TC-USR-10c | integration | Reglas de `app.url_map` que empiezan con `/users`, `/clients` o `/representatives` | Ninguna acepta `DELETE` | `tests/integration/users/test_users_api.py` |
-| USR-10 | TC-USR-10d | integration | **Pendiente (`04-tickets`)**: ticket de un usuario que después se da de baja | El ticket, sus hitos y sus `StateChange` siguen existiendo y se pueden leer | `tests/integration/tickets/` |
+| USR-10 | TC-USR-10d | integration | Ticket de un usuario que después se da de baja (cubierto en `04-tickets`, T-TKT-36) | El ticket, sus hitos y sus `StateChange` siguen existiendo y se pueden leer | `tests/integration/tickets/test_cross_area.py` |
 | USR-11 | TC-USR-11a | integration | Un usuario de cada rol; `list_by_role("Client")` | Solo devuelve el `Client` | `tests/integration/users/test_user_repository.py` |
 | USR-11 | TC-USR-11b | unit | `list_by_role("Client")` con fakes | Devuelve solo los clientes del repositorio | `tests/unit/users/test_user_service.py` |
 | USR-11 | TC-USR-11c | integration | `admin_client` hace `GET /clients` con usuarios de los tres roles | `200` y todos los elementos tienen `role: "Client"` | `tests/integration/users/test_users_api.py` |
@@ -148,5 +148,5 @@ Además, cada task de endpoint deja en verde TC-PLT-14a y 14b (sincronización e
 |-----|-------|
 | RNF 2 (autenticación robusta) | TC-USR-02a, 02b, 02c, 14b, 14c, 15a a 15e, 16a a 16d, 17a, 17b, 18a a 18d, 19a a 19c, 20e, 24a a 24c, 25a a 25f |
 | RNF 3 (usuarios únicos) | TC-USR-03a a 03c, 04a a 04d, 08a a 08c |
-| RNF 5 y 6 (conservación del historial, parcial) | TC-USR-10a, 10b, 10c (TC-USR-10d en `04-tickets`) |
+| RNF 5 y 6 (conservación del historial, parcial) | TC-USR-10a, 10b, 10c (TC-USR-10d en `tests/integration/tickets/test_cross_area.py`, hecho en `04-tickets`) |
 | RNF 7 (documentación de la API) | TC-PLT-14a y 14b en cada task de endpoint (T-USR-18 a 23) |
