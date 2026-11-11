@@ -4,6 +4,7 @@ from collections.abc import Callable
 from datetime import datetime
 from typing import Protocol
 
+from app.domain.errors import PermissionDeniedError
 from app.domain.products import Product
 from app.domain.ticket import Ticket
 from app.domain.users import Client, Representative, User
@@ -45,9 +46,11 @@ class TicketService:
         client_id: int,
         product_ids: list[int] | None,
         first_message: str,
-        actor: Representative,
+        actor: User,
     ) -> Ticket:
         """Open a ticket for the client, assigned to the calling representative."""
+        if not isinstance(actor, Representative):
+            raise PermissionDeniedError()
         client: Client = self._users.get(client_id)
         products = self._find_products(product_ids or [])
         ticket = Ticket.open(client, actor, products, first_message, self._clock())

@@ -69,8 +69,3 @@ ROLE_CLASSES: dict[str, type[User]] = {
     "Representative": Representative,
     "Client": Client,
 }
-
-
-# The ticket relationships above refer to `Ticket` by name: load it so the mappers can resolve it
-# in whatever order the modules are imported. T-TKT-40 replaces this with `app/domain/__init__.py`.
-from app.domain import ticket as _ticket  # noqa: E402, F401

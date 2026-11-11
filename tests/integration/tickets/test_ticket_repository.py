@@ -1,3 +1,5 @@
+from datetime import timedelta
+
 import pytest
 from flask import Flask
 from sqlalchemy.orm import Session
@@ -139,3 +141,95 @@ def test_list_by_representative_returns_only_the_tickets_assigned_to_them(
     result = repository.list_by_representative(raul.id)
 
     assert {ticket.id for ticket in result} == {t.id for t in rauls}
+
+
+def _walk_ticket_graph(tickets: list[Ticket]) -> None:
+    for ticket in tickets:
+        assert ticket.client.name
+        assert ticket.representative.name
+        for product in ticket.products:
+            assert product.product_type.category.name
+
+
+def test_list_by_client_loads_everything_in_few_statements(
+    app: Flask,
+    db_session: Session,
+    make_user: MakeUser,
+    make_category: MakeCategory,
+    make_product_type: MakeProductType,
+    make_product: MakeProduct,
+    make_ticket: MakeTicket,
+) -> None:
+    """SPEC-TKT-17 · TC-TKT-17c"""
+    ana = make_user("Client", name="Ana")
+    kinds = [
+        make_product_type(make_category("Hardware"), "Notebook"),
+        make_product_type(make_category("Software"), "Editor"),
+    ]
+    for index in range(3):
+        representative = make_user("Representative", name=f"Rep {index}")
+        products = [make_product(kind, f"{kind.name} {index}") for kind in kinds]
+        make_ticket(ana, representative, products)
+    ana_id = ana.id
+
+    with new_session(app) as session:
+        with count_statements(session) as statements:
+            _walk_ticket_graph(SqlAlchemyTicketRepository(session).list_by_client(ana_id))
+
+        assert len(statements) <= 6
+
+
+def test_list_by_representative_loads_everything_in_few_statements(
+    app: Flask,
+    db_session: Session,
+    make_user: MakeUser,
+    make_category: MakeCategory,
+    make_product_type: MakeProductType,
+    make_product: MakeProduct,
+    make_ticket: MakeTicket,
+) -> None:
+    """SPEC-TKT-18 · TC-TKT-18c"""
+    raul = make_user("Representative", name="Raul")
+    kinds = [
+        make_product_type(make_category("Hardware"), "Notebook"),
+        make_product_type(make_category("Software"), "Editor"),
+    ]
+    for index in range(3):
+        client = make_user("Client", name=f"Client {index}")
+        products = [make_product(kind, f"{kind.name} {index}") for kind in kinds]
+        make_ticket(client, raul, products)
+    raul_id = raul.id
+
+    with new_session(app) as session:
+        with count_statements(session) as statements:
+            _walk_ticket_graph(SqlAlchemyTicketRepository(session).list_by_representative(raul_id))
+
+        assert len(statements) <= 6
+
+
+def test_list_by_representative_orders_newest_first_with_id_descending_on_ties(
+    db_session: Session, make_user: MakeUser, make_ticket: MakeTicket
+) -> None:
+    """SPEC-TKT-29 · TC-TKT-29b"""
+    ana = make_user("Client", name="Ana")
+    raul = make_user("Representative", name="Raul")
+    older = make_ticket(ana, raul, now=DEFAULT_TICKET_TIME - timedelta(hours=1))
+    tied = [make_ticket(ana, raul) for _ in range(3)]
+
+    result = SqlAlchemyTicketRepository(db_session).list_by_representative(raul.id)
+
+    assert [t.id for t in result] == [*sorted((t.id for t in tied), reverse=True), older.id]
+
+
+def test_list_by_client_orders_newest_first_with_id_descending_on_ties(
+    db_session: Session, make_user: MakeUser, make_ticket: MakeTicket
+) -> None:
+    """SPEC-TKT-29 · TC-TKT-29b"""
+    ana = make_user("Client", name="Ana")
+    raul = make_user("Representative", name="Raul")
+    older = make_ticket(ana, raul, now=DEFAULT_TICKET_TIME - timedelta(hours=1))
+    tied = [make_ticket(ana, raul) for _ in range(3)]
+
+    result = SqlAlchemyTicketRepository(db_session).list_by_client(ana.id)
+
+    assert [t.id for t in result] == [*sorted((t.id for t in tied), reverse=True), older.id]

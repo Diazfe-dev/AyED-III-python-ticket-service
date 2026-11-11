@@ -46,13 +46,18 @@ class SqlAlchemyTicketRepository:
         return self._session.scalars(statement).one_or_none()
 
     def list_by_client(self, client_id: int) -> list[Ticket]:
-        """The tickets whose client is `client_id`."""
+        """The tickets whose client is `client_id`, newest first."""
         return self._list_where(Ticket.client_id == client_id)
 
     def list_by_representative(self, representative_id: int) -> list[Ticket]:
-        """The tickets assigned to `representative_id`."""
+        """The tickets assigned to `representative_id`, newest first."""
         return self._list_where(Ticket.representative_id == representative_id)
 
     def _list_where(self, condition: ColumnElement[bool]) -> list[Ticket]:
-        statement = select(Ticket).options(*WITH_PARTICIPANTS_AND_PRODUCTS).where(condition)
+        statement = (
+            select(Ticket)
+            .options(*WITH_PARTICIPANTS_AND_PRODUCTS)
+            .where(condition)
+            .order_by(Ticket.created_at.desc(), Ticket.id.desc())
+        )
         return list(self._session.scalars(statement))
