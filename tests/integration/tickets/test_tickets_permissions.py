@@ -1,7 +1,11 @@
+import json
+import re
+from pathlib import Path
 from types import SimpleNamespace
 from typing import Any
 
 import pytest
+from flask import Flask
 from flask.testing import FlaskClient
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
@@ -263,3 +267,46 @@ def test_a_malformed_product_ids_is_the_same_bad_request_for_every_ticket(
         "fields": {"product_ids": "invalid"},
     }
     assert snapshot(db_session) == before
+
+
+PATH_PARAMETER = re.compile(r"<[^>]+>|{[^}]+}")
+HTTP_METHODS = {"get", "post", "put", "patch", "delete"}
+OPENAPI_CONTRACT = Path(__file__).parents[3] / "docs" / "openapi.json"
+
+
+def normalized(path: str) -> str:
+    return PATH_PARAMETER.sub("{}", path)
+
+
+def test_the_endpoint_matrix_lists_every_ticket_route_of_the_app(app: Flask) -> None:
+    """SPEC-TKT-27 · TC-TKT-27d"""
+    routes = {
+        (method, normalized(rule.rule))
+        for rule in app.url_map.iter_rules()
+        if rule.rule.startswith("/tickets")
+        for method in rule.methods - {"HEAD", "OPTIONS"}
+    }
+    listed = {(method, normalized(path)) for method, path, _ in ALL_ENDPOINTS}
+
+    assert len(routes) == 7
+    assert routes == listed
+
+
+def test_every_ticket_operation_documents_its_forbidden_with_ticket_forbidden() -> None:
+    """SPEC-TKT-27 · TC-TKT-27e"""
+    contract = json.loads(OPENAPI_CONTRACT.read_text(encoding="utf-8"))
+    operations = [
+        (path, method, operation)
+        for path, item in contract["paths"].items()
+        if path.startswith("/tickets")
+        for method, operation in item.items()
+        if method in HTTP_METHODS
+    ]
+    ticket_forbidden = contract["components"]["responses"]["TicketForbidden"]
+    error_schema = ticket_forbidden["content"]["application/json"]
+
+    assert len(operations) == 7
+    for _, _, operation in operations:
+        assert operation["responses"]["403"] == {"$ref": "#/components/responses/TicketForbidden"}
+    assert error_schema["schema"] == {"$ref": "#/components/schemas/Error"}
+    assert error_schema["example"] == {"error": "forbidden"}

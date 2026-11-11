@@ -41,13 +41,16 @@ classDiagram
         +Representative representative
         +list~Product~ products
         +str state_name
+        +datetime created_at
         +State state
         +list~Milestone~ milestones
         +list~StateChange~ state_history
         +list~Notification~ notifications
-        +close(user) None
-        +reopen(user) None
-        +start_progress(user) None
+        +open(client, representative, products, first_message, now)$ Ticket
+        +close(user, now) None
+        +reopen(user, now) None
+        +start_progress(user, now) None
+        -_enter(state_class, user, now) None
         +add_milestone(content, author) Milestone
         +add_products(products) None
         +remove_product(product) None
@@ -80,19 +83,19 @@ classDiagram
     class State {
         <<abstract>>
         +str name
-        +close(ticket, user) None
-        +reopen(ticket, user) None
-        +in_progress(ticket, user) None
+        +close(ticket, user, now) None
+        +reopen(ticket, user, now) None
+        +in_progress(ticket, user, now) None
     }
     class NewState {
-        +close(ticket, user) None
-        +in_progress(ticket, user) None
+        +close(ticket, user, now) None
+        +in_progress(ticket, user, now) None
     }
     class InProgressState {
-        +close(ticket, user) None
+        +close(ticket, user, now) None
     }
     class ClosedState {
-        +reopen(ticket, user) None
+        +reopen(ticket, user, now) None
     }
     State <|-- NewState
     State <|-- InProgressState
@@ -158,6 +161,10 @@ classDiagram
   | `InProgressState` | ❌ | → `Closed` | ❌ |
   | `ClosedState` | ❌ | ❌ | → `InProgress` |
 
+- **Transiciones y reloj**: los métodos de transición reciben `now` y no leen el reloj; el `TicketService` toma `clock()` una vez por operación. Cada estado concreto llama a `Ticket._enter(state_class, user, now)`, el único lugar que cambia `state_name` y agrega el `StateChange`. `Ticket.open(...)` (método de clase) crea el ticket en `New` con su primer `Milestone` y su primer `StateChange`, todos con el mismo `now`, que también es `created_at`.
+- **Pendiente de `05-milestones`**: `Ticket.add_milestone(content, author)` figura en el diagrama pero todavía no existe en el código (SPEC-TKT-09 se implementa allí). `Ticket.notifications` y `Notification` tampoco existen todavía (`06-notifications`).
+- **Errores de dominio** (`app/domain/errors.py`) del área de tickets y su respuesta HTTP: `ValidationError` (400 `validation_error`), `InvalidClientError` (400 `invalid_client`), `InvalidProductError` (400 `invalid_product`), `PermissionDeniedError` (403 `forbidden`), `TicketNotFoundError` (404 `ticket_not_found`), `ProductNotInTicketError` (404 `product_not_in_ticket`), `InvalidTransitionError` (409 `invalid_transition`). `ImmutableRecordError` no tiene respuesta HTTP: señala un bug, no una entrada inválida.
+- **Persistencia de tickets**: `tickets` (con `created_at`), la tabla de asociación `ticket_products` (clave primaria compuesta `(ticket_id, product_id)`, ambas FK `ON DELETE RESTRICT`), `milestones` y `state_changes` (FK `ON DELETE RESTRICT` a `tickets` y `users`; `Ticket.milestones` y `Ticket.state_history` usan `passive_deletes="all"` y se ordenan por `(created_at, id)` y `(timestamp, id)`). Las fechas usan `UtcDateTime` (`app/domain/types.py`), que exige un `datetime` con zona y devuelve siempre UTC aunque SQLite descarte la zona. `make_immutable(model)` (`app/domain/immutable.py`) registra los listeners `before_update` y `before_delete` y los triggers de SQLite; hoy se aplica a `StateChange` y falta aplicarlo a `Milestone` (`05-milestones`).
 - **Composición** (rombo lleno): `Milestone`, `StateChange` y `Notification` existen solo dentro de un `Ticket` y se crean únicamente a través de sus métodos.
 - **Agregación** (rombo vacío): `Client`, `Representative` y `Product` tienen un ciclo de vida independiente del ticket.
 - **Inmutables**: `Milestone` y `StateChange` no se pueden modificar ni borrar. Los protegen listeners del ORM y triggers de SQLite (RNF 5 y 6).
@@ -216,6 +223,7 @@ classDiagram
     }
     class wiring {
         <<module>>
+        +get_ticket_service() TicketService
         +get_catalog_service() CatalogService
         +get_product_service() ProductService
     }
@@ -256,15 +264,28 @@ classDiagram
         +verify(password_hash, password) bool
     }
     class TicketService {
-        +create_ticket(client_id, product_ids, first_message, representative) Ticket
+        +TicketRepository tickets
+        +UserRepository users
+        +ProductRepository products
+        +Callable clock
+        +Callable commit
+        +TicketNotifier notifier
+        +create_ticket(client_id, product_ids, first_message, actor) Ticket
         +list_tickets(actor) list
         +get_ticket(ticket_id, actor) Ticket
         +close_ticket(ticket_id, actor) Ticket
         +reopen_ticket(ticket_id, actor) Ticket
         +add_milestone(ticket_id, content, actor, start_progress) Milestone
         +list_milestones(ticket_id, actor) list
-        +add_products(ticket_id, product_ids, actor) None
-        +remove_product(ticket_id, product_id, actor) None
+        +add_products(ticket_id, product_ids, actor) Ticket
+        +remove_product(ticket_id, product_id, actor) Ticket
+    }
+    class TicketNotifier {
+        <<interface>>
+        +notify(recipient, actor, ticket, message) None
+    }
+    class NullTicketNotifier {
+        +notify(recipient, actor, ticket, message) None
     }
     class CatalogService {
         +CategoryRepository categories
@@ -310,10 +331,17 @@ classDiagram
         +add(user) None
     }
     class TicketRepository {
+        <<interface>>
+        +add(ticket) None
         +get_visible(ticket_id, actor) Ticket
         +list_by_client(client_id) list
-        +list_by_representative(rep_id) list
+        +list_by_representative(representative_id) list
+    }
+    class SqlAlchemyTicketRepository {
         +add(ticket) None
+        +get_visible(ticket_id, actor) Ticket
+        +list_by_client(client_id) list
+        +list_by_representative(representative_id) list
     }
     class CategoryRepository {
         +add(category) None
@@ -355,6 +383,7 @@ classDiagram
     CatalogController ..> errors : DomainError a HTTP
     wiring --> CatalogService
     wiring --> ProductService
+    wiring --> TicketService
     CatalogService ..> validation
     UserService ..> validation
     ProductService ..> validation
@@ -365,7 +394,10 @@ classDiagram
     TicketService --> TicketRepository
     TicketService --> UserRepository
     TicketService --> ProductRepository
-    TicketService --> NotificationService
+    TicketService --> TicketNotifier
+    TicketNotifier <|.. NullTicketNotifier
+    TicketNotifier <|.. NotificationService
+    TicketRepository <|.. SqlAlchemyTicketRepository
     CatalogService --> CategoryRepository
     CatalogService --> ProductTypeRepository
     ProductService --> ProductRepository
@@ -378,10 +410,12 @@ classDiagram
 ### Notas de las capas
 
 - Los **controllers** solo traducen HTTP: validan la entrada, obtienen `current_user` de la sesión y convierten las excepciones de dominio en códigos HTTP.
-- Los **services** reciben sus dependencias por constructor (repositorios, `NotificationService`, un `clock` inyectable y la función `commit`, que en producción es `session.commit`) y deciden cuándo confirmar la transacción. `UserService` recibe además un `PasswordHasher`.
+- Los **services** reciben sus dependencias por constructor (repositorios, un notificador, un `clock` inyectable y la función `commit`, que en producción es `session.commit`) y deciden cuándo confirmar la transacción. `UserService` recibe además un `PasswordHasher`.
 - `app/auth.py` arma `UserService` para cada request (o comando CLI) y expone `current_user()` y los decoradores `login_required` (`401`) y `admin_required` (`403`). `app/controllers/errors.py` traduce cada `DomainError` a su status y código JSON con una tabla, y con una segunda tabla (`HTTP_ERROR_RESPONSES`) responde en JSON las rutas inexistentes (`404` `not_found`), los métodos no admitidos (`405` `method_not_allowed`) y los errores no manejados (`500` `internal_error`, registrado sobre `InternalServerError` para que el teardown siga haciendo rollback). El comando `create-admin` (`app/cli.py`) reutiliza `create_user`.
 - Los **repositories** encapsulan la `Session` de SQLAlchemy y nunca hacen commit. `UserRepository.add` hace `flush()` y traduce el `IntegrityError` del email único a `DuplicateUserError`, y `UserRepository.get` devuelve `None` para un id fuera del `INTEGER` de SQLite (`fits_integer_column`). `TicketRepository.get_visible` aplica el filtro de privacidad (RNF 4).
 - `app/wiring.py` arma `CatalogService` y `ProductService` para cada request con `get_session()` y sus repositorios, así los controllers nunca tocan la `Session`. `ProductService` recibe también `CategoryRepository` para responder `404` a un filtro por categoría inexistente (SPEC-PRD-16). `app/services/validation.py` reúne los validadores de campos que comparten `UserService`, `CatalogService` y `ProductService` (`text_error`, `id_error`, `parse_id`, `provided`, `raise_if_invalid`).
 - `CategoryRepository.add` y `ProductTypeRepository.add` hacen `flush()` y traducen el `IntegrityError` de los `UNIQUE` a `DuplicateCategoryError` y `DuplicateProductTypeError`. `CategoryRepository.delete` traduce el de la FK `RESTRICT` a `CategoryInUseError`. `list_with_product_types` carga las categorías con `selectinload(Category.product_types)` (2 consultas en total). Los dos `get` devuelven `None` para un id que no entra en el `INTEGER` de SQLite (`fits_integer_column` de `app/db.py`).
-- `ProductRepository.add` traduce el `IntegrityError` del `UNIQUE` a `DuplicateProductError` y `ProductTypeRepository.delete` traduce el de la FK `RESTRICT` de `products` a `ProductTypeInUseError`; `CatalogService.delete_product_type` además lo chequea antes con `has_products`. `ProductRepository.list_matching` filtra por categoría con un `join` sobre el tipo, ordena por `(name_key, id)` y carga tipo y categoría con `selectinload` (3 consultas como máximo). Se llama `list_matching` y no `list` porque un método `list` taparía al tipo `list` en las anotaciones de la clase. `ProductRepository` no tiene métodos de borrado. `get_many` llega con `04-tickets`.
+- `ProductRepository.add` traduce el `IntegrityError` del `UNIQUE` a `DuplicateProductError` y `ProductTypeRepository.delete` traduce el de la FK `RESTRICT` de `products` a `ProductTypeInUseError`; `CatalogService.delete_product_type` además lo chequea antes con `has_products`. `ProductRepository.list_matching` filtra por categoría con un `join` sobre el tipo, ordena por `(name_key, id)` y carga tipo y categoría con `selectinload` (3 consultas como máximo). Se llama `list_matching` y no `list` porque un método `list` taparía al tipo `list` en las anotaciones de la clase. `ProductRepository` no tiene métodos de borrado. `get_many` lo usa `TicketService` (`04-tickets`).
+- **Notificador de tickets**: `TicketService` depende del protocolo `TicketNotifier` (`notify(recipient, actor, ticket, message)`), definido en `app/services/ticket_service.py` junto con el protocolo `TicketRepository` y `NullTicketNotifier`, que no hace nada. `app/wiring.py` inyecta hoy `NullTicketNotifier`; `06-notifications` lo reemplaza con `NotificationService` (la arista `TicketNotifier <|.. NotificationService` es la que se implementa allí). `get_ticket_service` arma `TicketService` por request con `utc_now` como reloj y `session.commit`.
+- `SqlAlchemyTicketRepository` implementa `TicketRepository`: `add` hace `flush()`; `get_visible` devuelve `None` si el ticket no existe, no es del actor o el id no entra en el `INTEGER` de SQLite (`fits_integer_column`), lo que el service traduce en `404`; los listados ordenan por `(created_at desc, id desc)` y cargan cliente, representante y productos con `selectinload`. `TicketService.list_tickets` rechaza al `Admin` (`403`) y elige el listado por `actor.role`. `ProductRepository.get_many(product_ids)` devuelve los productos hallados (activos o no) y el service compara cantidades.
 - No hay `MilestoneService`: los hitos forman parte del agregado `Ticket` y se gestionan desde `TicketService`.

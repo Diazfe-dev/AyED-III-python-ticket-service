@@ -2,6 +2,7 @@ from datetime import UTC, datetime, timedelta
 from typing import Any
 
 import pytest
+from flask import Flask
 from flask.testing import FlaskClient
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
@@ -12,6 +13,7 @@ from app.domain.products import Product, ProductType
 from app.domain.state_change import StateChange
 from app.domain.ticket import Ticket, ticket_products
 from app.domain.users import Client, Representative
+from app.repositories.ticket_repository import SqlAlchemyTicketRepository
 from tests.conftest import (
     DEFAULT_TICKET_TIME,
     LoginAs,
@@ -827,3 +829,16 @@ def test_removing_an_unknown_or_out_of_range_product_is_not_found(
 
     assert response.status_code == 404
     assert response.get_json() == {"error": "product_not_in_ticket"}
+
+
+def test_there_is_no_way_to_delete_or_modify_tickets_or_their_history(app: Flask) -> None:
+    """SPEC-TKT-16 · TC-TKT-16j"""
+    forbidden_prefixes = ("delete", "remove", "update")
+    public = [name for name in dir(SqlAlchemyTicketRepository) if not name.startswith("_")]
+    rules = [rule for rule in app.url_map.iter_rules() if rule.rule.startswith("/tickets")]
+    ticket_rule = next(rule for rule in rules if rule.rule == "/tickets/<int:ticket_id>")
+
+    assert [name for name in public if name.startswith(forbidden_prefixes)] == []
+    assert not {"DELETE", "PUT", "PATCH"} & ticket_rule.methods
+    assert [rule.rule for rule in rules if "state" in rule.rule] == []
+    assert [rule.rule for rule in rules if "milestone" in rule.rule] == []
