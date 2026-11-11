@@ -1,5 +1,6 @@
 import itertools
-from collections.abc import Callable, Iterator
+from collections.abc import Callable, Iterable, Iterator
+from datetime import UTC, datetime
 from functools import cache
 
 import pytest
@@ -12,13 +13,15 @@ from app.auth import USER_ID_KEY
 from app.db import EXTENSION_KEY, create_schema, get_engine
 from app.domain.base import Base
 from app.domain.products import Category, Product, ProductType
-from app.domain.users import ROLE_CLASSES, User
+from app.domain.ticket import Ticket
+from app.domain.users import ROLE_CLASSES, Client, Representative, User
 from app.services.passwords import WerkzeugPasswordHasher
 
 MakeUser = Callable[..., User]
 MakeCategory = Callable[..., Category]
 MakeProductType = Callable[..., ProductType]
 MakeProduct = Callable[..., Product]
+MakeTicket = Callable[..., Ticket]
 LoginAs = Callable[[FlaskClient, User], None]
 
 
@@ -164,5 +167,29 @@ def make_product(db_session: Session) -> MakeProduct:
         db_session.add(product)
         db_session.commit()
         return product
+
+    return make
+
+
+DEFAULT_TICKET_TIME = datetime(2026, 1, 1, 12, 0, tzinfo=UTC)
+
+
+@pytest.fixture
+def make_ticket(db_session: Session) -> MakeTicket:
+    """Persist and commit a ticket opened with `Ticket.open`; without `now`, a fixed UTC date."""
+
+    def make(
+        client: Client,
+        representative: Representative,
+        products: Iterable[Product] = (),
+        first_message: str = "Hola",
+        now: datetime | None = None,
+    ) -> Ticket:
+        ticket = Ticket.open(
+            client, representative, products, first_message, now or DEFAULT_TICKET_TIME
+        )
+        db_session.add(ticket)
+        db_session.commit()
+        return ticket
 
     return make
