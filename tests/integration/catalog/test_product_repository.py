@@ -213,3 +213,48 @@ def test_list_matching_active_only_skips_inactive_products(
     products = SqlAlchemyProductRepository(db_session).list_matching(active_only=True)
 
     assert names(products) == ["LaserJet", "xps 13"]
+
+
+def test_get_many_returns_active_and_inactive_products_ordered_by_id(
+    db_session: Session, notebook: ProductType, make_product: MakeProduct
+) -> None:
+    """SPEC-TKT-08 · TC-TKT-08a"""
+    xps = make_product(notebook, "XPS 13")
+    optiplex = make_product(notebook, "Optiplex", is_active=False)
+    wanted = [optiplex.id, xps.id, 9999]
+    db_session.expire_all()
+
+    with count_statements(db_session) as statements:
+        products = SqlAlchemyProductRepository(db_session).get_many(wanted)
+        described = [(p.name, p.product_type.name, p.product_type.category.name) for p in products]
+
+    assert described == [("XPS 13", "Notebook", "Hardware"), ("Optiplex", "Notebook", "Hardware")]
+    assert len(statements) <= 3
+
+
+def test_get_many_ignores_ids_beyond_sqlite_integers(
+    db_session: Session, notebook: ProductType, make_product: MakeProduct
+) -> None:
+    """SPEC-TKT-08 · TC-TKT-08b"""
+    xps = make_product(notebook, "XPS 13")
+
+    products = SqlAlchemyProductRepository(db_session).get_many(
+        [xps.id, 2**63, 99999999999999999999]
+    )
+
+    assert names(products) == ["XPS 13"]
+
+
+def test_get_many_skips_duplicates_and_does_not_query_an_empty_list(
+    db_session: Session, notebook: ProductType, make_product: MakeProduct
+) -> None:
+    """SPEC-TKT-08 · TC-TKT-08c"""
+    xps = make_product(notebook, "XPS 13")
+    repository = SqlAlchemyProductRepository(db_session)
+
+    assert names(repository.get_many([xps.id, xps.id])) == ["XPS 13"]
+    with count_statements(db_session) as statements:
+        assert repository.get_many([]) == []
+        assert repository.get_many([2**63]) == []
+
+    assert statements == []

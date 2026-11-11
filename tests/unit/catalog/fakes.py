@@ -93,6 +93,10 @@ class FakeProductRepository:
     def get(self, product_id: int) -> Product | None:
         return self.products.get(product_id)
 
+    def get_many(self, product_ids: list[int]) -> list[Product]:
+        found = {pid: self.products[pid] for pid in product_ids if pid in self.products}
+        return [found[pid] for pid in sorted(found)]
+
     def find_by_name_in_type(self, name: str, product_type_id: int) -> Product | None:
         wanted = normalize_name(name)
         found = (

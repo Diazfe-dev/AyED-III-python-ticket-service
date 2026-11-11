@@ -1056,6 +1056,84 @@
             }
           }
         }
+      },
+      "TicketForbidden": {
+        "description": "The session user may not perform this operation on tickets (`forbidden`): an administrator, or a user who is not allowed to act on the ticket (for example a client changing its products).",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            },
+            "example": {
+              "error": "forbidden"
+            }
+          }
+        }
+      },
+      "TicketNotFound": {
+        "description": "No ticket with this id is visible to the session user (`ticket_not_found`). The same response is returned for a missing, out-of-range or foreign ticket.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            },
+            "example": {
+              "error": "ticket_not_found"
+            }
+          }
+        }
+      },
+      "ProductNotInTicket": {
+        "description": "The ticket has no association with this product, or the ticket is not visible to the session user (`product_not_in_ticket` or `ticket_not_found`).",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            },
+            "example": {
+              "error": "product_not_in_ticket"
+            }
+          }
+        }
+      },
+      "InvalidTransition": {
+        "description": "The ticket state does not allow this transition (`invalid_transition`).",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            },
+            "example": {
+              "error": "invalid_transition"
+            }
+          }
+        }
+      },
+      "InvalidClient": {
+        "description": "The client does not exist, is inactive or is not a client (`invalid_client`).",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            },
+            "example": {
+              "error": "invalid_client"
+            }
+          }
+        }
+      },
+      "InvalidProduct": {
+        "description": "A product does not exist or is inactive (`invalid_product`); nothing is associated.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            },
+            "example": {
+              "error": "invalid_product"
+            }
+          }
+        }
       }
     },
     "schemas": {
@@ -1354,6 +1432,89 @@
             "description": "Product type to move the product to. Missing or `null` keeps the current one; anything but a positive integer is `invalid`."
           }
         }
+      },
+      "TicketParty": {
+        "type": "object",
+        "description": "Name and id of a ticket participant. The email is never exposed.",
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "name": {
+            "type": "string"
+          }
+        },
+        "required": ["id", "name"]
+      },
+      "Ticket": {
+        "type": "object",
+        "required": ["id", "state", "client", "representative", "products", "created_at"],
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "state": {
+            "type": "string",
+            "enum": ["New", "InProgress", "Closed"]
+          },
+          "client": {
+            "$ref": "#/components/schemas/TicketParty"
+          },
+          "representative": {
+            "$ref": "#/components/schemas/TicketParty"
+          },
+          "products": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Product"
+            },
+            "description": "Associated products; deactivated ones are still listed (`is_active: false`)."
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "ISO 8601, UTC."
+          }
+        }
+      },
+      "CreateTicketRequest": {
+        "type": "object",
+        "required": ["client_id", "first_message"],
+        "properties": {
+          "client_id": {
+            "type": "integer",
+            "minimum": 1,
+            "description": "Positive integer of an active client. Missing or `null` is `required`; anything else invalid is `invalid`."
+          },
+          "first_message": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Content of the first milestone."
+          },
+          "product_ids": {
+            "type": "array",
+            "items": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "description": "Optional ids of active products to associate."
+          }
+        }
+      },
+      "AddTicketProductsRequest": {
+        "type": "object",
+        "required": ["product_ids"],
+        "properties": {
+          "product_ids": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "description": "Ids of active products to associate. Missing, `null`, empty or malformed is `validation_error`."
+          }
+        }
       }
     },
     "parameters": {
@@ -1383,6 +1544,14 @@
       },
       "ProductId": {
         "name": "product_id",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "integer"
+        }
+      },
+      "TicketId": {
+        "name": "ticket_id",
         "in": "path",
         "required": true,
         "schema": {

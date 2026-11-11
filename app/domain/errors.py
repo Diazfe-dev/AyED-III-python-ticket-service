@@ -84,3 +84,7 @@ class InvalidTransitionError(DomainError):
 
 class ProductNotInTicketError(DomainError):
     pass
+
+
+class ImmutableRecordError(DomainError):
+    message = "This record is immutable and cannot be modified or deleted."
