@@ -23,7 +23,7 @@ Si el código y los diagramas no coinciden, no lo resuelvas por tu cuenta: avis�
 
 [MEMORY.md](MEMORY.md) es la memoria persistente del proyecto y es **obligatoria**.
 
-1. **Al empezar** cualquier sesión o tarea, leer `MEMORY.md` antes que cualquier otro archivo de código.
+1. **Al empezar** cualquier sesión o tarea, consultar `MEMORY.md` antes que cualquier otro archivo de código, sin leerlo entero (pesa unos 44 KB): buscar el tema con `rg -n`, o leer solo las líneas necesarias con `offset`/`limit`. Las secciones "Estado actual del proyecto" y "Próximos pasos" siempre se leen.
 2. **Al terminar** cada tarea (y antes de cada commit que cambie el estado del proyecto), actualizar `MEMORY.md`.
 3. `MEMORY.md` siempre tiene estas cuatro secciones, en este orden:
    - **Estado actual del proyecto**: qué existe, qué funciona y en qué fase está el proyecto.
@@ -231,7 +231,7 @@ Reglas funcionales que suelen romperse, a tener en cuenta:
 
 ## Flujo de trabajo
 
-1. Leer `MEMORY.md`. Elegir la próxima task pendiente de `specs/NN-<área>/tasks.md` cuyas specs no tengan preguntas abiertas. Si el cambio no tiene spec, primero se sigue el **ciclo de un cambio** (ver Spec-Driven Development).
+1. Consultar `MEMORY.md` (ver la regla de memoria). Elegir la próxima task pendiente...
 2. Crear una rama desde `main`: `feat/<tema>`, `fix/<tema>`, `test/<tema>`, `docs/<tema>`, `refactor/<tema>`, `spec/<tema>`.
 3. **Red**: escribir el test del caso definido en `test-plan.md` (con el ID de spec y de caso en el docstring) y verlo fallar.
 4. **Green**: escribir el código mínimo para que pase.
