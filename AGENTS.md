@@ -68,13 +68,15 @@ app/
   __init__.py          # create_app(): config, blueprints, manejadores de errores y comandos
   config.py            # load_config(): configuración desde el entorno
   db.py                # engine, sessionmaker, sesión por request, comando init-db (create_all), fits_integer_column
-  wiring.py            # get_catalog_service y get_product_service: arman los services del request sin que los controllers toquen la Session
+  wiring.py            # get_catalog_service, get_product_service y get_ticket_service: arman los services del request sin que los controllers toquen la Session
   auth.py              # get_user_service, current_user y decoradores login_required (401) y admin_required (403)
   cli.py               # comando create-admin
   domain/              # Entidades mapeadas con SQLAlchemy; sin Flask ni HTTP
     base.py            # Base(DeclarativeBase)
     errors.py          # DomainError y subclases (ValidationError, DuplicateUserError, CategoryInUseError, ProductTypeInUseError, ...)
-    ticket.py          # Ticket (agregado raíz)
+    ticket.py          # Ticket (agregado raíz) y la tabla ticket_products
+    types.py           # UtcDateTime (TypeDecorator: timestamps siempre en UTC)
+    immutable.py       # make_immutable: listeners y triggers de SQLite que bloquean UPDATE y DELETE (StateChange; Milestone en 05)
     states.py          # State, NewState, InProgressState, ClosedState
     milestone.py       # Milestone (inmutable)
     state_change.py    # StateChange (registro de auditoría)
@@ -87,11 +89,13 @@ app/
     user_service.py    # UserService
     catalog_service.py # CatalogService: ABM y listados de categorías y tipos de producto
     product_service.py # ProductService: alta, modificación, baja lógica y listados de productos
+    ticket_service.py  # TicketService: alta, lectura, listados, transiciones y productos del ticket; protocolo TicketNotifier
   repositories/        # Consultas con la Session de SQLAlchemy; devuelven y reciben entidades
     user_repository.py # SqlAlchemyUserRepository
     category_repository.py      # SqlAlchemyCategoryRepository
     product_type_repository.py  # SqlAlchemyProductTypeRepository
     product_repository.py       # SqlAlchemyProductRepository (sin métodos de borrado)
+    ticket_repository.py        # SqlAlchemyTicketRepository (add, get_visible y listados; sin métodos de borrado)
   controllers/         # Blueprints de Flask: HTTP de entrada y salida, nada más
     health.py          # /health
     api_docs.py        # /openapi.json y /docs

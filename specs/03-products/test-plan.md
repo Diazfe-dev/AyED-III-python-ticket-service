@@ -41,7 +41,7 @@ Datos de referencia de los casos: la categoría `"Hardware"` con los tipos `"Not
 | PRD-06 | TC-PRD-06a | integration | Baja por API y lectura con `db_session` después de `expire_all()` | La fila existe con el mismo nombre y `product_type_id`, e `is_active` en `False` | `tests/integration/catalog/test_products_api.py` |
 | PRD-06 | TC-PRD-06b | integration | Atributos públicos de `SqlAlchemyProductRepository` | No existe ningún método `delete` ni `remove` | `tests/integration/catalog/test_product_repository.py` |
 | PRD-06 | TC-PRD-06c | integration | Reglas de `app.url_map` que empiezan con `/products` | Ninguna acepta `DELETE` | `tests/integration/catalog/test_products_api.py` |
-| PRD-06 | TC-PRD-06d | integration | **Pendiente (`04-tickets`)**: ticket con un producto que después se da de baja | El ticket sigue mostrando el producto, con `is_active: false` | `tests/integration/tickets/` |
+| PRD-06 | TC-PRD-06d | integration | Ticket con un producto que después se da de baja (cubierto en `04-tickets`, T-TKT-37) | El ticket sigue mostrando el producto, con `is_active: false`, y el producto ya no se puede asociar (`invalid_product`) | `tests/integration/tickets/test_cross_area.py` |
 | PRD-07 | TC-PRD-07a | unit | Productos `"xps 13"` (Notebook), `"Optiplex"` (Desktop, inactivo) y `"LaserJet"` (Impresora); `list_products()` | Devuelve los tres, incluido el inactivo (el orden lo verifica TC-PRD-21a) | `tests/unit/catalog/test_product_service.py` |
 | PRD-07 | TC-PRD-07b | integration | Mismos datos que 07a; `list_matching()` | Devuelve los tres; cada producto expone su tipo, su categoría y su `is_active` (el orden lo verifica TC-PRD-21b) | `tests/integration/catalog/test_product_repository.py` |
 | PRD-07 | TC-PRD-07c | integration | 2 categorías, 3 tipos y 2 productos por tipo; se cuentan las sentencias con `count_statements` mientras se llama a `list_matching()` y se recorren el tipo y la categoría de cada producto | Como máximo 3 sentencias (sin N+1) | `tests/integration/catalog/test_product_repository.py` |
@@ -140,5 +140,5 @@ TC-PTY-08a, 08b y 08c están definidos en el [test-plan de 02](../02-product-typ
 | RNF | Casos |
 |-----|-------|
 | RNF 2 (autenticación y permisos) | TC-PRD-09a y 09b (`403` para no admins en los 3 endpoints de escritura), TC-USR-16d (`401` sin sesión en los 5 endpoints), y TC-PRD-07d, 08g y 10c (las lecturas solo piden sesión) |
-| RNF 5 (conservación del historial, parcial) | TC-PRD-06a, 06b y 06c (TC-PRD-06d en `04-tickets`) |
+| RNF 5 (conservación del historial, parcial) | TC-PRD-06a, 06b y 06c (TC-PRD-06d en `tests/integration/tickets/test_cross_area.py`, hecho en `04-tickets`) |
 | RNF 7 (documentación de la API) | TC-PLT-14a y 14b en cada task de endpoint (T-PRD-22 a 27) |
