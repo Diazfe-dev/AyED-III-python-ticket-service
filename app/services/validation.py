@@ -36,6 +36,15 @@ def id_error(value: Any) -> str | None:
     return None if _is_positive_id(value) else INVALID
 
 
+def id_list_error(value: Any) -> str | None:
+    """A non-empty list of positive integer ids is required; digit text is not accepted."""
+    if value is None:
+        return REQUIRED
+    if not isinstance(value, list) or not value:
+        return INVALID
+    return None if all(_is_positive_int(item) for item in value) else INVALID
+
+
 def parse_id(value: Any) -> int:
     """The integer of an id that already passed `id_error` (a query string value is text)."""
     return int(value)
@@ -47,6 +56,10 @@ def _is_positive_id(value: Any) -> bool:
     if isinstance(value, str):
         return _digits_value(value) > 0
     return isinstance(value, int) and value > 0
+
+
+def _is_positive_int(value: Any) -> bool:
+    return isinstance(value, int) and not isinstance(value, bool) and value > 0
 
 
 def _digits_value(text: str) -> int:
