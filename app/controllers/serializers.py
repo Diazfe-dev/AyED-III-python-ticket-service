@@ -5,6 +5,7 @@ from typing import Any
 from flask import request
 
 from app.domain.products import Category, Product, ProductType
+from app.domain.ticket import Ticket
 from app.domain.users import User
 
 
@@ -53,4 +54,20 @@ def product_json(product: Product) -> dict[str, Any]:
         "is_active": product.is_active,
         "product_type": product_type_json(product.product_type),
         "category": category_json(product.product_type.category),
+    }
+
+
+def party_json(user: User) -> dict[str, Any]:
+    """The part of a ticket participant that the other participant may see."""
+    return {"id": user.id, "name": user.name}
+
+
+def ticket_json(ticket: Ticket) -> dict[str, Any]:
+    return {
+        "id": ticket.id,
+        "state": ticket.state_name,
+        "client": party_json(ticket.client),
+        "representative": party_json(ticket.representative),
+        "products": [product_json(product) for product in ticket.products],
+        "created_at": ticket.created_at.isoformat(),
     }

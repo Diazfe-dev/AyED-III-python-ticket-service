@@ -35,6 +35,13 @@ class TicketNotifier(Protocol):
     def notify(self, recipient: User, actor: User, ticket: Ticket, message: str) -> None: ...
 
 
+class NullTicketNotifier:
+    """Notifier that does nothing, until the notifications area provides the real one."""
+
+    def notify(self, recipient: User, actor: User, ticket: Ticket, message: str) -> None:
+        return None
+
+
 class TicketService:
     def __init__(
         self,

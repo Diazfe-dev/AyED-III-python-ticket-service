@@ -1,4 +1,4 @@
-from datetime import timedelta
+from datetime import UTC, timedelta
 
 import pytest
 
@@ -15,6 +15,7 @@ from app.domain.products import Category, Product, ProductType
 from app.domain.ticket import Ticket
 from app.domain.users import Admin, Client, Representative
 from app.services.ticket_service import TicketService
+from app.wiring import utc_now
 from tests.unit.catalog.fakes import FakeProductRepository
 from tests.unit.fakes import CommitSpy, FakeClock
 from tests.unit.tickets.fakes import FakeTicketNotifier, FakeTicketRepository
@@ -727,3 +728,10 @@ def test_removing_a_product_that_is_not_in_the_ticket_fails(setup):
 
     assert ticket.products == [xps]
     assert setup.commit.calls == 0
+
+
+def test_utc_now_returns_a_timezone_aware_utc_datetime():
+    """SPEC-TKT-14 · TC-TKT-14h"""
+    now = utc_now()
+
+    assert now.tzinfo is UTC
