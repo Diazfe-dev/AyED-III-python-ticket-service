@@ -92,3 +92,15 @@ class ImmutableRecordError(DomainError):
 
 class PermissionDeniedError(DomainError):
     message = "You do not have permission to perform this operation."
+
+
+class InvalidClientError(DomainError):
+    message = "The client does not exist or is not an active client."
+
+
+class InvalidProductError(DomainError):
+    message = "A product does not exist or is not active."
+
+
+class TicketNotFoundError(DomainError):
+    message = "Ticket not found."
