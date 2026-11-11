@@ -32,6 +32,22 @@ class SqlAlchemyProductRepository:
             return None
         return self._session.get(Product, product_id)
 
+    def get_many(self, product_ids: list[int]) -> list[Product]:
+        """The existing products among the ids, active or not, by id and without duplicates.
+
+        Ids SQLite cannot store match nothing; when no id is left, nothing is queried.
+        """
+        wanted = {pid for pid in product_ids if fits_integer_column(pid)}
+        if not wanted:
+            return []
+        statement = (
+            select(Product)
+            .options(WITH_TYPE_AND_CATEGORY)
+            .where(Product.id.in_(wanted))
+            .order_by(Product.id)
+        )
+        return list(self._session.scalars(statement))
+
     def find_by_name_in_type(self, name: str, product_type_id: int) -> Product | None:
         statement = select(Product).where(
             Product.product_type_id == product_type_id,
