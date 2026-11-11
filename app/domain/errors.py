@@ -88,3 +88,7 @@ class ProductNotInTicketError(DomainError):
 
 class ImmutableRecordError(DomainError):
     message = "This record is immutable and cannot be modified or deleted."
+
+
+class PermissionDeniedError(DomainError):
+    message = "You do not have permission to perform this operation."

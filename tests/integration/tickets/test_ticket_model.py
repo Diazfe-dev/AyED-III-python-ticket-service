@@ -1,6 +1,11 @@
+from datetime import UTC, timedelta
+
+import pytest
 from sqlalchemy import text
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
+from app.domain.products import Product
 from app.domain.ticket import Ticket
 from tests.conftest import (
     DEFAULT_TICKET_TIME,
@@ -98,3 +103,66 @@ def test_initial_state_change_is_saved_with_user_state_and_utc_date(
     assert change.state_name == "New"
     assert change.timestamp == DEFAULT_TICKET_TIME
     assert change.timestamp.utcoffset().total_seconds() == 0
+
+
+def test_closed_state_change_is_read_back_in_utc(
+    db_session: Session, make_user: MakeUser, make_ticket: MakeTicket
+):
+    """SPEC-TKT-14 · TC-TKT-14c"""
+    ana = make_user("Client")
+    ticket = make_ticket(ana, make_user("Representative"))
+    closed_at = DEFAULT_TICKET_TIME + timedelta(hours=1)
+    ticket.close(ana, closed_at)
+    db_session.commit()
+    ticket_id = ticket.id
+    db_session.close()
+
+    change = db_session.get(Ticket, ticket_id).state_history[-1]
+
+    assert change.state_name == "Closed"
+    assert change.timestamp.tzinfo is UTC
+    assert change.timestamp == closed_at
+
+
+def test_removed_product_leaves_the_association_and_stays_in_the_catalog(
+    db_session: Session,
+    make_user: MakeUser,
+    make_category: MakeCategory,
+    make_product_type: MakeProductType,
+    make_product: MakeProduct,
+    make_ticket: MakeTicket,
+):
+    """SPEC-TKT-21 · TC-TKT-21b"""
+    xps = make_product(make_product_type(make_category()), name="XPS 13")
+    ticket = make_ticket(make_user("Client"), make_user("Representative"), [xps])
+    ticket_id, xps_id = ticket.id, xps.id
+    ticket.remove_product(xps)
+    db_session.commit()
+    db_session.close()
+
+    links = db_session.execute(
+        text("SELECT COUNT(*) FROM ticket_products WHERE ticket_id = :id"), {"id": ticket_id}
+    ).scalar_one()
+    product = db_session.get(Product, xps_id)
+
+    assert links == 0
+    assert (product.name, product.is_active) == ("XPS 13", True)
+
+
+def test_duplicate_association_is_rejected_by_the_composite_primary_key(
+    db_session: Session,
+    make_user: MakeUser,
+    make_category: MakeCategory,
+    make_product_type: MakeProductType,
+    make_product: MakeProduct,
+    make_ticket: MakeTicket,
+):
+    """SPEC-TKT-25 · TC-TKT-25d"""
+    xps = make_product(make_product_type(make_category()))
+    ticket = make_ticket(make_user("Client"), make_user("Representative"), [xps])
+    params = {"ticket_id": ticket.id, "product_id": xps.id}
+
+    with pytest.raises(IntegrityError):
+        db_session.execute(
+            text("INSERT INTO ticket_products VALUES (:ticket_id, :product_id)"), params
+        )

@@ -2,9 +2,10 @@ from datetime import timedelta
 
 import pytest
 
+from app.domain.errors import PermissionDeniedError
 from app.domain.products import Category, Product, ProductType
 from app.domain.ticket import Ticket
-from app.domain.users import Client, Representative
+from app.domain.users import Admin, Client, Representative
 from app.services.ticket_service import TicketService
 from tests.unit.catalog.fakes import FakeProductRepository
 from tests.unit.fakes import CommitSpy, FakeClock
@@ -26,7 +27,8 @@ class Setup:
         self.ana = Client(name="Ana", email="ana@example.com", is_active=True)
         self.raul = Representative(name="Raul", email="raul@example.com", is_active=True)
         self.rosa = Representative(name="Rosa", email="rosa@example.com", is_active=True)
-        for user in (self.ana, self.raul, self.rosa):
+        self.root = Admin(name="Root", email="root@example.com", is_active=True)
+        for user in (self.ana, self.raul, self.rosa, self.root):
             self.users.add(user)
 
     def add_product(self, name: str) -> Product:
@@ -115,3 +117,29 @@ def test_create_ticket_associates_repeated_products_once(setup):
     assert sorted(p.name for p in ticket.products) == ["Desktop", "XPS 13"]
     assert len(ticket.products) == 2
     assert setup.commit.calls == 1
+
+
+def test_create_ticket_rejects_a_client_actor(setup):
+    """SPEC-TKT-05 · TC-TKT-05a"""
+    with pytest.raises(PermissionDeniedError):
+        setup.service.create_ticket(setup.ana.id, [], "Hola", setup.ana)
+
+    assert setup.tickets.tickets == []
+    assert setup.commit.calls == 0
+
+
+def _create_ticket(setup: Setup, actor):
+    return setup.service.create_ticket(setup.ana.id, [], "Hola", actor)
+
+
+OPERATIONS = [pytest.param(_create_ticket, id="create_ticket")]
+
+
+@pytest.mark.parametrize("operation", OPERATIONS)
+def test_admin_is_denied_every_ticket_operation(setup, operation):
+    """SPEC-TKT-27 · TC-TKT-27a"""
+    with pytest.raises(PermissionDeniedError):
+        operation(setup, setup.root)
+
+    assert setup.tickets.tickets == []
+    assert setup.commit.calls == 0

@@ -1,6 +1,6 @@
 import pytest
 from sqlalchemy import delete, select, text, update
-from sqlalchemy.exc import DBAPIError
+from sqlalchemy.exc import DBAPIError, IntegrityError
 from sqlalchemy.orm import Session
 
 from app.domain.errors import ImmutableRecordError
@@ -147,3 +147,19 @@ def test_schema_creates_the_immutability_triggers(db_session: Session):
         ("state_changes_no_update", "state_changes"),
         ("state_changes_no_delete", "state_changes"),
     }
+
+
+def test_raw_delete_of_a_ticket_with_history_is_rejected_by_the_foreign_key(
+    db_session: Session, make_user: MakeUser, make_ticket: MakeTicket
+):
+    """SPEC-TKT-16 · TC-TKT-16g"""
+    ticket = _ticket_with_history(make_user, make_ticket)
+    ticket_id = ticket.id
+    before = _stored_states(db_session)
+
+    with pytest.raises(IntegrityError, match="FOREIGN KEY"):
+        db_session.execute(text("DELETE FROM tickets WHERE id = :id"), {"id": ticket_id})
+    db_session.rollback()
+
+    assert db_session.get(Ticket, ticket_id) is not None
+    assert _stored_states(db_session) == before
