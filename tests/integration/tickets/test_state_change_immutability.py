@@ -1,5 +1,6 @@
 import pytest
-from sqlalchemy import select
+from sqlalchemy import delete, select, text, update
+from sqlalchemy.exc import DBAPIError
 from sqlalchemy.orm import Session
 
 from app.domain.errors import ImmutableRecordError
@@ -84,3 +85,65 @@ def test_listeners_stop_the_change_before_any_sql_runs(
 
     writes = [s for s in statements if s.lstrip().upper().startswith(("UPDATE", "DELETE"))]
     assert writes == []
+
+
+def test_raw_update_is_rejected_by_the_trigger_and_leaves_the_row_untouched(
+    db_session: Session, make_user: MakeUser, make_ticket: MakeTicket
+):
+    """SPEC-TKT-16 · TC-TKT-16d"""
+    ticket = _ticket_with_history(make_user, make_ticket)
+    before = _stored_states(db_session)
+    change_id = ticket.state_history[0].id
+
+    with pytest.raises(DBAPIError, match="immutable"):
+        db_session.execute(
+            text("UPDATE state_changes SET state_name = :s WHERE id = :id"),
+            {"s": "Closed", "id": change_id},
+        )
+    db_session.rollback()
+
+    assert _stored_states(db_session) == before
+
+
+def test_raw_delete_is_rejected_by_the_trigger_and_keeps_the_row(
+    db_session: Session, make_user: MakeUser, make_ticket: MakeTicket
+):
+    """SPEC-TKT-16 · TC-TKT-16e"""
+    ticket = _ticket_with_history(make_user, make_ticket)
+    before = _stored_states(db_session)
+    change_id = ticket.state_history[0].id
+
+    with pytest.raises(DBAPIError, match="immutable"):
+        db_session.execute(text("DELETE FROM state_changes WHERE id = :id"), {"id": change_id})
+    db_session.rollback()
+
+    assert _stored_states(db_session) == before
+
+
+def test_bulk_statements_are_rejected_by_the_triggers(
+    db_session: Session, make_user: MakeUser, make_ticket: MakeTicket
+):
+    """SPEC-TKT-16 · TC-TKT-16f"""
+    _ticket_with_history(make_user, make_ticket)
+    before = _stored_states(db_session)
+
+    with pytest.raises(DBAPIError, match="immutable"):
+        db_session.execute(update(StateChange).values(state_name="Closed"))
+    db_session.rollback()
+    with pytest.raises(DBAPIError, match="immutable"):
+        db_session.execute(delete(StateChange))
+    db_session.rollback()
+
+    assert _stored_states(db_session) == before
+
+
+def test_schema_creates_the_immutability_triggers(db_session: Session):
+    """SPEC-TKT-16 · TC-TKT-16i"""
+    rows = db_session.execute(
+        text("SELECT name, tbl_name FROM sqlite_master WHERE type = 'trigger'")
+    ).all()
+
+    assert {(row.name, row.tbl_name) for row in rows} >= {
+        ("state_changes_no_update", "state_changes"),
+        ("state_changes_no_delete", "state_changes"),
+    }

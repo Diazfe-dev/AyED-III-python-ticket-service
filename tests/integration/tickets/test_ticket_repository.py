@@ -107,3 +107,35 @@ def test_added_ticket_gets_its_id_on_flush_without_committing(
     ticket_id = ticket.id
     db_session.rollback()
     assert db_session.get(Ticket, ticket_id) is None
+
+
+def test_list_by_client_returns_only_the_tickets_of_that_client(
+    db_session: Session, make_user: MakeUser, make_ticket: MakeTicket
+) -> None:
+    """SPEC-TKT-17 · TC-TKT-17b"""
+    ana = make_user("Client", name="Ana")
+    beto = make_user("Client", name="Beto")
+    carla = make_user("Client", name="Carla")
+    raul = make_user("Representative", name="Raul")
+    anas = [make_ticket(ana, raul), make_ticket(ana, raul)]
+    make_ticket(beto, raul)
+    repository = SqlAlchemyTicketRepository(db_session)
+
+    assert {ticket.id for ticket in repository.list_by_client(ana.id)} == {t.id for t in anas}
+    assert repository.list_by_client(carla.id) == []
+
+
+def test_list_by_representative_returns_only_the_tickets_assigned_to_them(
+    db_session: Session, make_user: MakeUser, make_ticket: MakeTicket
+) -> None:
+    """SPEC-TKT-18 · TC-TKT-18b"""
+    ana = make_user("Client", name="Ana")
+    raul = make_user("Representative", name="Raul")
+    rosa = make_user("Representative", name="Rosa")
+    rauls = [make_ticket(ana, raul), make_ticket(ana, raul)]
+    make_ticket(ana, rosa)
+    repository = SqlAlchemyTicketRepository(db_session)
+
+    result = repository.list_by_representative(raul.id)
+
+    assert {ticket.id for ticket in result} == {t.id for t in rauls}
