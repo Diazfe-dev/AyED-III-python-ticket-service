@@ -1,6 +1,6 @@
 """Persistence of tickets on top of the SQLAlchemy session."""
 
-from sqlalchemy import or_, select
+from sqlalchemy import ColumnElement, or_, select
 from sqlalchemy.orm import Session, selectinload
 
 from app.db import fits_integer_column
@@ -44,3 +44,15 @@ class SqlAlchemyTicketRepository:
             )
         )
         return self._session.scalars(statement).one_or_none()
+
+    def list_by_client(self, client_id: int) -> list[Ticket]:
+        """The tickets whose client is `client_id`."""
+        return self._list_where(Ticket.client_id == client_id)
+
+    def list_by_representative(self, representative_id: int) -> list[Ticket]:
+        """The tickets assigned to `representative_id`."""
+        return self._list_where(Ticket.representative_id == representative_id)
+
+    def _list_where(self, condition: ColumnElement[bool]) -> list[Ticket]:
+        statement = select(Ticket).options(*WITH_PARTICIPANTS_AND_PRODUCTS).where(condition)
+        return list(self._session.scalars(statement))
