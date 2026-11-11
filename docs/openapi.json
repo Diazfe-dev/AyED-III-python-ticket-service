@@ -807,6 +807,320 @@
           }
         }
       }
+    },
+    "/tickets": {
+      "get": {
+        "summary": "List my tickets",
+        "description": "A client sees the tickets it owns and a representative the tickets assigned to it; nobody sees the tickets of others. Newest first: ordered by creation date and, for the same instant, by id, both descending. Admins receive `403`.",
+        "operationId": "listTickets",
+        "tags": ["tickets"],
+        "responses": {
+          "200": {
+            "description": "The tickets of the session user; an empty list when it has none.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Ticket"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/AuthenticationRequired"
+          },
+          "403": {
+            "$ref": "#/components/responses/TicketForbidden"
+          }
+        }
+      },
+      "post": {
+        "summary": "Create a ticket",
+        "description": "Representatives only: the calling representative becomes the assigned one and the state starts as `New`. `client_id`, `first_message` and `product_ids` are validated together (`400` `validation_error`); then the client must be an active client (`400` `invalid_client`) and every product must exist and be active (`400` `invalid_product`), all or nothing. The first message becomes the first milestone and the products are associated without repeats. Any other key in the body (such as `representative_id` or `state`) is ignored. Admins and clients receive `403`.",
+        "operationId": "createTicket",
+        "tags": ["tickets"],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateTicketRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Ticket created.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Ticket"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid body (`validation_error`, with `fields`), unknown or inactive client (`invalid_client`) or unknown or inactive product (`invalid_product`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "oneOf": [
+                    {
+                      "$ref": "#/components/schemas/ValidationErrorResponse"
+                    },
+                    {
+                      "$ref": "#/components/schemas/Error"
+                    }
+                  ]
+                },
+                "examples": {
+                  "validation_error": {
+                    "value": {
+                      "error": "validation_error",
+                      "fields": {
+                        "first_message": "required"
+                      }
+                    }
+                  },
+                  "invalid_client": {
+                    "value": {
+                      "error": "invalid_client"
+                    }
+                  },
+                  "invalid_product": {
+                    "value": {
+                      "error": "invalid_product"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/AuthenticationRequired"
+          },
+          "403": {
+            "$ref": "#/components/responses/TicketForbidden"
+          }
+        }
+      }
+    },
+    "/tickets/{ticket_id}": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/TicketId"
+        }
+      ],
+      "get": {
+        "summary": "Get a ticket",
+        "description": "The client of the ticket and its assigned representative. Any other user, including another client or representative, gets the same `404` as for a ticket that does not exist or whose id is out of range. Admins receive `403`.",
+        "operationId": "getTicket",
+        "tags": ["tickets"],
+        "responses": {
+          "200": {
+            "description": "The ticket, with its participants (id and name) and all its products, deactivated ones included.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Ticket"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/AuthenticationRequired"
+          },
+          "403": {
+            "$ref": "#/components/responses/TicketForbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/TicketNotFound"
+          }
+        }
+      }
+    },
+    "/tickets/{ticket_id}/close": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/TicketId"
+        }
+      ],
+      "post": {
+        "summary": "Close a ticket",
+        "description": "The client of the ticket or its assigned representative. A `New` or `InProgress` ticket becomes `Closed` and the transition is recorded with the user and the time. Closing a closed ticket is `409` `invalid_transition`. A ticket that is not visible to the session user is `404`; admins receive `403`. No request body.",
+        "operationId": "closeTicket",
+        "tags": ["tickets"],
+        "responses": {
+          "200": {
+            "description": "The closed ticket.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Ticket"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/AuthenticationRequired"
+          },
+          "403": {
+            "$ref": "#/components/responses/TicketForbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/TicketNotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/InvalidTransition"
+          }
+        }
+      }
+    },
+    "/tickets/{ticket_id}/reopen": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/TicketId"
+        }
+      ],
+      "post": {
+        "summary": "Reopen a ticket",
+        "description": "The client of the ticket or its assigned representative; the reopening is direct, with no approval. A `Closed` ticket becomes `InProgress` (never `New`) and keeps the representative that handled it, even if that representative is now inactive. Reopening a ticket that is not closed is `409` `invalid_transition`. A ticket that is not visible to the session user is `404`; admins receive `403`. No request body.",
+        "operationId": "reopenTicket",
+        "tags": ["tickets"],
+        "responses": {
+          "200": {
+            "description": "The reopened ticket.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Ticket"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/AuthenticationRequired"
+          },
+          "403": {
+            "$ref": "#/components/responses/TicketForbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/TicketNotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/InvalidTransition"
+          }
+        }
+      }
+    },
+    "/tickets/{ticket_id}/products": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/TicketId"
+        }
+      ],
+      "post": {
+        "summary": "Associate products with a ticket",
+        "description": "Only the assigned representative; allowed in a `Closed` ticket. Checks run in this order: admin (`403`); body format (`400` `validation_error`, decided without looking up the ticket, so it is the same for an own, foreign or missing ticket); ticket visibility (`404`); assigned representative (`403`, for example the client that owns the ticket); products (`400` `invalid_product` when any is missing or inactive). All or nothing: repeated ids and products already associated are ignored.",
+        "operationId": "addTicketProducts",
+        "tags": ["tickets"],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AddTicketProductsRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The ticket with all its products.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Ticket"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid `product_ids` (`validation_error`, with `fields`) or a product that does not exist or is inactive (`invalid_product`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "oneOf": [
+                    {
+                      "$ref": "#/components/schemas/ValidationErrorResponse"
+                    },
+                    {
+                      "$ref": "#/components/schemas/Error"
+                    }
+                  ]
+                },
+                "examples": {
+                  "validation_error": {
+                    "value": {
+                      "error": "validation_error",
+                      "fields": {
+                        "product_ids": "invalid"
+                      }
+                    }
+                  },
+                  "invalid_product": {
+                    "value": {
+                      "error": "invalid_product"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/AuthenticationRequired"
+          },
+          "403": {
+            "$ref": "#/components/responses/TicketForbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/TicketNotFound"
+          }
+        }
+      }
+    },
+    "/tickets/{ticket_id}/products/{product_id}": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/TicketId"
+        },
+        {
+          "$ref": "#/components/parameters/ProductId"
+        }
+      ],
+      "delete": {
+        "summary": "Remove a product from a ticket",
+        "description": "Only the assigned representative; allowed in a `Closed` ticket. Only the association is removed: the product stays in the catalog. Checks run in this order: admin (`403`); ticket visibility (`404` `ticket_not_found`); assigned representative (`403`, for example the client that owns the ticket); association (`404` `product_not_in_ticket`, also for a product id that does not exist or is out of range).",
+        "operationId": "removeTicketProduct",
+        "tags": ["tickets"],
+        "responses": {
+          "204": {
+            "description": "Product removed from the ticket."
+          },
+          "401": {
+            "$ref": "#/components/responses/AuthenticationRequired"
+          },
+          "403": {
+            "$ref": "#/components/responses/TicketForbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/ProductNotInTicket"
+          }
+        }
+      }
     }
   },
   "components": {
