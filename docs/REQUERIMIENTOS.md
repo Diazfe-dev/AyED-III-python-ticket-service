@@ -73,5 +73,5 @@
 6. El sistema deberá registrar qué usuario (cliente o representante) y en qué momento exacto realizó un cambio de estado en el ticket.
 7. El sistema deberá documentar su API HTTP con una especificación OpenAPI y exponerla de forma navegable mediante Swagger UI.
 8. El sistema deberá servir su interfaz web desde la misma API, como archivos estáticos HTML, JavaScript y CSS sin paso de compilación ni dependencias de ejecución, y autenticarla con la misma cookie de sesión.
-9. El sistema deberá verificar con pruebas unitarias automatizadas de JavaScript la lógica de la interfaz que no depende del DOM, ejecutadas en la integración continua.
+9. El sistema deberá verificar con pruebas automatizadas, ejecutadas en la integración continua, la interfaz web: con pruebas unitarias de JavaScript la lógica que no depende del DOM, y con pruebas en un navegador real el comportamiento que solo se observa en el DOM (renderizado, controles, foco, diseño adaptable y contraste).
 10. El sistema deberá permitir, de forma opcional y compatible hacia atrás, paginar los listados que pueden crecer.
