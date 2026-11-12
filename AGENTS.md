@@ -76,7 +76,7 @@ app/
     errors.py          # DomainError y subclases (ValidationError, DuplicateUserError, CategoryInUseError, ProductTypeInUseError, ...)
     ticket.py          # Ticket (agregado raíz) y la tabla ticket_products
     types.py           # UtcDateTime (TypeDecorator: timestamps siempre en UTC)
-    immutable.py       # make_immutable: listeners y triggers de SQLite que bloquean UPDATE y DELETE (StateChange; Milestone en 05)
+    immutable.py       # make_immutable: listeners y triggers de SQLite que bloquean UPDATE y DELETE (StateChange y Milestone)
     states.py          # State, NewState, InProgressState, ClosedState
     milestone.py       # Milestone (inmutable)
     state_change.py    # StateChange (registro de auditoría)
@@ -85,23 +85,24 @@ app/
     notifications.py   # Notification (interfaz), MailNotification, WhatsappNotification
   services/            # Casos de uso: orquestan dominio, repositorios y notificaciones
     passwords.py       # PasswordHasher (protocolo) y WerkzeugPasswordHasher
-    validation.py      # validadores de campos compartidos (text_error, id_error, parse_id, raise_if_invalid)
+    validation.py      # validadores de campos compartidos (text_error, id_error, flag_error, parse_id, raise_if_invalid)
     user_service.py    # UserService
     catalog_service.py # CatalogService: ABM y listados de categorías y tipos de producto
     product_service.py # ProductService: alta, modificación, baja lógica y listados de productos
-    ticket_service.py  # TicketService: alta, lectura, listados, transiciones y productos del ticket; protocolo TicketNotifier
+    ticket_service.py  # TicketService: alta, lectura, listados, transiciones, productos e hitos del ticket (add_milestone, list_milestones); protocolo TicketNotifier
   repositories/        # Consultas con la Session de SQLAlchemy; devuelven y reciben entidades
     user_repository.py # SqlAlchemyUserRepository
     category_repository.py      # SqlAlchemyCategoryRepository
     product_type_repository.py  # SqlAlchemyProductTypeRepository
     product_repository.py       # SqlAlchemyProductRepository (sin métodos de borrado)
-    ticket_repository.py        # SqlAlchemyTicketRepository (add, get_visible y listados; sin métodos de borrado)
+    ticket_repository.py        # SqlAlchemyTicketRepository (add, get_visible, get_visible_with_milestones y listados; sin métodos de borrado)
   controllers/         # Blueprints de Flask: HTTP de entrada y salida, nada más
     health.py          # /health
     api_docs.py        # /openapi.json y /docs
     auth.py            # POST /login y POST /logout
     users.py           # gestión de usuarios (solo Admin)
     catalog.py         # categorías, tipos de producto y productos (CatalogController)
+    milestones.py      # POST y GET /tickets/{id}/milestones (MilestoneController)
     errors.py          # tabla DomainError → status y código JSON
     serializers.py     # lectura del cuerpo JSON y representación de usuarios, categorías, tipos y productos
 tests/
