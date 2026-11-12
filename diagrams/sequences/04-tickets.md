@@ -8,11 +8,11 @@ Convenciones del código actual:
 
 - El `TicketController` solo lee el cuerpo JSON y delega con `actor=current_user`; todas las reglas, incluido el `403`, las decide el `TicketService`. Los errores de dominio se traducen en `controllers/errors.py`: `400` `validation_error`, `invalid_client` e `invalid_product`; `403` `forbidden`; `404` `ticket_not_found` y `product_not_in_ticket`; `409` `invalid_transition`.
 - El service lee `clock()` una vez y pasa `now` al dominio. El dominio no lee el reloj, y toda transición pasa por `Ticket._enter`, que cambia `state_name` y agrega el `StateChange`.
-- Los pasos `NS.notify` son de [06-notifications](../../specs/06-notifications/spec.md): hoy `TicketService` recibe un `NullTicketNotifier` que no hace nada, y `06` lo reemplaza con `NotificationService`. Se muestran como contexto y no forman parte de `04`.
+- Los pasos `NS.notify` son de [06-notifications](../../specs/06-notifications/spec.md): `TicketService` recibe un `NotificationService` (`app/wiring.py`) y lo llama como última acción, después del `commit()`; el mensaje sale de `app/services/notification_messages.py`. Si la operación no termina con éxito (`4xx` o `500`), no se notifica (SPEC-NTF-15). El destinatario del cierre y de la reapertura es la contraparte del actor (`_notify_counterpart`).
 
 ## 1. Creación de ticket
 
-Specs: SPEC-TKT-01, 02, 03, 04, 05, 06, 08, 15, 23, 24, 27, 31 · SPEC-NTF-05
+Specs: SPEC-TKT-01, 02, 03, 04, 05, 06, 08, 15, 23, 24, 27, 31 · SPEC-NTF-05, 15
 
 ```mermaid
 sequenceDiagram
@@ -55,7 +55,7 @@ sequenceDiagram
                     T->>T: <<create>> StateChange(representative, New, now) (SPEC-TKT-15)
                     TS->>TR: add(ticket)
                     TS->>TS: commit()
-                    TS->>NS: notify(recipient=client, actor=representative, ticket, "Nuevo ticket") (06, SPEC-NTF-05)
+                    TS->>NS: notify(recipient=client, actor=representative, ticket, ticket_created(ticket)) (06, SPEC-NTF-05)
                     TC-->>Rep: 201 Created (SPEC-TKT-01)
                 end
             end
@@ -65,7 +65,7 @@ sequenceDiagram
 
 ## 2. Cierre de ticket (patrón State)
 
-Specs: SPEC-TKT-10, 13, 14, 16, 19, 20, 27, 30 · SPEC-NTF-07, 13
+Specs: SPEC-TKT-10, 13, 14, 16, 19, 20, 27, 30 · SPEC-NTF-07, 13, 15
 
 ```mermaid
 sequenceDiagram
@@ -97,9 +97,9 @@ sequenceDiagram
                 T->>T: <<create>> StateChange(actor, Closed, now) (SPEC-TKT-14, 16)
                 TS->>TS: commit()
                 alt actor es el Representante
-                    TS->>NS: notify(recipient=client, actor, ticket, "Ticket cerrado") (06, SPEC-NTF-07)
+                    TS->>NS: notify(recipient=client, actor, ticket, ticket_closed(ticket)) (06, SPEC-NTF-07)
                 else actor es el Cliente
-                    TS->>NS: notify(recipient=representative, actor, ticket, "El cliente cerró el ticket") (06, SPEC-NTF-13)
+                    TS->>NS: notify(recipient=representative, actor, ticket, ticket_closed(ticket)) (06, SPEC-NTF-13)
                 end
                 TC-->>U: 200 OK con el ticket (SPEC-TKT-10)
             else state es Closed
@@ -112,7 +112,7 @@ sequenceDiagram
 
 ## 3. Reapertura de ticket
 
-Specs: SPEC-TKT-11, 12, 13, 14, 16, 19, 20, 27, 30 · SPEC-NTF-07, 10
+Specs: SPEC-TKT-11, 12, 13, 14, 16, 19, 20, 27, 30 · SPEC-NTF-07, 10, 15
 
 ```mermaid
 sequenceDiagram
@@ -145,9 +145,9 @@ sequenceDiagram
                 T->>T: <<create>> StateChange(actor, InProgress, now) (SPEC-TKT-14, 16)
                 TS->>TS: commit()
                 alt actor es el Cliente
-                    TS->>NS: notify(recipient=representative, actor, ticket, "El cliente reabrió el ticket") (06, SPEC-NTF-10)
+                    TS->>NS: notify(recipient=representative, actor, ticket, ticket_reopened(ticket)) (06, SPEC-NTF-10)
                 else actor es el Representante
-                    TS->>NS: notify(recipient=client, actor, ticket, "Ticket reabierto") (06, SPEC-NTF-07)
+                    TS->>NS: notify(recipient=client, actor, ticket, ticket_reopened(ticket)) (06, SPEC-NTF-07)
                 end
                 TC-->>U: 200 OK con el ticket
             else state es New o InProgress
@@ -208,7 +208,7 @@ sequenceDiagram
 
 ## 5. Asociar y quitar productos
 
-Specs: SPEC-TKT-07, 08, 19, 20, 21, 22, 24, 25, 26, 27, 30
+Specs: SPEC-TKT-07, 08, 19, 20, 21, 22, 24, 25, 26, 27, 30 · SPEC-NTF-17
 
 ```mermaid
 sequenceDiagram
@@ -251,6 +251,7 @@ sequenceDiagram
                         TS->>T: add_products(products)
                         Note over T: no duplica los que ya estaban asociados (SPEC-TKT-25)
                         TS->>TS: commit()
+                        Note over TS: no se notifica (SPEC-NTF-17)
                         TC-->>Rep: 200 OK con el ticket (SPEC-TKT-07)
                     end
                 else quitar
@@ -260,6 +261,7 @@ sequenceDiagram
                         TC-->>Rep: 404 product_not_in_ticket (SPEC-TKT-26)
                     else asociado
                         TS->>TS: commit()
+                        Note over TS: no se notifica (SPEC-NTF-17)
                         TC-->>Rep: 204 No Content (SPEC-TKT-21)
                     end
                 end

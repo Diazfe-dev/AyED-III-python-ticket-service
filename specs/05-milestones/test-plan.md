@@ -13,7 +13,7 @@ Dobles para tests unitarios (sin Flask ni base):
 - `FakeTicketRepository` (`tests/unit/tickets/fakes.py`, existente): suma `get_visible_with_milestones(ticket_id, actor)` con el mismo contrato que `get_visible`, y registra la llamada en `visible_lookups` (los casos de formato comprueban que quedó vacío, dec. 4).
 - `FakeClock` y `CommitSpy` (`tests/unit/fakes.py`), `FakeUserRepository` y `FakeProductRepository`: sin cambios.
 - Reloj que cuenta sus lecturas: una función local del test que envuelve un `FakeClock`, avanza 1 s y suma 1 en cada llamada (TC-MLS-03e).
-- `FakeTicketNotifier` (existente): no se usa para verificar llamadas; nadie llama a `notify` en esta área.
+- `FakeTicketNotifier` (existente): esta área no lo usa para verificar llamadas; `06-notifications` sí lo hace (`TicketService` ya llama a `notify` después del `commit`).
 
 Datos de referencia: `"Ana"` (cliente) y `"Raúl"` (representante asignado) son los participantes; `"Beto"` (otro cliente) y `"Rosa"` (otro representante) son los ajenos. Todas las fechas son `datetime` con `tzinfo=UTC`. Para verificar "sin cambios" se relee con `db_session.expire_all()` y se cuentan las filas de `milestones` y `state_changes` y el `state_name` del ticket.
 

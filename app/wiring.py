@@ -3,14 +3,16 @@
 from datetime import UTC, datetime
 
 from app.db import get_session
+from app.domain.notifications import NotificationStrategy, default_strategies
 from app.repositories.category_repository import SqlAlchemyCategoryRepository
 from app.repositories.product_repository import SqlAlchemyProductRepository
 from app.repositories.product_type_repository import SqlAlchemyProductTypeRepository
 from app.repositories.ticket_repository import SqlAlchemyTicketRepository
 from app.repositories.user_repository import SqlAlchemyUserRepository
 from app.services.catalog_service import CatalogService
+from app.services.notification_service import NotificationService
 from app.services.product_service import ProductService
-from app.services.ticket_service import NullTicketNotifier, TicketService
+from app.services.ticket_service import TicketService
 
 
 def get_catalog_service() -> CatalogService:
@@ -36,6 +38,10 @@ def utc_now() -> datetime:
     return datetime.now(UTC)
 
 
+def notification_strategies() -> dict[str, NotificationStrategy]:
+    return default_strategies()
+
+
 def get_ticket_service() -> TicketService:
     db_session = get_session()
     return TicketService(
@@ -44,5 +50,5 @@ def get_ticket_service() -> TicketService:
         SqlAlchemyProductRepository(db_session),
         utc_now,
         db_session.commit,
-        NullTicketNotifier(),
+        NotificationService(notification_strategies(), utc_now, db_session.commit),
     )

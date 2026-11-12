@@ -4,9 +4,9 @@ Spec: [specs/05-milestones/spec.md](../../specs/05-milestones/spec.md)
 
 ## 1. Registro de hito por el representante (con transición opcional)
 
-Specs: SPEC-MLS-01, 03, 04, 05, 06, 11 · SPEC-TKT-09, 14, 27 · SPEC-NTF-06, 08
+Specs: SPEC-MLS-01, 03, 04, 05, 06, 11 · SPEC-TKT-09, 14, 27 · SPEC-NTF-06, 08, 15
 
-Orden de las reglas (decisión 11): formato `400` → `Admin` `403` → ticket visible `404` → estado `Closed` `409`. El service lee `clock()` una vez y pasa `now` al dominio. Los pasos `NS.notify` son de `06-notifications` y **no están implementados**: hoy nadie llama a `notify`.
+Orden de las reglas (decisión 11): formato `400` → `Admin` `403` → ticket visible `404` → estado `Closed` `409`. El service lee `clock()` una vez y pasa `now` al dominio. Los pasos `NS.notify` son de [06-notifications](06-notifications.md): `TicketService` los ejecuta después del `commit()` y solo si este termina con éxito (SPEC-NTF-15).
 
 ```mermaid
 sequenceDiagram
@@ -17,7 +17,7 @@ sequenceDiagram
     participant TR as TicketRepository
     participant T as Ticket
     participant S as state (State actual)
-    participant NS as NotificationService (06-notifications, no implementado)
+    participant NS as NotificationService
 
     Rep->>MC: POST /tickets/{id}/milestones (content, start_progress)
     MC->>TS: add_milestone(ticket_id, content, actor=current_user, start_progress=body.get("start_progress", False))
@@ -44,18 +44,18 @@ sequenceDiagram
             opt start_progress y actor es el representante asignado
                 TS->>T: request_progress(actor, now)
                 T->>S: request_progress(ticket, actor, now)
-                Note over S: Solo NewState actúa; en InProgress se ignora sin error (dec. 5 y 6)
+                Note over S: NewState transiciona y devuelve True; State por defecto (InProgress) devuelve False sin error (dec. 5 y 6)
                 S->>S: NewState.in_progress(ticket, actor, now)
                 S->>T: _enter(InProgressState, actor, now) (SPEC-TKT-09)
                 T->>T: <<create>> StateChange(actor, InProgress, now) (SPEC-TKT-14)
+                S-->>TS: True (hubo cambio de estado) o False
             end
             TS->>TR: commit()
-            opt 06-notifications (no implementado)
-                alt hubo cambio de estado
-                    TS->>NS: notify(client, actor, ticket, "Nuevo hito y ticket En Progreso") (SPEC-NTF-08)
-                else solo hito
-                    TS->>NS: notify(client, actor, ticket, "Nuevo hito") (SPEC-NTF-06)
-                end
+            Note over TS: changed = el retorno de request_progress (False si no se invocó)
+            alt changed es True
+                TS->>NS: notify(client, actor, ticket, milestone_and_state_changed(ticket)) (SPEC-NTF-08)
+            else solo hito
+                TS->>NS: notify(client, actor, ticket, milestone_added(ticket)) (SPEC-NTF-06)
             end
             TS-->>MC: milestone
             MC-->>Rep: 201 Created con el Milestone
@@ -65,9 +65,9 @@ sequenceDiagram
 
 ## 2. Respuesta del cliente
 
-Specs: SPEC-MLS-02, 03, 04, 05, 06, 11 · SPEC-NTF-09
+Specs: SPEC-MLS-02, 03, 04, 05, 06, 11 · SPEC-NTF-09, 15
 
-El cliente puede mandar `start_progress`, pero se ignora: `request_progress` solo se invoca si el autor es el representante asignado (dec. 5 y 6). El paso `NS.notify` es de `06-notifications` y no está implementado.
+El cliente puede mandar `start_progress`, pero se ignora: `request_progress` solo se invoca si el autor es el representante asignado (dec. 5 y 6). El paso `NS.notify` es de [06-notifications](06-notifications.md) y solo se ejecuta después de un `commit()` exitoso (SPEC-NTF-15).
 
 ```mermaid
 sequenceDiagram
@@ -78,7 +78,7 @@ sequenceDiagram
     participant TR as TicketRepository
     participant T as Ticket
     participant S as state (State actual)
-    participant NS as NotificationService (06-notifications, no implementado)
+    participant NS as NotificationService
 
     C->>MC: POST /tickets/{id}/milestones (content, start_progress opcional)
     MC->>TS: add_milestone(ticket_id, content, actor=current_user, start_progress)
@@ -99,9 +99,7 @@ sequenceDiagram
             T->>T: <<create>> Milestone(content, author=cliente, created_at=now) (SPEC-MLS-02, 03)
             Note over TS: start_progress se ignora: el actor no es el representante asignado
             TS->>TR: commit()
-            opt 06-notifications (no implementado)
-                TS->>NS: notify(recipient=representative, actor=cliente, ticket, "Nueva respuesta del cliente") (SPEC-NTF-09)
-            end
+            TS->>NS: notify(recipient=representative, actor=cliente, ticket, milestone_added(ticket)) (SPEC-NTF-09)
             MC-->>C: 201 Created con el Milestone
         end
     end

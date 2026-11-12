@@ -25,8 +25,12 @@ class State:
     def in_progress(self, ticket: "Ticket", user: User, now: datetime) -> None:
         raise InvalidTransitionError()
 
-    def request_progress(self, ticket: "Ticket", user: User, now: datetime) -> None:
-        """Does nothing by default; only `New` turns the request into a transition."""
+    def request_progress(self, ticket: "Ticket", user: User, now: datetime) -> bool:
+        """Does nothing by default; only `New` turns the request into a transition.
+
+        Returns whether the state changed.
+        """
+        return False
 
     def add_milestone(
         self, ticket: "Ticket", content: str, author: User, now: datetime
@@ -41,8 +45,9 @@ class NewState(State):
     def in_progress(self, ticket: "Ticket", user: User, now: datetime) -> None:
         ticket._enter(InProgressState, user, now)
 
-    def request_progress(self, ticket: "Ticket", user: User, now: datetime) -> None:
+    def request_progress(self, ticket: "Ticket", user: User, now: datetime) -> bool:
         self.in_progress(ticket, user, now)
+        return True
 
     def close(self, ticket: "Ticket", user: User, now: datetime) -> None:
         ticket._enter(ClosedState, user, now)
