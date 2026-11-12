@@ -26,6 +26,9 @@ class FakeTicketRepository:
             return None
         return ticket
 
+    def get_visible_with_milestones(self, ticket_id: int, actor: User) -> Ticket | None:
+        return self.get_visible(ticket_id, actor)
+
     def list_by_client(self, client_id: int) -> list[Ticket]:
         return self._newest_first(t for t in self.tickets if t.client.id == client_id)
 

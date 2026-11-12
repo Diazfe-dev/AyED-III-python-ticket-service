@@ -1121,6 +1121,86 @@
           }
         }
       }
+    },
+    "/tickets/{ticket_id}/milestones": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/TicketId"
+        }
+      ],
+      "post": {
+        "summary": "Register a milestone",
+        "description": "The client of the ticket or its assigned representative. Checks run in this order: body format (`400` `validation_error`, decided without looking up the ticket, so it is the same for an own, foreign or missing ticket); admin (`403`); ticket visibility (`404`); closed ticket (`409` `ticket_closed`). `start_progress` is optional (default `false`) and only has effect when the assigned representative sends it `true` on a `New` ticket, which becomes `InProgress` in the same operation; otherwise it is ignored. The author and the date are those of the session user and the server clock; other keys are ignored.",
+        "operationId": "addMilestone",
+        "tags": ["tickets"],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AddMilestoneRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "The milestone that was created.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Milestone"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/ValidationFailed"
+          },
+          "401": {
+            "$ref": "#/components/responses/AuthenticationRequired"
+          },
+          "403": {
+            "$ref": "#/components/responses/TicketForbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/TicketNotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/TicketClosed"
+          }
+        }
+      },
+      "get": {
+        "summary": "List the milestones of a ticket",
+        "description": "The client of the ticket and its assigned representative, in any state of the ticket. Milestones come in chronological order (oldest first), with their author (id, name and role). Any other user gets the same `404` as for a ticket that does not exist or whose id is out of range. Admins receive `403`.",
+        "operationId": "listMilestones",
+        "tags": ["tickets"],
+        "responses": {
+          "200": {
+            "description": "The milestones of the ticket, oldest first.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Milestone"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/AuthenticationRequired"
+          },
+          "403": {
+            "$ref": "#/components/responses/TicketForbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/TicketNotFound"
+          }
+        }
+      }
     }
   },
   "components": {
@@ -1445,6 +1525,19 @@
             },
             "example": {
               "error": "invalid_product"
+            }
+          }
+        }
+      },
+      "TicketClosed": {
+        "description": "The ticket is closed and accepts no more milestones (`ticket_closed`).",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            },
+            "example": {
+              "error": "ticket_closed"
             }
           }
         }
@@ -1827,6 +1920,57 @@
               "minimum": 1
             },
             "description": "Ids of active products to associate. Missing, `null`, empty or malformed is `validation_error`."
+          }
+        }
+      },
+      "MilestoneAuthor": {
+        "type": "object",
+        "description": "Author of a milestone. No email.",
+        "required": ["id", "name", "role"],
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "name": {
+            "type": "string"
+          },
+          "role": {
+            "type": "string",
+            "enum": ["Client", "Representative"]
+          }
+        }
+      },
+      "Milestone": {
+        "type": "object",
+        "description": "Immutable entry of a ticket's timeline.",
+        "required": ["id", "content", "author", "created_at"],
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "content": {
+            "type": "string"
+          },
+          "author": {
+            "$ref": "#/components/schemas/MilestoneAuthor"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "ISO 8601, UTC."
+          }
+        }
+      },
+      "AddMilestoneRequest": {
+        "type": "object",
+        "required": ["content"],
+        "properties": {
+          "content": {
+            "type": "string"
+          },
+          "start_progress": {
+            "type": "boolean",
+            "description": "When true on a `New` ticket, moves it to `In Progress`. Optional, defaults to false."
           }
         }
       }

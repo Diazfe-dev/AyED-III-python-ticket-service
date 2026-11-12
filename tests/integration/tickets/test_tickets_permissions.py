@@ -32,7 +32,7 @@ def snapshot(db_session: Session) -> list[int]:
 
 # (method, path, body) of the requests an admin makes; they grow with each endpoint.
 ADMIN_PRECEDENCE_REQUESTS = [
-    ("POST", "/tickets", {"first_message": ""}),
+    ("POST", "/tickets", {"client_id": 9999, "first_message": "Hola"}),
     ("GET", "/tickets/9999", None),
     ("POST", "/tickets/9999/close", None),
 ]
@@ -47,6 +47,8 @@ ALL_ENDPOINTS = [
     ("POST", "/tickets/{ticket}/reopen", None),
     ("POST", "/tickets/{ticket}/products", {"product_ids": ["{xps}"]}),
     ("DELETE", "/tickets/{ticket}/products/{xps}", None),
+    ("POST", "/tickets/{ticket}/milestones", {"content": "Hola"}),
+    ("GET", "/tickets/{ticket}/milestones", None),
 ]
 
 # The endpoints that work on one ticket, for the cases about its visibility.
@@ -56,6 +58,8 @@ TICKET_ENDPOINTS = [
     ("POST", "/tickets/{ticket}/reopen", None),
     ("POST", "/tickets/{ticket}/products", {"product_ids": ["{xps}"]}),
     ("DELETE", "/tickets/{ticket}/products/{xps}", None),
+    ("POST", "/tickets/{ticket}/milestones", {"content": "Hola"}),
+    ("GET", "/tickets/{ticket}/milestones", None),
 ]
 
 ENDPOINT_IDS = [f"{method} {path}" for method, path, _ in ALL_ENDPOINTS]
@@ -269,6 +273,43 @@ def test_a_malformed_product_ids_is_the_same_bad_request_for_every_ticket(
     assert snapshot(db_session) == before
 
 
+def test_admin_gets_a_bad_request_for_an_invalid_creation_body_and_forbidden_for_a_valid_one(
+    admin_client: FlaskClient, db_session: Session, world: SimpleNamespace
+) -> None:
+    """SPEC-TKT-27 · TC-TKT-27j"""
+    before = snapshot(db_session)
+
+    invalid = admin_client.post("/tickets", json={"first_message": ""})
+    valid = admin_client.post("/tickets", json={"client_id": world.ana.id, "first_message": "Hola"})
+
+    assert invalid.status_code == 400
+    assert invalid.get_json() == {
+        "error": "validation_error",
+        "fields": {"client_id": "required", "first_message": "required"},
+    }
+    assert valid.status_code == 403
+    assert valid.get_json() == {"error": "forbidden"}
+    assert snapshot(db_session) == before
+
+
+@pytest.mark.parametrize("target", ["missing", "mine"])
+def test_admin_gets_a_bad_request_for_a_malformed_product_ids(
+    target: str, admin_client: FlaskClient, db_session: Session, world: SimpleNamespace
+) -> None:
+    """SPEC-TKT-24 · TC-TKT-24l"""
+    ticket_id, product_ids = (9999, "abc") if target == "missing" else (world.ticket.id, [])
+    before = snapshot(db_session)
+
+    response = admin_client.post(
+        f"/tickets/{ticket_id}/products", json={"product_ids": product_ids}
+    )
+
+    assert response.status_code == 400
+    assert response.get_json()["fields"]["product_ids"] == "invalid"
+    assert response.get_json()["error"] == "validation_error"
+    assert snapshot(db_session) == before
+
+
 PATH_PARAMETER = re.compile(r"<[^>]+>|{[^}]+}")
 HTTP_METHODS = {"get", "post", "put", "patch", "delete"}
 OPENAPI_CONTRACT = Path(__file__).parents[3] / "docs" / "openapi.json"
@@ -288,7 +329,7 @@ def test_the_endpoint_matrix_lists_every_ticket_route_of_the_app(app: Flask) -> 
     }
     listed = {(method, normalized(path)) for method, path, _ in ALL_ENDPOINTS}
 
-    assert len(routes) == 7
+    assert len(routes) == 9
     assert routes == listed
 
 
@@ -305,7 +346,7 @@ def test_every_ticket_operation_documents_its_forbidden_with_ticket_forbidden() 
     ticket_forbidden = contract["components"]["responses"]["TicketForbidden"]
     error_schema = ticket_forbidden["content"]["application/json"]
 
-    assert len(operations) == 7
+    assert len(operations) == 9
     for _, _, operation in operations:
         assert operation["responses"]["403"] == {"$ref": "#/components/responses/TicketForbidden"}
     assert error_schema["schema"] == {"$ref": "#/components/schemas/Error"}

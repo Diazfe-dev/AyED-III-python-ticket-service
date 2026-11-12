@@ -104,3 +104,7 @@ class InvalidProductError(DomainError):
 
 class TicketNotFoundError(DomainError):
     message = "Ticket not found."
+
+
+class TicketClosedError(DomainError):
+    message = "The ticket is closed; reopen it before adding milestones."

@@ -6,6 +6,7 @@ from sqlalchemy import ForeignKey, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.domain.base import Base
+from app.domain.immutable import make_immutable
 from app.domain.types import UtcDateTime
 from app.domain.users import User
 
@@ -24,3 +25,6 @@ class Milestone(Base):
     created_at: Mapped[datetime] = mapped_column(UtcDateTime)
     ticket: Mapped["Ticket"] = relationship(back_populates="milestones")  # noqa: F821
     author: Mapped[User] = relationship()
+
+
+make_immutable(Milestone)

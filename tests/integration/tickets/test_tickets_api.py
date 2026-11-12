@@ -170,6 +170,25 @@ def test_client_cannot_create_a_ticket(
     assert stored_tickets(db_session) == []
 
 
+def test_client_gets_a_bad_request_for_an_invalid_body_and_forbidden_for_a_valid_one(
+    client: FlaskClient, login_as: LoginAs, db_session: Session, ana: Client
+) -> None:
+    """SPEC-TKT-05 · TC-TKT-05d"""
+    login_as(client, ana)
+
+    invalid = create_ticket(client, first_message="")
+    unknown_client = create_ticket(client, client_id=9999, first_message="Hola")
+
+    assert invalid.status_code == 400
+    assert invalid.get_json() == {
+        "error": "validation_error",
+        "fields": {"client_id": "required", "first_message": "required"},
+    }
+    assert unknown_client.status_code == 403
+    assert unknown_client.get_json() == {"error": "forbidden"}
+    assert stored_tickets(db_session) == []
+
+
 @pytest.mark.parametrize("kind", ["unknown", "representative", "inactive"])
 def test_create_ticket_rejects_an_invalid_client(
     kind: str,
@@ -841,4 +860,5 @@ def test_there_is_no_way_to_delete_or_modify_tickets_or_their_history(app: Flask
     assert [name for name in public if name.startswith(forbidden_prefixes)] == []
     assert not {"DELETE", "PUT", "PATCH"} & ticket_rule.methods
     assert [rule.rule for rule in rules if "state" in rule.rule] == []
-    assert [rule.rule for rule in rules if "milestone" in rule.rule] == []
+    milestone_methods = {m for rule in rules if "milestone" in rule.rule for m in rule.methods}
+    assert not {"DELETE", "PUT", "PATCH"} & milestone_methods
