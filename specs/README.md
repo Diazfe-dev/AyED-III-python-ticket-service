@@ -46,7 +46,7 @@ Cada área es una carpeta `NN-<área>/`. `spec.md` existe siempre. Los demás ar
 | [03-products/](03-products/spec.md) | Gestión de productos | 1.3 | ✅ | ✅ | ✅ | ✅ |
 | [04-tickets/](04-tickets/spec.md) | Ciclo de vida del ticket | 1.4 | ✅ | ✅ | ✅ | ✅ |
 | [05-milestones/](05-milestones/spec.md) | Gestión de hitos | 1.5 | ✅ | ✅ | ✅ | ✅ |
-| [06-notifications/](06-notifications/spec.md) | Gestión de notificaciones | 1.6 | ✅ | ⬜ | ⬜ | ⬜ |
+| [06-notifications/](06-notifications/spec.md) | Gestión de notificaciones | 1.6 | ✅ | ✅ | ✅ | ✅ |
 
 ## Actores
 
