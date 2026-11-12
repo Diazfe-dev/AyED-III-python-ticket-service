@@ -18,6 +18,7 @@ En las tablas, los archivos son relativos a `tests/ui/` salvo que se indique otr
 
 - Hash, rol y respuestas como datos literales en cada prueba. Zonas horarias explícitas para las fechas (`UTC`, `America/Argentina/Buenos_Aires` (UTC-3, sin horario de verano), `Asia/Kolkata` (UTC+5:30)).
 - `fakeFetch(responses)`: función local que registra cada llamada (`url`, `init`) y devuelve `Response` construidas con la clase global `Response` de Node (o lanza `TypeError` para simular la falta de conexión).
+- Token de pedido y de pantalla (`requests.test.js`): estados de `core/requests.js` armados con `initialRequests()`, `openScreen` e `issue(s, method, key?)` en cada prueba (métodos `GET`, `POST`, `PATCH`, `DELETE`; claves `list`, `clients`, `ticket`, `milestones`, `state-changes`); estados HTTP `200`, `201`, `204`, `400`, `403`, `404`, `409`, `500`, `401` y `null` (sin conexión) como datos literales.
 - `poisonGlobals()`: define `globalThis.fetch`, `globalThis.document` y `globalThis.window` como getters que lanzan, y los restaura al terminar (TC-UI-73a y 75b).
 
 Playwright (`tests/ui/e2e/support/`, completos en T-UI-15 y sin editar después):
@@ -29,7 +30,7 @@ Playwright (`tests/ui/e2e/support/`, completos en T-UI-15 y sin editar después)
 
 Ningún dato de prueba contiene las palabras de la decisión 29 (TC-UI-55a mira todo el texto visible).
 
-Casos deterministas de `POST /logout` y de `GET /me` (sin `sleep`): la prueba crea la compuerta con `api.defer`, dispara la acción, hace sus comprobaciones mientras la respuesta está retenida y recién después llama a `release(...)` o `abort()`. El orden «antes» y «después» de SPEC-UI-130 se fija liberando las compuertas en ese orden y esperando a que la pantalla refleje cada paso con `expect(...)`.
+Casos deterministas de `POST /logout` y de `GET /me` (sin `sleep`): la prueba crea la compuerta con `api.defer`, dispara la acción, hace sus comprobaciones mientras la respuesta está retenida y recién después llama a `release(...)` o `abort()`. El orden «antes» y «después» de SPEC-UI-130 se fija liberando las compuertas en ese orden y esperando a que la pantalla refleje cada paso con `expect(...)`. Lo mismo para SPEC-UI-135 y 136: la respuesta vieja se libera después de que la pantalla ya muestra la nueva (o ya cambió de pantalla), y se espera a que `api.requests` registre la respuesta entregada antes de comprobar que no cambió nada.
 
 ## Matriz spec → casos
 
@@ -94,7 +95,7 @@ Casos deterministas de `POST /logout` y de `GET /me` (sin `sleep`): la prueba cr
 | UI-126 | TC-UI-126b | unit | `anonymous` + `hashChanged` con esos hashes | `render(login)` (solo si no se mostraba), `replaceHash("#/login")`, `notice: false`, sin efectos `request` | `js/session.test.js` |
 | UI-126 | TC-UI-126c | unit | `mePending`, `meError` y `closing` + `hashChanged("#/users")` | Estado sin cambios y sin efectos (no aplica 126) | `js/session.test.js` |
 | UI-126 | TC-UI-126d | e2e | Sin sesión en el login; cambia el hash a `""`, `#/users`, `#/tickets/abc` y `#/desconocido` | Siempre el login, sin aviso, `api.requests` sin pedidos nuevos y `location.hash == "#/login"` | `e2e/login.spec.js` |
-| UI-126 | TC-UI-126e | e2e | Email escrito y `POST /login` retenido; cambia el hash a `#/users`; luego libera `200` y `GET /me` `200` | Mientras está retenido: el login sigue con el email escrito; al liberar, inicio del rol (G-03, opción A) | `e2e/login.spec.js` |
+| UI-126 | TC-UI-126e | e2e | Email escrito y `POST /login` retenido; cambia el hash a `#/users`; luego libera `200` y `GET /me` `200` | Mientras está retenido: el login sigue con el email escrito; al liberar, inicio del rol (decisión 58) | `e2e/login.spec.js` |
 | UI-127 | TC-UI-127a | unit | `mePending{initial}` + `hashChanged`; `meError` + `hashChanged`; `mePending{login}` + `hashChanged` | Sin efectos; tras `200`, `initial` evalúa el hash que trae el evento y `login` va al inicio | `js/session.test.js` |
 | UI-127 | TC-UI-127b | e2e | `GET /me` inicial retenido; cambia el hash a `#/account`; libera `200` (`Client`) | Mientras está retenido, sigue el indicador de carga; después, «Mi cuenta» | `e2e/boot.spec.js` |
 | UI-127 | TC-UI-127c | e2e | `GET /me` `500` (error con «Reintentar»); cambia el hash a `#/account`; «Reintentar» con `200` | El error sigue tras el cambio de hash; después del reintento, «Mi cuenta» | `e2e/boot.spec.js` |
@@ -124,6 +125,26 @@ Casos deterministas de `POST /logout` y de `GET /me` (sin `sleep`): la prueba cr
 | UI-14 | TC-UI-14a | unit | `confirmationMismatch("clave-uno-1", "clave-dos-2")` y con valores iguales | `true` y `false` | `js/forms.test.js` |
 | UI-14 | TC-UI-14b | e2e | Nueva y confirmación distintas | Marca en el formulario y cero `POST /me/password` | `e2e/account.spec.js` |
 | UI-15 | TC-UI-15a | e2e | `POST /me/password` `400` `invalid_current_password` | «La contraseña actual no es correcta.» en el formulario; sigue la navegación y `#/account` | `e2e/account.spec.js` |
+
+### Respuestas reemplazadas o de otra pantalla (sesión abierta)
+
+| Spec | Caso | Nivel | Datos / preparación | Resultado esperado | Archivo |
+|------|------|-------|---------------------|--------------------|---------|
+| UI-135 | TC-UI-135a | unit | `issue(s, "GET", "list")` dos veces (`t1`, `t2`) en la misma instancia (la misma clave para otro filtro, `q` o página); `verdict` de `t1` con `200`, `204`, `400`, `404`, `500` y `null` (falla de conexión); `verdict` de `t2` con `200`; un `issue(s, "GET", "clients")` intercalado; dos `issue(s, "GET")` sin clave | `t1` → `"ignore"` con todos esos estados; `t2` → `"deliver"`; el pedido `clients` sigue `"deliver"` (otra clave no lo reemplaza); los dos sin clave → `"deliver"` (nunca se reemplazan) | `js/requests.test.js` |
+| UI-135 | TC-UI-135b | unit | Ídem `t1` reemplazado por `t2`; `verdict(s, t1, 401)` | `"deliver"`: el `401` no se descarta y lo maneja SPEC-UI-12 en la máquina de sesión | `js/requests.test.js` |
+| UI-135 | TC-UI-135c | e2e | Representante en `#/tickets`; `GET /tickets?state=New...` retenido con `defer()`; cambia el filtro a «En curso» y `GET /tickets?state=InProgress...` responde `200` con las filas B; después libera el primero con `200` y las filas A. Variante: el primero se libera con `500` JSON | Se ven solo las filas B y el filtro «En curso»; las filas A no aparecen; en la variante no aparece ningún mensaje de error en `role="alert"`; `location.hash` no cambia | `e2e/tickets-list.spec.js` |
+| UI-135 | TC-UI-135d | unit | Escrituras: `w1 = issue(s, "POST")`, `w2 = issue(s, "PATCH", "list")` (clave pasada por error), `r = issue(s, "GET", "list")` emitida antes de `w2`, después `w3 = issue(s, "DELETE")` y `r2 = issue(s, "GET", "list")`; `verdict` de `w1`, `w2` y `w3` con `201`, `204`, `400`, `409`, `500` y `null`; `verdict(s, r, 200)` antes de emitir `r2` | `w1`, `w2` y `w3` → `"deliver"` con todos (una escritura nunca se descarta por reemplazo, ni por otra escritura ni por una lectura posterior); `r` → `"deliver"` antes de `r2` (una escritura con clave no reemplaza a la lectura) | `js/requests.test.js` |
+| UI-135 | TC-UI-135e | unit | Recursos distintos: `issue(s, "GET", "ticket")`, `"milestones"` y `"state-changes"` en paralelo (ronda A), `verdict` en orden inverso con `200`; después la ronda B con las mismas tres claves (recarga de SPEC-UI-42) y `verdict` de la ronda A con `200` y `null` | Ronda A antes de la B → las tres `"deliver"` (claves distintas no se reemplazan entre sí); tras la ronda B → la ronda A `"ignore"` y la B `"deliver"` (el mismo recurso recargado reemplaza solo a su lectura anterior) | `js/requests.test.js` |
+| UI-135 | TC-UI-135f | e2e | Representante en `#/tickets`; `GET /tickets?q=Notebook...` retenido con `defer()`; envía otra búsqueda (`q=Monitor`) que responde `200` con las filas B; después libera la primera con `400` `validation_error`. Variante: la primera se cierra con `abort()` (`route.abort`, falla de conexión) | Se ven solo las filas B; no aparece ningún mensaje en `role="alert"` (ni el genérico ni el de falta de conexión); el indicador de carga no queda visible; `location.hash` no cambia | `e2e/tickets-list.spec.js` |
+| UI-135 | TC-UI-135g | e2e | Representante en `#/tickets`; `GET /tickets?state=New...` retenido; cambia el filtro y la consulta nueva responde `200` con las filas B; después libera la primera con `401` | Se muestra el login con «Tu sesión venció. Inicia sesión nuevamente.» (SPEC-UI-12) y `location.hash == "#/login"`: el `401` obsoleto no se ignora | `e2e/expiry.spec.js` |
+| UI-135 | TC-UI-135h | e2e | Representante en `#/tickets/7`; retiene `GET /tickets/7`, `/tickets/7/milestones` y `/tickets/7/state-changes` y los libera en orden inverso (historial, hitos, ticket) con `200`; después registra un hito (`POST .../milestones` `201`), retiene las tres recargas de SPEC-UI-42 y las libera otra vez en orden inverso con datos nuevos | En los dos momentos se dibujan el estado del ticket, los hitos y los cambios de estado (los tres `GET` en paralelo no se reemplazan entre sí); tras la recarga se ven los datos nuevos | `e2e/ticket-actions.spec.js` |
+| UI-136 | TC-UI-136a | unit | `t = issue(s, "GET", "list")`; `s2 = openScreen(s)`; `verdict(s2, t, status)` con `200`, `201`, `400`, `403`, `409`, `500` y `null`; un `issue(s, "POST")` emitido antes de `openScreen`; `t3 = issue(s2, "GET", "list")` | `t` → `"ignore"` con todos; la escritura de la instancia anterior → `"ignore"`; `t3` → `"deliver"` | `js/requests.test.js` |
+| UI-136 | TC-UI-136b | unit | Ídem `t` de la pantalla anterior; `verdict(s2, t, 401)` | `"deliver"`: el `401` no se descarta (SPEC-UI-12) | `js/requests.test.js` |
+| UI-136 | TC-UI-136c | e2e | Representante en `#/tickets/new` completa el formulario; `POST /tickets` retenido; navega a «Mi cuenta» (`#/account`); libera `201` `{"id": 15, ...}`. Variante: libera `400` `validation_error` | Sigue «Mi cuenta» y `location.hash == "#/account"`; no hay `GET /tickets/15` ni cambio de hash a `#/tickets/15`; en la variante no aparece ningún mensaje de error ni marca de campo | `e2e/ticket-new.spec.js` |
+| UI-136 | TC-UI-136d | unit | Nueva instancia de la misma ruta: `s1 = openScreen(s)` (`#/tickets/new`), `w = issue(s1, "POST")`, `s2 = openScreen(s1)` (`#/account`), `s3 = openScreen(s2)` (otra vez `#/tickets/new`); `verdict(s3, w, status)` con `201`, `400` y `null`; además `s4 = openScreen(s1)` sin pantalla intermedia y `verdict(s4, w, 201)` | `"ignore"` en todos: cada `openScreen` abre una instancia nueva aunque la ruta sea la misma; `verdict(s3, w, 401)` → `"deliver"` | `js/requests.test.js` |
+| UI-136 | TC-UI-136e | e2e | Representante en `#/tickets/new` completa el formulario; `POST /tickets` retenido; navega a `#/account` y vuelve a `#/tickets/new`; libera `201` `{"id": 15, ...}` | Sigue la pantalla «Nuevo ticket» con el formulario vacío (instancia nueva) y `location.hash == "#/tickets/new"`; no hay `GET /tickets/15` ni cambio de hash a `#/tickets/15` | `e2e/ticket-new.spec.js` |
+| UI-136 | TC-UI-136f | e2e | Representante en `#/tickets/new` envía el alta; `POST /tickets` retenido; navega a `#/tickets`; libera `500` JSON. Variante: `abort()` (`route.abort`) | Sigue el listado de tickets y `location.hash == "#/tickets"`; no aparece ningún mensaje en `role="alert"` (ni el genérico ni el de falta de conexión) | `e2e/ticket-new.spec.js` |
+| UI-136 | TC-UI-136g | e2e | Representante en `#/tickets/new` envía el alta; `POST /tickets` retenido; navega a `#/account`; libera `401` | Se muestra el login con «Tu sesión venció. Inicia sesión nuevamente.» (SPEC-UI-12) y `location.hash == "#/login"`: el `401` de otra instancia no se ignora | `e2e/expiry.spec.js` |
 
 ### Navegación y pantallas por rol
 
@@ -224,7 +245,7 @@ Casos deterministas de `POST /logout` y de `GET /me` (sin `sleep`): la prueba cr
 | UI-45 | TC-UI-45a | e2e | Alta con nombre, email, rol, contraseña y canal «WhatsApp» | `POST /users` con `name`, `email`, `role`, `password` y `preferred_channel` | `e2e/users.spec.js` |
 | UI-45 | TC-UI-45b | e2e | Alta sin elegir canal | El cuerpo no tiene `preferred_channel` | `e2e/users.spec.js` |
 | UI-84 | TC-UI-84a | e2e | Formulario de alta | El selector de rol ofrece «Administrador» (`Admin`), «Representante» y «Cliente» | `e2e/users.spec.js` |
-| UI-85 | TC-UI-85a | e2e | `POST /users` `201` | «Usuario creado.» en la región de estado (G-04) | `e2e/users.spec.js` |
+| UI-85 | TC-UI-85a | e2e | `POST /users` `201` | «Usuario creado.» en la región de estado (tabla de mensajes propios, decisión 59) | `e2e/users.spec.js` |
 | UI-46 | TC-UI-46a | e2e | Edita el nombre de la cuenta 5 | `PATCH /users/5` con nombre, email y canal del formulario | `e2e/users.spec.js` |
 | UI-47 | TC-UI-47a | e2e | Cuenta activa; «Dar de baja» | `POST /users/5/deactivate` | `e2e/users.spec.js` |
 | UI-110 | TC-UI-110a | e2e | Cuenta inactiva; «Reactivar» | `POST /users/5/activate` | `e2e/users.spec.js` |
@@ -330,8 +351,8 @@ Casos deterministas de `POST /logout` y de `GET /me` (sin `sleep`): la prueba cr
 | UI-98 | TC-UI-98a | integration | Lee `playwright.config.js` y `tests/ui/e2e/` | El archivo existe, nombra `tests/ui/e2e` como `testDir` y hay al menos un `*.spec.js` | `test_traceability.py` |
 | UI-99 | TC-UI-99a | integration | Todas las pruebas de esta área (títulos y docstrings) | Cumplen `^SPEC-UI-\d+(, SPEC-UI-\d+)* [\x20-\x7E]+$` y los títulos son literales | `test_traceability.py` |
 | UI-99 | TC-UI-99b | integration | Textos de muestra con `test(...)`, `it(...)`, `describe(...)`, `test.describe(...)` y una plantilla con `${}` | El extractor toma solo los de prueba e informa la plantilla | `test_traceability.py` |
-| UI-121 | TC-UI-121a | integration | IDs de `spec.md` y citas de todo el repo | Cada uno de los 134 IDs tiene al menos una cita | `test_traceability.py` |
-| UI-121 | TC-UI-121b | integration | Lectura de `spec.md` | Lee 134 IDs, solo de las filas de las tablas (no de las decisiones) | `test_traceability.py` |
+| UI-121 | TC-UI-121a | integration | IDs de `spec.md` y citas de todo el repo | Cada uno de los 136 IDs tiene al menos una cita | `test_traceability.py` |
+| UI-121 | TC-UI-121b | integration | Lectura de `spec.md` | Lee 136 IDs, solo de las filas de las tablas (no de las decisiones) | `test_traceability.py` |
 
 ### Casos de otras áreas que esta área completa
 
@@ -355,6 +376,10 @@ Casos deterministas de `POST /logout` y de `GET /me` (sin `sleep`): la prueba cr
 - Códigos de estado y de rol desconocidos (123a, 123b); texto de la API con HTML (63a).
 - Confirmación con espacios al final (100b).
 - Historial que no crece al fijar `#/login` y el inicio del rol (128b, 132b).
+- Respuestas fuera de orden con la sesión abierta: reemplazada con éxito, con error y sin conexión, otra clave intacta, pedidos sin clave (135a, 135c); de una pantalla anterior con `201`, `4xx`, `5xx` y sin conexión, sin navegar (136a, 136c); el `401` de un pedido reemplazado o de otra pantalla no se descarta (135b, 136b) y en el navegador muestra «Tu sesión venció» (135g, 136g).
+- Qué se reemplaza (decisión 62): la misma clave con otro filtro, `q` o página (135a, 135c, 135f); escrituras nunca descartadas por reemplazo, aunque lleven clave, ni reemplazando a una lectura (135d); recursos distintos en paralelo, iniciales y recargados, liberados en orden inverso (135e, 135h).
+- Falla de conexión obsoleta (`null`, `route.abort`) sin mensaje de falta de conexión (135a, 135f, 136a, 136f) (decisión 63).
+- Instancia de pantalla (decisión 64): salir y volver a la misma ruta antes de la respuesta (136d, 136e); `openScreen` dos veces sin pantalla intermedia (136d).
 
 ## RNF cubiertos
 
@@ -507,7 +532,9 @@ Mecanismos: **P** = `pytest`, **N** = `node --test`, **W** = Playwright (con API
 | UI-132 | 132a, 132b | N, W | T-UI-11, 20 |
 | UI-133 | 133a, 133b, 133c | N, W | T-UI-12, 30 |
 | UI-134 | 134a, 134b | W, N | T-UI-30, 12 |
+| UI-135 | 135a, 135b, 135c, 135d, 135e, 135f, 135g, 135h | N, W | T-UI-39, 22, 31, 24 |
+| UI-136 | 136a, 136b, 136c, 136d, 136e, 136f, 136g | N, W | T-UI-39, 25, 31 |
 
 ## Resumen
 
-255 casos sobre 134 specs (todas con al menos un caso; las de la fila de Playwright de la tabla de verificación tienen al menos uno de Playwright, y las de la fila de `node --test`, al menos uno de `node --test`): **15** `pytest` (integration), **78** `node --test` (unit) y **162** Playwright (e2e: 158 con API simulada y 4 contra el servidor sembrado). Más 2 casos de otras áreas que se completan acá (TC-PLT-23d y TC-USR-49b). Si G-01 se resuelve con la opción A, se suman 2 casos `node --test` y 2 de Playwright con IDs de la spec nueva.
+270 casos sobre 136 specs (todas con al menos un caso; las de la fila de Playwright de la tabla de verificación tienen al menos uno de Playwright, y las de la fila de `node --test`, al menos uno de `node --test`; SPEC-UI-135 y 136 están en las dos filas y tienen casos de los dos): **15** `pytest` (integration), **85** `node --test` (unit) y **170** Playwright (e2e: 166 con API simulada y 4 contra el servidor sembrado). Más 2 casos de otras áreas que se completan acá (TC-PLT-23d y TC-USR-49b). La re-sincronización del 2026-11-12 (G-01, opción A) sumó TC-UI-135a, 135b, 136a y 136b (`node --test`, T-UI-39) y TC-UI-135c y 136c (Playwright, T-UI-22 y T-UI-25). La re-sincronización con las decisiones 62 a 65 sumó TC-UI-135d, 135e y 136d (`node --test`, T-UI-39: escrituras nunca descartadas, recursos distintos sin reemplazo, nueva instancia de la misma ruta) y TC-UI-135f (T-UI-22), 135h (T-UI-24), 136e y 136f (T-UI-25), 135g y 136g (T-UI-31) en Playwright: obsoletos `400`, `500` y `route.abort` sin error, `401` obsoleto con «Tu sesión venció», vuelta a `#/tickets/new` sin navegar y los tres `GET` en paralelo dibujados.
