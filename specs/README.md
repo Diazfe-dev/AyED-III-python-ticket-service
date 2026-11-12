@@ -17,7 +17,7 @@ Cada spec usa exactamente uno de estos patrones. Las palabras clave van en **neg
 
 ## Convenciones
 
-- **ID**: `SPEC-<ÁREA>-<NN>`. Áreas: `PLT` (plataforma), `USR` (usuarios y accesos), `PTY` (tipos de producto), `PRD` (productos), `TKT` (ciclo de vida del ticket), `MLS` (hitos), `NTF` (notificaciones).
+- **ID**: `SPEC-<ÁREA>-<NN>`. Áreas: `PLT` (plataforma), `USR` (usuarios y accesos), `PTY` (tipos de producto), `PRD` (productos), `TKT` (ciclo de vida del ticket), `MLS` (hitos), `NTF` (notificaciones), `UI` (interfaz web).
 - **Atómica**: una spec, un comportamiento. Si hace falta "y" para describir dos respuestas independientes, son dos specs.
 - **Verificable**: cada spec se puede probar con al menos un test. El test referencia el ID en su docstring.
 - **Trazable**: cada spec indica el RF de origen y, si aplica, los RNF y el diagrama relacionados.
@@ -47,6 +47,7 @@ Cada área es una carpeta `NN-<área>/`. `spec.md` existe siempre. Los demás ar
 | [04-tickets/](04-tickets/spec.md) | Ciclo de vida del ticket | 1.4 | ✅ | ✅ | ✅ | ✅ |
 | [05-milestones/](05-milestones/spec.md) | Gestión de hitos | 1.5 | ✅ | ✅ | ✅ | ✅ |
 | [06-notifications/](06-notifications/spec.md) | Gestión de notificaciones | 1.6 | ✅ | ✅ | ✅ | ✅ |
+| [07-ui/](07-ui/spec.md) | Interfaz web | 1.7, RNF 8, 9 | ✅ (borrador) | ❌ | ❌ | ❌ |
 
 ## Actores
 

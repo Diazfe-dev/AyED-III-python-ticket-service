@@ -2,7 +2,7 @@
 
 Origen: RF 1.5 · Relacionados: RNF 4, RNF 5 · Diagramas: [secuencias](../../diagrams/sequences/05-milestones.md), [clases](../../diagrams/classes.md)
 
-Depende de: SPEC-TKT-09, SPEC-TKT-19, SPEC-TKT-20, SPEC-TKT-27, SPEC-TKT-30 ([04-tickets](../04-tickets/spec.md)) · SPEC-NTF-06, SPEC-NTF-08, SPEC-NTF-09 ([06-notifications](../06-notifications/spec.md))
+Depende de: SPEC-TKT-09, SPEC-TKT-19, SPEC-TKT-20, SPEC-TKT-30, SPEC-TKT-32, SPEC-TKT-33 ([04-tickets](../04-tickets/spec.md)) · SPEC-NTF-06, SPEC-NTF-08, SPEC-NTF-09 ([06-notifications](../06-notifications/spec.md))
 
 Un hito (`Milestone`) es un mensaje o evento registrado en un ticket, con contenido, autor y fecha de creación.
 
@@ -19,6 +19,7 @@ Un hito (`Milestone`) es un mensaje o evento registrado en un ticket, con conten
 | SPEC-MLS-08 | Por evento | **Cuando** el cliente dueño o el representante asignado solicita los hitos de un ticket, **el sistema deberá** incluir en cada uno el contenido, el autor, su rol y la fecha de creación. | RF 1.5.2 |
 | SPEC-MLS-09 | No deseado | **Si** se intenta modificar un hito ya registrado, **entonces el sistema deberá** rechazar la operación sin alterar el hito. | RNF 5 |
 | SPEC-MLS-10 | No deseado | **Si** se intenta eliminar un hito ya registrado, **entonces el sistema deberá** rechazar la operación sin alterar el historial. | RNF 5 |
+| SPEC-MLS-12 | Por evento | **Cuando** un administrador solicita los hitos de un ticket (`GET /tickets/{id}/milestones`), **el sistema deberá** devolverlos con el mismo orden y contenido que SPEC-MLS-07 y SPEC-MLS-08, sin importar el cliente ni el representante del ticket. | RF 1.5.3 |
 
 ## Decisiones
 
@@ -45,3 +46,7 @@ Aprobadas el 2026-11-11 y registradas en Engram (`tp-final/decision/*`) y en [ME
 10. **Modificar o eliminar un hito (SPEC-MLS-09 y 10)**: la API no expone `PATCH`, `PUT` ni `DELETE` sobre un hito, así que esos pedidos quedan cubiertos por SPEC-PLT-15 (`404` o `405` con cuerpo JSON). El modelo es inmutable en el dominio (RNF 5).
 11. **Orden completo de validaciones al registrar un hito (G-26)**: `POST /tickets/{id}/milestones` evalúa en este orden y responde con el primer error que encuentra: (0) `401` si no hay sesión (SPEC-USR-16); (1) `400` si el cuerpo tiene formato inválido (SPEC-MLS-04 y 11, decisiones 7 y 8); (2) `403` con `forbidden` si quien llama es `Admin` (SPEC-TKT-27, decisión 9); (3) `404` con `ticket_not_found` si el ticket no existe o es ajeno (SPEC-MLS-06, SPEC-TKT-19, 20 y 30), sin revelar si existe (RNF 4); (4) `409` con `ticket_closed` si el ticket está cerrado (SPEC-MLS-05). Se descartó dejar el orden implícito.
 12. **Orden de validaciones al listar los hitos (G-27)**: `GET /tickets/{id}/milestones` no tiene cuerpo, así que no hay paso de formato. Evalúa en este orden y responde con el primer error que encuentra: (0) `401` si no hay sesión (SPEC-USR-16); (1) `403` con `forbidden` si quien llama es `Admin` (SPEC-TKT-27), exista o no el ticket; (2) `404` con `ticket_not_found` si el ticket no existe o es ajeno (SPEC-MLS-06, SPEC-TKT-19, 20 y 30). Se descartó dejar el orden implícito.
+
+Aprobada el 2026-11-12 (nueva área [07-ui](../07-ui/spec.md), reemplazo de SPEC-TKT-27):
+
+13. **Lectura de hitos por el Administrador (SPEC-MLS-12)**: SPEC-TKT-27 está reemplazada ([04-tickets](../04-tickets/spec.md#decisiones), decisión 22). El `Admin` puede listar los hitos de cualquier ticket, solo lectura. Cambios sobre las decisiones previas: en la decisión 9, el `Admin` que **lista** hitos ya no recibe `403` (el `Admin` que **registra** uno sigue recibiendo `403`, ahora por SPEC-TKT-32); en la decisión 12, el paso (1) (`403` al `Admin`) desaparece y `GET /tickets/{id}/milestones` evalúa (0) `401` y (1) `404` con `ticket_not_found` si el ticket no existe o es ajeno (un `Admin` nunca lo recibe por ajeno). El orden de la decisión 11 (registrar) no cambia. Las menciones a SPEC-TKT-27 en las decisiones 9, 11 y 12 se leen como SPEC-TKT-32 para escrituras.

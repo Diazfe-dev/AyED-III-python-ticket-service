@@ -1,6 +1,6 @@
 # 03 — Gestión de productos
 
-Origen: RF 1.3 · Diagramas: [secuencias](../../diagrams/sequences/03-products.md), [clases](../../diagrams/classes.md)
+Origen: RF 1.3 · Relacionados: RNF 10 · Diagramas: [secuencias](../../diagrams/sequences/03-products.md), [clases](../../diagrams/classes.md)
 
 | ID | Tipo | Especificación | Origen |
 |----|------|----------------|--------|
@@ -26,6 +26,19 @@ Origen: RF 1.3 · Diagramas: [secuencias](../../diagrams/sequences/03-products.m
 | SPEC-PRD-20 | Por evento | **Cuando** el listado se filtra a la vez por una categoría y por un tipo de producto que no pertenece a esa categoría, **el sistema deberá** devolver una lista vacía. | RF 1.3.3 |
 | SPEC-PRD-21 | Ubicuo | **El sistema deberá** devolver los listados de productos ordenados alfabéticamente por nombre. | RF 1.3.3 |
 
+## Reactivación, búsqueda y paginación
+
+| ID | Tipo | Especificación | Origen |
+|----|------|----------------|--------|
+| SPEC-PRD-22 | Por evento | **Cuando** un administrador reactiva un producto inactivo (`POST /products/{id}/activate`), **el sistema deberá** marcarlo como activo, de modo que pueda asociarse a tickets nuevos. | RF 1.3.4 |
+| SPEC-PRD-23 | Por evento | **Cuando** un administrador reactiva un producto que ya está activo, **el sistema deberá** responder con éxito sin modificarlo. | RF 1.3.4 |
+| SPEC-PRD-24 | No deseado | **Si** se intenta reactivar un producto inexistente, incluido un identificador fuera del rango que admite la base, **entonces el sistema deberá** responder que el producto no existe (`404`). | RF 1.3.4 |
+| SPEC-PRD-25 | No deseado | **Si** un usuario sin rol `Admin` intenta reactivar un producto, **entonces el sistema deberá** denegar la operación (`403`). | RF 1.1.5, RNF 2 |
+| SPEC-PRD-26 | Por evento | **Cuando** un usuario autenticado envía `q` en el listado de productos o en el de productos disponibles, **el sistema deberá** devolver solo los productos cuyo nombre contiene ese texto, sin distinguir mayúsculas. | RF 1.3.5 |
+| SPEC-PRD-27 | Por evento | **Cuando** un usuario autenticado envía `is_active` (`true` o `false`) en el listado de productos, **el sistema deberá** devolver solo los productos con ese estado. | RF 1.3.5 |
+| SPEC-PRD-28 | No deseado | **Si** `is_active` no es `true` ni `false`, **entonces el sistema deberá** rechazar el listado con `400` y el código `validation_error`, indicando ese parámetro como inválido. | RF 1.3.5 |
+| SPEC-PRD-29 | Opcional | **Donde** se solicita el listado de productos o el de productos disponibles con `page` o `page_size`, **el sistema deberá** paginarlo según SPEC-PLT-17 a SPEC-PLT-22. | RNF 10 |
+
 ## Decisiones
 
 Resueltas el 2026-11-09 y registradas en Engram (`tp-final/decision/*`) y en [MEMORY.md](../../MEMORY.md) (Cambios y motivación):
@@ -39,3 +52,8 @@ Aprobadas el 2026-11-10 (revisión transversal de huecos, mismo criterio que `02
 4. SPEC-PTY-08 (no borrar un tipo con productos) se implementa en esta área, porque recién acá existe `Product`.
 5. SPEC-PRD-06 depende de `04-tickets`: se verifica lo posible y el caso completo queda pendiente para esa área.
 6. Al aprobar el plan (2026-11-10): producto inexistente o id fuera de rango → `404` (SPEC-PRD-17), la baja de un producto inactivo es idempotente (SPEC-PRD-18), un producto inactivo se puede modificar y sigue inactivo (SPEC-PRD-19), filtros incompatibles → lista vacía (SPEC-PRD-20) y orden alfabético (SPEC-PRD-21). La reactivación de productos o usuarios queda fuera: ningún RF la pide.
+
+Aprobadas el 2026-11-12 (nueva área [07-ui](../07-ui/spec.md)):
+
+7. **Reactivación (SPEC-PRD-22 a 25)**: levanta la exclusión de la decisión 6. Es idempotente y `Admin` únicamente, con el mismo criterio que SPEC-PRD-18 y SPEC-PRD-09; SPEC-PRD-09 no se edita porque no menciona la reactivación.
+8. **Filtros del listado (SPEC-PRD-26 a 29)**: `q` (texto contenido en el nombre) rige para `GET /products` y `GET /products/available` (para el selector de productos del ticket). `is_active` solo rige para `GET /products`: los disponibles son siempre activos (SPEC-PRD-10). Se combinan con `category_id` y `product_type_id` (SPEC-PRD-08 y 20) con AND. El orden alfabético de SPEC-PRD-21 se mantiene y es el orden de la paginación.
