@@ -11,18 +11,28 @@ from app.domain.errors import (
     ProductNotInTicketError,
     TicketNotFoundError,
 )
+from app.domain.milestone import Milestone
 from app.domain.products import Product
 from app.domain.ticket import Ticket
 from app.domain.users import Admin, Client, Representative, User
 from app.services.product_service import ProductRepository
 from app.services.user_service import UserRepository
-from app.services.validation import id_error, id_list_error, parse_id, raise_if_invalid, text_error
+from app.services.validation import (
+    flag_error,
+    id_error,
+    id_list_error,
+    parse_id,
+    raise_if_invalid,
+    text_error,
+)
 
 
 class TicketRepository(Protocol):
     def add(self, ticket: Ticket) -> None: ...
 
     def get_visible(self, ticket_id: int, actor: User) -> Ticket | None: ...
+
+    def get_visible_with_milestones(self, ticket_id: int, actor: User) -> Ticket | None: ...
 
     def list_by_client(self, client_id: int) -> list[Ticket]: ...
 
@@ -67,9 +77,9 @@ class TicketService:
         actor: User,
     ) -> Ticket:
         """Open a ticket for the client, assigned to the calling representative."""
+        self._validate_creation(client_id, product_ids, first_message)
         if not isinstance(actor, Representative):
             raise PermissionDeniedError()
-        self._validate_creation(client_id, product_ids, first_message)
         client = self._find_client(parse_id(client_id))
         products = self._find_products(product_ids or [])
         ticket = Ticket.open(client, actor, products, first_message, self._clock())
@@ -107,12 +117,36 @@ class TicketService:
 
     def add_products(self, ticket_id: int, product_ids: Any, actor: User) -> Ticket:
         """Associate active products with the ticket, all or nothing; only the assignee may."""
-        self._reject_admin(actor)
         raise_if_invalid({"product_ids": id_list_error(product_ids)})
+        self._reject_admin(actor)
         ticket = self._assigned_ticket(ticket_id, actor)
         ticket.add_products(self._find_products(product_ids))
         self._commit()
         return ticket
+
+    def add_milestone(
+        self, ticket_id: int, content: Any, actor: User, start_progress: Any = False
+    ) -> Milestone:
+        """Record a milestone by the ticket's client or assigned representative."""
+        raise_if_invalid(
+            {"content": text_error(content), "start_progress": flag_error(start_progress)}
+        )
+        self._reject_admin(actor)
+        ticket = self._visible_ticket(ticket_id, actor)
+        now = self._clock()
+        milestone = ticket.add_milestone(content, actor, now)
+        if start_progress and actor is ticket.representative:
+            ticket.request_progress(actor, now)
+        self._commit()
+        return milestone
+
+    def list_milestones(self, ticket_id: int, actor: User) -> list[Milestone]:
+        """The ticket's milestones in chronological order, whatever its state."""
+        self._reject_admin(actor)
+        ticket = self._tickets.get_visible_with_milestones(ticket_id, actor)
+        if ticket is None:
+            raise TicketNotFoundError()
+        return list(ticket.milestones)
 
     def remove_product(self, ticket_id: int, product_id: int, actor: User) -> Ticket:
         """Remove a product from the ticket; only the assigned representative may."""

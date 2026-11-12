@@ -72,9 +72,7 @@ class Ticket(Base):
             created_at=now,
             products=list(products),
         )
-        ticket.milestones.append(
-            Milestone(author=representative, content=first_message, created_at=now)
-        )
+        ticket._append_milestone(first_message, representative, now)
         ticket.state_history.append(
             StateChange(user=representative, state_name="New", timestamp=now)
         )
@@ -97,6 +95,16 @@ class Ticket(Base):
             raise ProductNotInTicketError()
         self.products.remove(product)
 
+    def add_milestone(self, content: str, author: User, now: datetime) -> Milestone:
+        """Record a message on the ticket; the current state decides whether it is accepted."""
+        return self.state.add_milestone(self, content, author, now)
+
+    def _append_milestone(self, content: str, author: User, now: datetime) -> Milestone:
+        """The only place that builds a `Milestone`."""
+        milestone = Milestone(author=author, content=content, created_at=now)
+        self.milestones.append(milestone)
+        return milestone
+
     def close(self, user: User, now: datetime) -> None:
         self.state.close(self, user, now)
 
@@ -105,6 +113,10 @@ class Ticket(Base):
 
     def start_progress(self, user: User, now: datetime) -> None:
         self.state.in_progress(self, user, now)
+
+    def request_progress(self, user: User, now: datetime) -> None:
+        """Move to `InProgress` only if the state allows it; otherwise do nothing."""
+        self.state.request_progress(self, user, now)
 
     def _enter(self, state_class: type[State], user: User, now: datetime) -> None:
         """Move to the state and record it; the only place that changes `state_name`."""

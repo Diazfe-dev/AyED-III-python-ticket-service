@@ -29,6 +29,11 @@ def text_error(value: Any) -> str | None:
     return None if value.strip() else REQUIRED
 
 
+def flag_error(value: Any) -> str | None:
+    """A flag must be a JSON boolean; any other value, including `null`, is `invalid`."""
+    return None if isinstance(value, bool) else INVALID
+
+
 def id_error(value: Any) -> str | None:
     """An id is required and must be a positive integer, as a JSON number or as ASCII digits."""
     if value is None:

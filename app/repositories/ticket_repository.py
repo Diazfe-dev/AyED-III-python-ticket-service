@@ -1,9 +1,10 @@
 """Persistence of tickets on top of the SQLAlchemy session."""
 
-from sqlalchemy import ColumnElement, or_, select
-from sqlalchemy.orm import Session, selectinload
+from sqlalchemy import ColumnElement, Select, or_, select
+from sqlalchemy.orm import Load, Session, selectinload
 
 from app.db import fits_integer_column
+from app.domain.milestone import Milestone
 from app.domain.products import Product, ProductType
 from app.domain.ticket import Ticket
 from app.domain.users import User
@@ -33,9 +34,25 @@ class SqlAlchemyTicketRepository:
 
         An id SQLite cannot store matches nothing, so it never reaches the query.
         """
+        return self._find_visible(ticket_id, actor, ())
+
+    def get_visible_with_milestones(self, ticket_id: int, actor: User) -> Ticket | None:
+        """Like `get_visible`, with the milestones and their authors loaded."""
+        return self._find_visible(
+            ticket_id, actor, (selectinload(Ticket.milestones).selectinload(Milestone.author),)
+        )
+
+    def _find_visible(
+        self, ticket_id: int, actor: User, extra_options: tuple[Load, ...]
+    ) -> Ticket | None:
         if not fits_integer_column(ticket_id):
             return None
-        statement = (
+        statement = self._visible_statement(ticket_id, actor).options(*extra_options)
+        return self._session.scalars(statement).one_or_none()
+
+    @staticmethod
+    def _visible_statement(ticket_id: int, actor: User) -> Select[tuple[Ticket]]:
+        return (
             select(Ticket)
             .options(*WITH_PARTICIPANTS_AND_PRODUCTS)
             .where(
@@ -43,7 +60,6 @@ class SqlAlchemyTicketRepository:
                 or_(Ticket.client_id == actor.id, Ticket.representative_id == actor.id),
             )
         )
-        return self._session.scalars(statement).one_or_none()
 
     def list_by_client(self, client_id: int) -> list[Ticket]:
         """The tickets whose client is `client_id`, newest first."""

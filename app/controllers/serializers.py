@@ -4,6 +4,7 @@ from typing import Any
 
 from flask import request
 
+from app.domain.milestone import Milestone
 from app.domain.products import Category, Product, ProductType
 from app.domain.ticket import Ticket
 from app.domain.users import User
@@ -60,6 +61,20 @@ def product_json(product: Product) -> dict[str, Any]:
 def party_json(user: User) -> dict[str, Any]:
     """The part of a ticket participant that the other participant may see."""
     return {"id": user.id, "name": user.name}
+
+
+def author_json(user: User) -> dict[str, Any]:
+    """A milestone author: the participant fields plus the role."""
+    return party_json(user) | {"role": user.role}
+
+
+def milestone_json(milestone: Milestone) -> dict[str, Any]:
+    return {
+        "id": milestone.id,
+        "content": milestone.content,
+        "author": author_json(milestone.author),
+        "created_at": milestone.created_at.isoformat(),
+    }
 
 
 def ticket_json(ticket: Ticket) -> dict[str, Any]:

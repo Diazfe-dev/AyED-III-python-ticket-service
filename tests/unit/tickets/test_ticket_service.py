@@ -147,6 +147,21 @@ def test_create_ticket_rejects_a_client_actor(setup):
     assert setup.commit.calls == 0
 
 
+def test_create_ticket_validates_the_body_before_rejecting_a_client_actor(setup):
+    """SPEC-TKT-05 · TC-TKT-05c"""
+    with pytest.raises(ValidationError) as missing:
+        setup.service.create_ticket(None, [], "", setup.ana)
+    with pytest.raises(ValidationError) as malformed:
+        setup.service.create_ticket(setup.ana.id, "abc", "Hola", setup.ana)
+    with pytest.raises(PermissionDeniedError):
+        setup.service.create_ticket(9999, [], "Hola", setup.ana)
+
+    assert missing.value.fields == {"client_id": "required", "first_message": "required"}
+    assert malformed.value.fields == {"product_ids": "invalid"}
+    assert setup.tickets.tickets == []
+    assert setup.commit.calls == 0
+
+
 @pytest.mark.parametrize("first_message", [None, "", "   "])
 def test_create_ticket_rejects_a_missing_or_blank_first_message(setup, first_message):
     """SPEC-TKT-23 · TC-TKT-23a"""
@@ -347,6 +362,21 @@ def test_admin_is_denied_every_ticket_operation(setup, operation):
         operation(setup, ticket.id, setup.root)
 
     _assert_untouched(setup, [ticket])
+
+
+def test_create_ticket_validates_the_body_before_rejecting_an_admin(setup):
+    """SPEC-TKT-27 · TC-TKT-27i"""
+    with pytest.raises(ValidationError) as blank:
+        setup.service.create_ticket(setup.ana.id, [], "", setup.root)
+    with pytest.raises(ValidationError) as malformed:
+        setup.service.create_ticket("abc", [], "Hola", setup.root)
+    with pytest.raises(PermissionDeniedError):
+        setup.service.create_ticket(9999, [], "Hola", setup.root)
+
+    assert blank.value.fields == {"first_message": "required"}
+    assert malformed.value.fields == {"client_id": "invalid"}
+    assert setup.tickets.tickets == []
+    assert setup.commit.calls == 0
 
 
 def test_get_ticket_returns_the_ticket_to_the_owner_client(setup):
@@ -654,6 +684,21 @@ def test_add_products_validates_the_body_before_looking_up_the_ticket(setup):
             setup.service.add_products(ticket_id, "abc", setup.raul)
         assert error.value.fields == {"product_ids": "invalid"}
 
+    assert setup.tickets.visible_lookups == []
+    assert setup.commit.calls == 0
+
+
+def test_add_products_validates_the_body_before_rejecting_an_admin(setup):
+    """SPEC-TKT-24 · TC-TKT-24k"""
+    ticket = setup.add_ticket(setup.ana, setup.raul)
+
+    with pytest.raises(ValidationError) as invalid:
+        setup.service.add_products(ticket.id, "abc", setup.root)
+    with pytest.raises(ValidationError) as missing:
+        setup.service.add_products(9999, None, setup.root)
+
+    assert invalid.value.fields == {"product_ids": "invalid"}
+    assert missing.value.fields == {"product_ids": "required"}
     assert setup.tickets.visible_lookups == []
     assert setup.commit.calls == 0
 
