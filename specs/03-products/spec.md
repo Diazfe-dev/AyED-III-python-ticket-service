@@ -38,6 +38,7 @@ Origen: RF 1.3 · Relacionados: RNF 10 · Diagramas: [secuencias](../../diagrams
 | SPEC-PRD-27 | Por evento | **Cuando** un usuario autenticado envía `is_active` (`true` o `false`) en el listado de productos, **el sistema deberá** devolver solo los productos con ese estado. | RF 1.3.5 |
 | SPEC-PRD-28 | No deseado | **Si** `is_active` no es `true` ni `false`, **entonces el sistema deberá** rechazar el listado con `400` y el código `validation_error`, indicando ese parámetro como inválido. | RF 1.3.5 |
 | SPEC-PRD-29 | Opcional | **Donde** se solicita el listado de productos o el de productos disponibles con `page` o `page_size`, **el sistema deberá** paginarlo según SPEC-PLT-17 a SPEC-PLT-22. | RNF 10 |
+| SPEC-PRD-30 | Ubicuo | **El sistema deberá** ignorar en `GET /products/available` todo parámetro de consulta que no sea `q`, `page` ni `page_size`, sin rechazarlo. | RF 1.3.5 |
 
 ## Decisiones
 
@@ -57,3 +58,8 @@ Aprobadas el 2026-11-12 (nueva área [07-ui](../07-ui/spec.md)):
 
 7. **Reactivación (SPEC-PRD-22 a 25)**: levanta la exclusión de la decisión 6. Es idempotente y `Admin` únicamente, con el mismo criterio que SPEC-PRD-18 y SPEC-PRD-09; SPEC-PRD-09 no se edita porque no menciona la reactivación.
 8. **Filtros del listado (SPEC-PRD-26 a 29)**: `q` (texto contenido en el nombre) rige para `GET /products` y `GET /products/available` (para el selector de productos del ticket). `is_active` solo rige para `GET /products`: los disponibles son siempre activos (SPEC-PRD-10). Se combinan con `category_id` y `product_type_id` (SPEC-PRD-08 y 20) con AND. El orden alfabético de SPEC-PRD-21 se mantiene y es el orden de la paginación.
+
+Aprobadas el 2026-11-12 (validación de requerimientos de [07-ui](../07-ui/spec.md)):
+
+9. **Parámetros no admitidos en los disponibles (SPEC-PRD-30)**: `GET /products/available` solo admite `q`, `page` y `page_size`; cualquier otro (por ejemplo `is_active`, `category_id`) se ignora, como hoy. No es un error, porque los disponibles son siempre activos (SPEC-PRD-10).
+10. **`q` vacío**: en SPEC-PRD-26, un `q` vacío o con solo espacios equivale a no enviar `q` (SPEC-PLT-27).

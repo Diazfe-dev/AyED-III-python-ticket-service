@@ -46,6 +46,7 @@ Jerarquía de clasificación: `Category` (rubro) → `ProductType` → `Product`
 | SPEC-PTY-21 | Por evento | **Cuando** un usuario autenticado envía `q` en el listado de categorías, **el sistema deberá** devolver solo las categorías cuyo nombre contiene ese texto, sin distinguir mayúsculas y ordenadas por nombre. | RF 1.2.4, RF 1.2.3 |
 | SPEC-PTY-22 | Por evento | **Cuando** un usuario autenticado solicita el listado de tipos de producto sin `q`, **el sistema deberá** devolverlos agrupados por categoría, incluidas las categorías sin tipos. | RF 1.2.2 |
 | SPEC-PTY-23 | Por evento | **Cuando** un usuario autenticado envía `q` en el listado de tipos de producto, con o sin filtro de categoría, **el sistema deberá** devolver solo los tipos cuyo nombre contiene ese texto, sin distinguir mayúsculas, agrupados por categoría y sin las categorías que no tienen coincidencias. | RF 1.2.4, RF 1.2.2 |
+| SPEC-PTY-24 | Ubicuo | **El sistema deberá** responder `GET /categories` y `GET /product-types` sin paginar, ignorando `page` y `page_size` y conservando el filtro `q`. | RF 1.2.2, RF 1.2.3, RF 1.2.4, RNF 10 |
 
 ## Decisiones
 
@@ -62,3 +63,8 @@ Resueltas el 2026-11-10, al planificar el área:
 Aprobadas el 2026-11-12 (nueva área [07-ui](../07-ui/spec.md)):
 
 5. **Búsqueda `q` en categorías y tipos (SPEC-PTY-21 y 23)**: coincidencia por texto contenido en el nombre, sin distinguir mayúsculas. Son listados cortos, así que **no** se paginan (la convención de [00-platform](../00-platform/spec.md#paginación-opcional-de-listados) no aplica y `page` y `page_size` se ignoran). SPEC-PTY-09 se reemplaza por SPEC-PTY-22 (mismo comportamiento, ahora acotado a "sin `q`") porque con `q` las categorías sin coincidencias se omiten (SPEC-PTY-23). Sin `q`, ambos listados se comportan como hasta ahora.
+
+Aprobadas el 2026-11-12 (validación de requerimientos de [07-ui](../07-ui/spec.md)):
+
+6. **Sin paginación (SPEC-PTY-24)**: decisión del usuario. Se le ofreció paginar categorías y tipos de producto y eligió no hacerlo: son listados cortos. `GET /categories` y `GET /product-types` ignoran `page` y `page_size` (no responden `400` ni el objeto `{items, ...}`) y siguen aceptando `q`. Es lo que ya decía la decisión 5; ahora tiene spec propia.
+7. **`q` vacío**: en SPEC-PTY-21 a 23, un `q` vacío o con solo espacios equivale a no enviar `q` (SPEC-PLT-27).

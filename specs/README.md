@@ -19,7 +19,7 @@ Cada spec usa exactamente uno de estos patrones. Las palabras clave van en **neg
 
 - **ID**: `SPEC-<ÁREA>-<NN>`. Áreas: `PLT` (plataforma), `USR` (usuarios y accesos), `PTY` (tipos de producto), `PRD` (productos), `TKT` (ciclo de vida del ticket), `MLS` (hitos), `NTF` (notificaciones), `UI` (interfaz web).
 - **Atómica**: una spec, un comportamiento. Si hace falta "y" para describir dos respuestas independientes, son dos specs.
-- **Verificable**: cada spec se puede probar con al menos un test. El test referencia el ID en su docstring.
+- **Verificable**: cada spec se puede probar con al menos un test. El test referencia el ID en su docstring (en los tests de JavaScript y de Playwright, en el título de la prueba).
 - **Trazable**: cada spec indica el RF de origen y, si aplica, los RNF y el diagrama relacionados.
 - **Inmutable una vez implementada**: si el comportamiento cambia, se marca la spec como `Reemplazada por SPEC-...` y se crea una nueva. No se reutilizan IDs.
 - Las nuevas specs de un área toman el siguiente número libre y se ubican en la sección que corresponde, aunque el orden de IDs no quede correlativo.
@@ -47,10 +47,10 @@ Cada área es una carpeta `NN-<área>/`. `spec.md` existe siempre. Los demás ar
 | [04-tickets/](04-tickets/spec.md) | Ciclo de vida del ticket | 1.4 | ✅ | ✅ | ✅ | ✅ |
 | [05-milestones/](05-milestones/spec.md) | Gestión de hitos | 1.5 | ✅ | ✅ | ✅ | ✅ |
 | [06-notifications/](06-notifications/spec.md) | Gestión de notificaciones | 1.6 | ✅ | ✅ | ✅ | ✅ |
-| [07-ui/](07-ui/spec.md) | Interfaz web | 1.7, RNF 8, 9 | ✅ (borrador) | ❌ | ❌ | ❌ |
+| [07-ui/](07-ui/spec.md) | Interfaz web | 1.7, RNF 8, 9, 10 | ✅ (borrador) | ❌ | ❌ | ❌ |
 
 ## Actores
 
-- **Administrador** (rol `Admin`, RF 1.1.5): gestiona usuarios, categorías, tipos de producto y productos.
+- **Administrador** (rol `Admin`, RF 1.1.5): gestiona usuarios, categorías, tipos de producto y productos, y consulta todos los tickets en solo lectura (RF 1.4.8).
 - **Representante**: crea y gestiona tickets de sus clientes.
 - **Cliente**: consulta e interactúa solo con sus propios tickets.
