@@ -88,12 +88,13 @@ def make_user(db_session: Session) -> MakeUser:
         password: str = "password1",
         is_active: bool = True,
         name: str = "Test User",
+        preferred_channel: str = "mail",
     ) -> User:
         user = ROLE_CLASSES[role](
             name=name,
             email=email or f"{role.lower()}{next(sequence)}@x.com",
             password_hash=_hash(password),
-            preferred_channel="mail",
+            preferred_channel=preferred_channel,
             is_active=is_active,
         )
         db_session.add(user)

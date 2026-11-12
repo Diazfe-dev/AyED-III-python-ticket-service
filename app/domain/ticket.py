@@ -9,6 +9,7 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.domain.base import Base
 from app.domain.errors import ProductNotInTicketError
 from app.domain.milestone import Milestone
+from app.domain.notifications import Notification
 from app.domain.products import Product
 from app.domain.state_change import StateChange
 from app.domain.states import STATES, State
@@ -47,6 +48,11 @@ class Ticket(Base):
     milestones: Mapped[list[Milestone]] = relationship(
         back_populates="ticket",
         order_by=(Milestone.created_at, Milestone.id),
+        passive_deletes="all",
+    )
+    notifications: Mapped[list[Notification]] = relationship(
+        back_populates="ticket",
+        order_by=(Notification.created_at, Notification.id),
         passive_deletes="all",
     )
     state_history: Mapped[list[StateChange]] = relationship(
@@ -105,6 +111,39 @@ class Ticket(Base):
         self.milestones.append(milestone)
         return milestone
 
+    def record_notification(
+        self, recipient: User, channel: str, message: str, now: datetime
+    ) -> Notification:
+        """Record a notification that was sent."""
+        return self._append_notification(recipient, channel, message, now, "sent", None)
+
+    def record_failed_notification(
+        self, recipient: User, channel: str, message: str, now: datetime, error: str
+    ) -> Notification:
+        """Record a notification whose sending failed, with the error text."""
+        return self._append_notification(recipient, channel, message, now, "failed", error)
+
+    def _append_notification(
+        self,
+        recipient: User,
+        channel: str,
+        message: str,
+        now: datetime,
+        status: str,
+        error: str | None,
+    ) -> Notification:
+        """The only place that builds a `Notification`."""
+        notification = Notification(
+            recipient=recipient,
+            channel=channel,
+            message=message,
+            created_at=now,
+            status=status,
+            error=error,
+        )
+        self.notifications.append(notification)
+        return notification
+
     def close(self, user: User, now: datetime) -> None:
         self.state.close(self, user, now)
 
@@ -114,9 +153,9 @@ class Ticket(Base):
     def start_progress(self, user: User, now: datetime) -> None:
         self.state.in_progress(self, user, now)
 
-    def request_progress(self, user: User, now: datetime) -> None:
-        """Move to `InProgress` only if the state allows it; otherwise do nothing."""
-        self.state.request_progress(self, user, now)
+    def request_progress(self, user: User, now: datetime) -> bool:
+        """Move to `InProgress` only if the state allows it; tells whether the state changed."""
+        return self.state.request_progress(self, user, now)
 
     def _enter(self, state_class: type[State], user: User, now: datetime) -> None:
         """Move to the state and record it; the only place that changes `state_name`."""

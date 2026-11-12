@@ -15,6 +15,7 @@ from app.domain.milestone import Milestone
 from app.domain.products import Product
 from app.domain.ticket import Ticket
 from app.domain.users import Admin, Client, Representative, User
+from app.services import notification_messages
 from app.services.product_service import ProductRepository
 from app.services.user_service import UserRepository
 from app.services.validation import (
@@ -40,16 +41,9 @@ class TicketRepository(Protocol):
 
 
 class TicketNotifier(Protocol):
-    """Extension point for the notifications area."""
+    """Tells a participant about an event of the ticket."""
 
     def notify(self, recipient: User, actor: User, ticket: Ticket, message: str) -> None: ...
-
-
-class NullTicketNotifier:
-    """Notifier that does nothing, until the notifications area provides the real one."""
-
-    def notify(self, recipient: User, actor: User, ticket: Ticket, message: str) -> None:
-        return None
 
 
 class TicketService:
@@ -85,6 +79,7 @@ class TicketService:
         ticket = Ticket.open(client, actor, products, first_message, self._clock())
         self._tickets.add(ticket)
         self._commit()
+        self._notifier.notify(client, actor, ticket, notification_messages.ticket_created(ticket))
         return ticket
 
     def list_tickets(self, actor: User) -> list[Ticket]:
@@ -106,6 +101,7 @@ class TicketService:
         ticket = self.get_ticket(ticket_id, actor)
         ticket.close(actor, self._clock())
         self._commit()
+        self._notify_counterpart(ticket, actor, notification_messages.ticket_closed(ticket))
         return ticket
 
     def reopen_ticket(self, ticket_id: int, actor: User) -> Ticket:
@@ -113,6 +109,7 @@ class TicketService:
         ticket = self.get_ticket(ticket_id, actor)
         ticket.reopen(actor, self._clock())
         self._commit()
+        self._notify_counterpart(ticket, actor, notification_messages.ticket_reopened(ticket))
         return ticket
 
     def add_products(self, ticket_id: int, product_ids: Any, actor: User) -> Ticket:
@@ -135,9 +132,14 @@ class TicketService:
         ticket = self._visible_ticket(ticket_id, actor)
         now = self._clock()
         milestone = ticket.add_milestone(content, actor, now)
-        if start_progress and actor is ticket.representative:
-            ticket.request_progress(actor, now)
+        by_representative = actor is ticket.representative
+        changed = bool(start_progress and by_representative and ticket.request_progress(actor, now))
         self._commit()
+        message = {
+            True: notification_messages.milestone_and_state_changed,
+            False: notification_messages.milestone_added,
+        }[changed]
+        self._notify_counterpart(ticket, actor, message(ticket))
         return milestone
 
     def list_milestones(self, ticket_id: int, actor: User) -> list[Milestone]:
@@ -155,6 +157,10 @@ class TicketService:
         ticket.remove_product(self._associated_product(ticket, product_id))
         self._commit()
         return ticket
+
+    def _notify_counterpart(self, ticket: Ticket, actor: User, message: str) -> None:
+        recipient = ticket.client if actor is ticket.representative else ticket.representative
+        self._notifier.notify(recipient, actor, ticket, message)
 
     @staticmethod
     def _associated_product(ticket: Ticket, product_id: int) -> Product:

@@ -108,3 +108,11 @@ class TicketNotFoundError(DomainError):
 
 class TicketClosedError(DomainError):
     message = "The ticket is closed; reopen it before adding milestones."
+
+
+class NotificationError(DomainError):
+    """A notification could not be sent; `str(error)` is the reason."""
+
+    def __init__(self, reason: str) -> None:
+        super().__init__()
+        self.args = (reason,)
