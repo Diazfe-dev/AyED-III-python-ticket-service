@@ -4,6 +4,8 @@ Specs cubiertas: SPEC-TKT-01 a SPEC-TKT-31 ([spec.md](spec.md)), más los casos 
 
 > **Estado de las preguntas abiertas**: la spec está aprobada y el análisis de este plan encontró huecos (sección [Huecos y preguntas abiertas](#huecos-y-preguntas-abiertas)). El equipo resolvió **G-01 a G-07 el 2026-11-11** y las decisiones están en la sección **Decisiones** de [spec.md](spec.md) (9 a 15) y en Engram (`tp-final/decision/tickets-g01-g03-*`). G-08 a G-17 siguen documentados con el comportamiento que usa el plan. G-18 (alcance del `403` en la reapertura) y G-19 (`client_id` como texto de dígitos) se resolvieron el **2026-11-11** (decisiones 17 y 16), sin cambiar el comportamiento que ya definía el plan. Ese mismo día se aprobaron SPEC-TKT-30 (ticket inexistente o fuera de rango → `404`) y SPEC-TKT-31 (asociación de los productos indicados en el alta), y la decisión 18 (`client_id` ausente o `null` → `required`). También el 2026-11-11 se aprobó la decisión 19 (en las operaciones sobre un ticket con cuerpo, el formato del cuerpo se valida **antes** de buscar el ticket), que cambia el orden de chequeos de `add_products` respecto de la versión anterior de este plan (antes: visibilidad y después formato). La re-sincronización del 2026-11-11 (validador de requerimientos y descubrimiento) sumó G-21 a G-24, ya resueltos: G-21 por las decisiones 11 y 19 reescritas el 2026-11-11 (el formato precede al `403` del `Admin`), G-22 por la decisión 4 de `05-milestones` (la decisión 19 rige también para los hitos), y G-23 y G-24 por las decisiones 20 y 21, aprobadas el **2026-11-12** sin cambiar el comportamiento que ya definía el plan. El desglose está en [tasks.md](tasks.md) (40 tasks, T-TKT-01 a 40). Ninguna task queda bloqueada.
 
+> **Re-sincronización del 2026-11-12** (nueva área [07-ui](../07-ui/spec.md)): SPEC-TKT-32 a 48. SPEC-TKT-27 está **reemplazada** por SPEC-TKT-32 (el `Admin` no escribe), 33 (lista todos los tickets) y 34 (lee el detalle); se agregan el historial de estados (SPEC-TKT-35 a 37 y 47) y los filtros y la paginación del listado (SPEC-TKT-38 a 46 y 48). Specs cubiertas desde entonces: SPEC-TKT-01 a SPEC-TKT-48. Ver [Re-sincronización del 2026-11-12](#re-sincronización-del-2026-11-12) y las tasks T-TKT-41 a 52. Las secciones anteriores describen el diseño original: donde dicen que el `Admin` recibe `403` "en todo", desde ahora vale solo para las escrituras (decisión 22). RNF 10 se suma a los cubiertos.
+
 ## Enfoque
 
 Cuarta área de negocio y la más grande: introduce el agregado `Ticket` (raíz) con sus partes `Milestone` y `StateChange` (composición), el patrón State, el caso de uso `TicketService`, el repositorio de tickets, 7 endpoints JSON en un blueprint nuevo y las tres barreras de inmutabilidad de `StateChange` (RNF 5 y 6). Se monta sobre lo que ya existe:
@@ -214,8 +216,72 @@ Detectados al leer `spec.md` contra `REQUERIMIENTOS.md`, los diagramas y el cód
 | G-23 | TKT-01, TKT-24 | La spec no dice qué valores de `product_ids` cuentan como "sin productos" en el alta (ausente, `null`, `[]`) | **Resuelto (2026-11-12, decisión 20)**: en el alta, ausente, `null` o `[]` equivalen a "sin productos" (TC-TKT-01d); en `POST /tickets/{id}/products` sigue siendo obligatorio y no vacío (decisión 13). El comportamiento del plan no cambia |
 | G-24 | TKT-26 | SPEC-TKT-26 fija el `404` pero no nombra el código JSON | **Resuelto (2026-11-12, decisión 21)**: quitar un producto que no está en el ticket responde `404` con el código `product_not_in_ticket` (mismo estilo que `ticket_not_found` de SPEC-TKT-30). El comportamiento del plan no cambia |
 
+## Re-sincronización del 2026-11-12
+
+### Componentes por capa (cambios)
+
+| Capa | Archivo | Cambio | Specs |
+|------|---------|--------|-------|
+| Repositories | `app/repositories/ticket_repository.py` | `_ticket_statement(ticket_id, participant)` con el filtro por participante opcional (refactor de `_visible_statement`); `get(ticket_id)` y `get_with_milestones(ticket_id)` sin filtro (para el `Admin`); `get_visible_with_history(ticket_id, actor)` y `get_with_history(ticket_id)` con `state_history` y sus usuarios; `search(*, client_id, representative_id, state, q, ascending, window)` reemplaza a `list_by_client` y `list_by_representative`, que se borran. Todas las lecturas por id conservan `fits_integer_column` | TKT-17, 18, 29, 33 a 45, MLS-12 |
+| Services | `app/services/ticket_service.py` | `get_ticket` resuelve al `Admin` con `get` (tabla por rol); `close_ticket` y `reopen_ticket` llaman a `_reject_admin` explícitamente; `list_tickets(actor, state, client_id, representative_id, q, order, page, page_size)` con formato → filtros prohibidos → alcance por rol → `search`; `list_state_changes(ticket_id, actor)`. El protocolo `TicketRepository` cambia en consecuencia | TKT-32 a 48 |
+| Controllers | `app/controllers/tickets.py` | `GET /tickets` pasa los parámetros crudos y responde con `listing_json`; `GET /tickets/<int:ticket_id>/state-changes` (`login_required`, sin leer `page` ni `page_size`) | TKT-35 a 47 |
+| Controllers | `app/controllers/serializers.py` | `state_change_json(change)`: `{"state", "user": author_json(change.user), "timestamp"}` | TKT-36 |
+| Contrato | `docs/openapi.json` | Parámetros `State`, `ClientId`, `RepresentativeId`, `Order` (más `Q`, `Page` y `PageSize` de 00) en `GET /tickets`; esquemas `TicketPage` y `StateChange`; path `GET /tickets/{ticket_id}/state-changes`; se quita el `403` de `GET /tickets/{ticket_id}` y de `GET /tickets/{ticket_id}/milestones`; `TicketForbidden` con la descripción actualizada | RNF 7 |
+
+Sin cambios en el modelo de datos: `Ticket.state_history`, `StateChange` (con `user` y `timestamp`) y `Ticket.created_at` ya existen. Sin filas nuevas en `ERROR_RESPONSES`: `ValidationError`, `PermissionDeniedError` y `TicketNotFoundError` ya están.
+
+### Interfaz HTTP (nueva o cambiada)
+
+| Método y ruta | Acceso | Éxito | Errores | Specs |
+|---------------|--------|-------|---------|-------|
+| `GET /tickets?state&client_id&representative_id&q&order&page&page_size` | sesión: `Client` (los suyos), `Representative` (los asignados), `Admin` (todos) | `200` lista de `Ticket` o `TicketPage`, por `created_at` e `id` en el sentido de `order` (`desc` por defecto) | `400` (formato, todos los campos juntos), `401`, `403` (filtro prohibido para el rol) | TKT-17, 18, 29, 33, 38 a 46, 48 |
+| `GET /tickets/{ticket_id}` | sesión: dueño, asignado o `Admin` | `200` `Ticket` | `401`, `404` `ticket_not_found` (ya no `403` para el `Admin`) | TKT-19, 20, 28, 30, 34 |
+| `GET /tickets/{ticket_id}/state-changes` | sesión: dueño, asignado o `Admin` | `200` lista de `{"state", "user": {"id", "name", "role"}, "timestamp"}` en orden cronológico; nunca paginada | `401`, `404` `ticket_not_found` | TKT-35, 36, 37, 47 |
+| Escrituras (`POST /tickets`, `close`, `reopen`, productos y `POST .../milestones`) | sin cambios | — | el `403` del `Admin` sigue, ahora por SPEC-TKT-32 | TKT-32 |
+
+**Orden de validación de `GET /tickets`** (decisiones 24 y 26): (0) `401` sin sesión; (1) formato de `state`, `client_id`, `representative_id`, `order`, `page` y `page_size`, todos juntos → `400`; (2) filtros prohibidos (`Client` con `client_id` o `representative_id`; `Representative` con `representative_id`) → `403`; (3) alcance por rol y AND de los filtros; (4) consulta. Un `client_id` o `representative_id` inexistente o fuera de rango da lista vacía (no `404`).
+
+**Orden de las lecturas por id** (`GET /tickets/{id}`, sus hitos y su historial): (0) `401`; (1) `404` si el ticket no existe o es ajeno (el `Admin` nunca lo recibe por ajeno). Las escrituras conservan el orden de las decisiones 11 y 19 con el `403` del `Admin` (SPEC-TKT-32).
+
+### Decisiones técnicas
+
+| Decisión | Motivo y alternativas descartadas |
+|----------|-----------------------------------|
+| El `Admin` lee con métodos de repositorio propios sin filtro de participante (`get`, `get_with_milestones`, `get_with_history`), elegidos por el service con una tabla por rol | La regla "el `Admin` ve todo" (decisión 22) es del service; el repositorio solo ofrece la consulta con o sin participante, igual que hoy filtra por participante porque el service se lo pide. Se descartaron que `get_visible` mire el rol del `actor` (regla de negocio dentro del repositorio) y un parámetro `participant=None` en la interfaz pública (un `None` olvidado le daría a cualquiera la vista del `Admin`). |
+| `close_ticket` y `reopen_ticket` llaman a `_reject_admin` explícitamente (rework de T-TKT-23) | Hoy heredan el `403` de `get_ticket`; al abrirle la lectura al `Admin`, sin la llamada explícita el `Admin` podría cerrar y reabrir. TC-TKT-32a a 32c lo cubren. |
+| Un único `search(...)` con filtros por palabra clave reemplaza a `list_by_client` y `list_by_representative`, que se borran (rework de T-TKT-14 en T-TKT-46) | El alcance por rol se expresa como un filtro más (`client_id=actor.id` o `representative_id=actor.id`) y se combina con AND con los del pedido, así SPEC-TKT-44 ("nunca ampliar la visibilidad") sale de la misma consulta. Mantener los métodos viejos dejaría código sin uso. TC-TKT-17b, 17c, 18b, 18c y 29b se re-apuntan a `search` con los mismos asserts. |
+| Filtros, orden y paginación en SQL; `q` sobre `casefold(nombre del cliente)` y `casefold(primer hito)` con la función de 01 y `autoescape` | El primer mensaje vive como hito inicial (decisión 24), así que se toma con una subconsulta escalar correlacionada (`ORDER BY created_at, id LIMIT 1`); un `join` con todos los hitos haría coincidir mensajes posteriores (TC-TKT-41d). La función `casefold` resuelve las mayúsculas fuera de ASCII (`"Ángela"`). |
+| `order` ordena por `(created_at, id)` en el mismo sentido | SPEC-TKT-42 y la decisión 14; el `id` en el mismo sentido mantiene el orden total que pide SPEC-PLT-21. |
+| Validación del listado: `state` en las claves de `STATES` (sensible a mayúsculas), ids con `id_error` (texto de dígitos), `order` en `{"asc", "desc"}`, `page_request`; todo junto con `raise_if_invalid` y **antes** de los filtros prohibidos | SPEC-TKT-43 y 48. `id_error` ya es la lectura de "entero positivo" del proyecto (decisión 16). Un id enorme no es un error de formato: el repositorio no lo manda a la base y devuelve vacío (TC-TKT-39c), con el mismo criterio que `get_visible`. |
+| Los filtros prohibidos responden `403` aunque traigan el propio id del usuario | SPEC-TKT-46 y la decisión 24: no se ignoran para que no parezca que filtran. |
+| `list_state_changes` devuelve `ticket.state_history` cargado con `selectinload(Ticket.state_history).selectinload(StateChange.user)` | El historial es parte del agregado `Ticket` (decisión 23): no hay repositorio de `StateChange` (composición). La relación ya ordena por `(timestamp, id)`, que es el orden de SPEC-TKT-35. |
+| Representación de un cambio de estado: `{"state", "user": {"id", "name", "role"}, "timestamp"}`, con `user` serializado por `author_json` y documentado con el esquema `MilestoneAuthor` | SPEC-TKT-36 pide estado, usuario (identificador, nombre y rol) y fecha en UTC; es la misma forma del autor de un hito (SPEC-MLS-08). Solo el cliente dueño y el representante asignado cambian estados (el `Admin` no escribe), así que el `enum` de `role` del esquema sigue siendo válido. `timestamp` repite el nombre del atributo del dominio. |
+| `GET /tickets/{id}/state-changes` no lee `page` ni `page_size` | SPEC-TKT-47. |
+| El contrato quita el `403` de las lecturas por id y lo mantiene en `GET /tickets` | Con SPEC-TKT-34 y MLS-12 ningún rol recibe `403` al leer un ticket por id; en el listado sí existe (SPEC-TKT-46). TC-TKT-32e (antes 27e) lo verifica. |
+| Los casos de la spec reemplazada se re-trazan, no se borran | Convención de IDs del proyecto: TC-TKT-27a a 27e, 27i y 27j quedan en el test-plan marcados como reemplazados por TC-TKT-32a a 32g y 34a/34c. |
+
+### Huecos y preguntas
+
+Ninguno bloquea. El validador de requerimientos ya marcó como asunto de 07-ui las respuestas que llegan fuera de orden (no es un comportamiento de la API).
+
+| ID | Specs | Hueco | Comportamiento del plan |
+|----|-------|-------|-------------------------|
+| G-25 | TKT-36 | La spec no nombra los campos JSON del cambio de estado | `state`, `user` (`id`, `name`, `role`) y `timestamp` (decisión técnica de arriba). Lo fija el contrato, como los demás nombres de campo |
+| G-26 | TKT-38, 43 | No dice si `state` distingue mayúsculas | Solo los tres valores exactos (`New`, `InProgress`, `Closed`); `closed` es `400` (TC-TKT-43a). Mismo criterio que `is_active` en 01 y 03 |
+
+### Riesgos
+
+| Riesgo | Mitigación |
+|--------|------------|
+| Al abrir `get_ticket` al `Admin`, una escritura que lo usaba como guardia queda abierta | `_reject_admin` explícito en `close_ticket` y `reopen_ticket`; TC-TKT-32a (unit) y 32b/32c (API) recorren todas las escrituras. |
+| Un filtro del pedido reemplaza (en lugar de combinar) el alcance del rol y un representante ve tickets de otro | El alcance se fuerza en el service después de validar y se combina con AND en `search`; TC-TKT-44a a 44c y 39a. |
+| La subconsulta del primer hito o el `join` con el cliente duplican filas o rompen el `count` | El `join` con el cliente es uno a uno; el primer hito es una subconsulta escalar (no un `join`). TC-TKT-45b compara el `total` con datos conocidos. |
+| Los tests que asumían el `403` del `Admin` en lecturas quedan en rojo a mitad de camino | T-TKT-45 reescribe las matrices en el mismo ciclo que cambia el service; T-MLS-23 hace lo mismo con los hitos. |
+| N+1 al recorrer el usuario de cada cambio de estado | `selectinload(StateChange.user)`; TC-TKT-35c. |
+
 ## Dependencias con otras áreas
 
+- Desde el 2026-11-12 usa de `00-platform` `page_request`, `search_text`, `fetch`, `listing_json` y los parámetros del contrato; de `01-users`, la función SQL `casefold` (T-USR-39). `05-milestones` (T-MLS-23) abre la lectura de hitos al `Admin` con `get_with_milestones` (T-TKT-41). `07-ui` usa el listado filtrado, el detalle y el historial.
 - Usa de `00-platform`: `create_app`, `get_session()`, `Base`, `create_schema`, `fits_integer_column`, el contrato `docs/openapi.json` y su test de sincronización (SPEC-PLT-14), y la tabla de errores `HTTP_ERROR_RESPONSES` (rutas inexistentes en JSON).
 - Usa de `01-users`: `Client`, `Representative`, `Admin`, `login_required`, `authenticated_user()`, `ERROR_RESPONSES`, `json_body()`, `ValidationError(fields)`, `SqlAlchemyUserRepository.get`, los fixtures `make_user`, `login_as`, `admin_client` y `db_session`, `CommitSpy`, `FakeUserRepository`, y TC-USR-16d (cubre los 7 endpoints nuevos). Completa TC-USR-10d.
 - Usa de `02-product-types` y `03-products`: `Product` (con `is_active`), `product_json`, `WITH_TYPE_AND_CATEGORY`, `SqlAlchemyProductRepository`, `FakeProductRepository`, los fixtures `make_category`, `make_product_type` y `make_product`, y `count_statements`. Suma `ProductRepository.get_many` y completa TC-PRD-06d. SPEC-PTY-08 no cambia: la FK `products.product_type_id` y la nueva `ticket_products.product_id` son independientes.
