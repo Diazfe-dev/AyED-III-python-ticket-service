@@ -1,6 +1,8 @@
 # 03 — Productos · Plan de implementación
 
-Specs cubiertas: SPEC-PRD-01 a SPEC-PRD-21 ([spec.md](spec.md)) y SPEC-PTY-08 de [02-product-types](../02-product-types/spec.md) (decisión 4 de la spec). RNF: 2 (autenticación y permisos), 5 (conservación del historial, parcial) y 7 (API documentada). SPEC-PRD-06 se verifica completa en `04-tickets` (decisión 5 de la spec).
+> **Re-sincronización del 2026-11-12** (nueva área [07-ui](../07-ui/spec.md)): reactivación (SPEC-PRD-22 a 25), `q`, `is_active` y paginación en los listados (SPEC-PRD-26 a 29) y parámetros ignorados en los disponibles (SPEC-PRD-30). Ver [Reactivación, búsqueda y paginación](#reactivación-búsqueda-y-paginación-2026-11-12) y las tasks T-PRD-29 a 40. Las secciones anteriores describen el diseño original; donde algo cambió (por ejemplo, la reactivación que antes figuraba fuera de alcance), manda la sección nueva. RNF 10 (listados paginables) se suma a los cubiertos.
+
+Specs cubiertas: SPEC-PRD-01 a SPEC-PRD-30 ([spec.md](spec.md); SPEC-PRD-22 a 30 desde el 2026-11-12) y SPEC-PTY-08 de [02-product-types](../02-product-types/spec.md) (decisión 4 de la spec). RNF: 2 (autenticación y permisos), 5 (conservación del historial, parcial) y 7 (API documentada). SPEC-PRD-06 se verifica completa en `04-tickets` (decisión 5 de la spec).
 
 ## Enfoque
 
@@ -127,8 +129,50 @@ Los huecos detectados al planificar se resolvieron al aprobar el plan (decisión
 5. **Producto inexistente**: SPEC-PRD-17 (`404` `product_not_found`, también para un id fuera de rango).
 6. **Orden de los listados de productos**: SPEC-PRD-21 (alfabético, por `name_key` e `id`).
 
+## Reactivación, búsqueda y paginación (2026-11-12)
+
+### Componentes por capa (cambios)
+
+| Capa | Archivo | Cambio | Specs |
+|------|---------|--------|-------|
+| Dominio | `app/domain/products.py` | `Product.activate()` (`is_active = True`) | PRD-22 |
+| Repositories | `app/repositories/product_repository.py` | `list_matching(category_id=None, product_type_id=None, is_active=None, q=None, window=None)`: `is_active` tri-estado reemplaza a `active_only`; `q` contra `name_key` con `autoescape`; paginación con `fetch` (00) sobre el mismo `statement` (orden `name_key`, `id`, con `selectinload`) | PRD-10, 26, 27, 29 |
+| Services | `app/services/product_service.py` | `activate_product(product_id)`; `list_products(category_id, product_type_id, q, is_active, page, page_size)`; `list_available_products(q, page, page_size)` | PRD-22 a 24, 26 a 30 |
+| Controllers | `app/controllers/catalog.py` | `POST /products/<int:product_id>/activate` (`admin_required`); `GET /products` lee `q`, `is_active`, `page` y `page_size`; `GET /products/available` lee solo `q`, `page` y `page_size`; los dos responden con `listing_json` | PRD-22 a 30 |
+| Contrato | `docs/openapi.json` | Path `/products/{product_id}/activate`; parámetros `Q`, `IsActive` (de 01), `Page` y `PageSize`; esquema `ProductPage`; respuesta `200` de los listados como `oneOf` lista / página | RNF 7 |
+
+Sin cambios en el modelo de datos ni en `ERROR_RESPONSES` (`ProductNotFoundError` y `ValidationError` ya existen).
+
+### Interfaz HTTP (nueva o cambiada)
+
+| Método y ruta | Acceso | Éxito | Errores | Specs |
+|---------------|--------|-------|---------|-------|
+| `POST /products/{product_id}/activate` | admin | `200` `Product` con `is_active: true` | `401`, `403`, `404` `product_not_found` | PRD-22 a 25 |
+| `GET /products?category_id&product_type_id&q&is_active&page&page_size` | sesión | `200` lista de `Product` o `ProductPage`, por nombre e `id` | `400` (ids, `is_active`, `page`, `page_size`, juntos), `401`, `404` | PRD-07, 08, 15, 16, 20, 21, 26 a 29 |
+| `GET /products/available?q&page&page_size` | sesión | `200` lista de `Product` activos o `ProductPage`; ignora cualquier otro parámetro | `400` (`page`, `page_size`), `401` | PRD-10, 26, 29, 30 |
+
+### Decisiones técnicas
+
+| Decisión | Motivo y alternativas descartadas |
+|----------|-----------------------------------|
+| `is_active: bool \| None` reemplaza a `active_only: bool` en `list_matching` (rework de T-PRD-08 en T-PRD-30) | SPEC-PRD-27 necesita filtrar también los inactivos; `active_only` solo tenía la dirección `True`. Un tri-estado evita dos banderas que se contradicen (`active_only=True, inactive_only=True`). TC-PRD-10b se reescribe con el mismo assert. |
+| `q` se compara contra `name_key` con `q.casefold()` y `autoescape=True` | Igual que categorías y tipos (02): la columna ya guarda la clave sin mayúsculas, incluidas las no ASCII. |
+| Todo el formato junto antes de consultar: `category_id`, `product_type_id`, `is_active`, `page` y `page_size` → `400` con todos los campos; después la existencia de categoría y tipo (`404`) | Mismo orden que hoy (formato → existencia) y la misma regla de "informar todos los campos" de SPEC-PRD-15. `is_active` usa `bool_query_error` de 01 (`flag_error` exige un booleano JSON y el query string es texto). |
+| `GET /products/available` solo pasa `q`, `page` y `page_size`: los demás parámetros ni se leen | SPEC-PRD-30 y la decisión 9 de la spec: se ignoran sin error. Que el controller no los lea es lo que garantiza que no haya `400` por un `category_id` inválido (TC-PRD-30a). |
+| `activate_product` hace `commit` también si ya estaba activo y devuelve el producto | Espejo de `deactivate_product` (SPEC-PRD-18) para SPEC-PRD-23. La respuesta `200` con el `Product` sigue a `POST /products/{id}/deactivate`. |
+| `PATCH /products/{id}` sigue ignorando `is_active` | La reactivación tiene su propio endpoint (SPEC-PRD-22); no se agrega un segundo camino. |
+
+### Riesgos
+
+| Riesgo | Mitigación |
+|--------|------------|
+| El cambio de `active_only` a `is_active` rompe la llamada de `list_available_products` o el fake | T-PRD-30 cambia el repositorio, el service y el fake en el mismo ciclo; TC-PRD-10a, 10b y 10c siguen en verde. |
+| La subconsulta del `count` con `selectinload` y `join` de categoría cuenta filas de más | `fetch` cuenta sobre el `statement` sin `ORDER BY`; el `join` con `ProductType` es uno a uno por producto. TC-PRD-29a/29d comparan el `total` con datos conocidos y con filtro por categoría. |
+| Paginar rompe el control de N+1 del listado | TC-PRD-07c sigue en verde en T-PRD-32; las opciones de carga se aplican a la consulta de ítems. |
+
 ## Dependencias con otras áreas
 
+- Desde el 2026-11-12 usa de `00-platform` `page_request`, `search_text`, `fetch`, `listing_json` y los parámetros `Q`, `Page` y `PageSize` del contrato; de `01-users`, `bool_query_error`/`parse_bool_query` y el parámetro `IsActive`. `07-ui` usa la reactivación y los filtros.
 - Usa de `00-platform`: `create_app`, `get_session()`, `Base`, `create_schema`, `fits_integer_column`, el contrato `docs/openapi.json` y su test de sincronización (SPEC-PLT-14).
 - Usa de `01-users`: `login_required`, `admin_required`, `ERROR_RESPONSES`, `json_body()`, `ValidationError(fields)`, los fixtures `schema`, `db_session`, `make_user`, `login_as` y `admin_client`, `CommitSpy` y el test de guarda TC-USR-16d, que cubre los 5 endpoints nuevos sin cambios.
 - Usa de `02-product-types`: `CatalogName`, `normalize_name`, `ProductType`, `Category`, `SqlAlchemyProductTypeRepository.get`, `SqlAlchemyCategoryRepository.get`, los protocolos de `catalog_service.py`, `id_error` y `parse_id`, `product_type_json`, `category_json`, los fixtures `make_category` y `make_product_type`, los fakes de `tests/unit/catalog/fakes.py` y el contador de sentencias de TC-PTY-09c. Completa SPEC-PTY-08 (TC-PTY-08a a 08c).

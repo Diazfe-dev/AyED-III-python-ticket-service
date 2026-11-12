@@ -120,6 +120,7 @@ Tres barreras, como en `StateChange` (TC-TKT-16a a 16k): (a) listeners del ORM, 
 | TKT-09 | TC-TKT-09d | unit | Parametrizado: `add_milestone(ticket.id, "Hola", raul, start_progress=v)` con `v` en `None`, `"yes"`, `"true"`, `1` y `0` **(dec. 7)** | `ValidationError` con `fields == {"start_progress": "invalid"}`; `visible_lookups` vacío y sin `commit` | `tests/unit/milestones/test_milestone_service.py` |
 | TKT-09 | TC-TKT-09e | unit | Ticket `New`; `add_milestone(ticket.id, "Empiezo", raul, start_progress=True)` con `FakeClock` | El ticket pasa a `InProgress` con un `StateChange` de `raul` en el instante del reloj; el hito se guarda; un solo `commit` | `tests/unit/milestones/test_milestone_service.py` |
 | TKT-09 | TC-TKT-09f | integration | Sesión de `raul`; `POST` con `"start_progress"` en `null`, `"yes"` y `1`; y otro `POST` sin `start_progress` **(dec. 7)** | `400` `validation_error` con `fields.start_progress == "invalid"` y sin filas nuevas en los tres primeros; `201` y el ticket sigue `New` en el último | `tests/integration/milestones/test_milestones_api.py` |
+| TKT-27 | — | — | **SPEC-TKT-27 reemplazada (2026-11-12)**: TC-TKT-27f → TC-TKT-32h (`add_milestone`) y TC-MLS-12a (`list_milestones`); 27g → 32i; 27h → 32j (los `POST`) y TC-MLS-12c (los `GET`). Ver [Lectura del Administrador](#lectura-del-administrador-y-listado-sin-paginar-re-sincronización-del-2026-11-12) | — | — |
 | TKT-27 | TC-TKT-27f | unit | `Admin` como actor: `add_milestone(9999, "Hola", admin)` y `add_milestone(ticket.id, "Hola", admin)`; `list_milestones(9999, admin)` y `list_milestones(ticket.id, admin)` **(dec. 9 y 12)** | `PermissionDeniedError` en todos (también con el id inexistente: el `403` precede al `404`); `visible_lookups` vacío y sin `commit` | `tests/unit/milestones/test_milestone_service.py` |
 | TKT-27 | TC-TKT-27g | unit | `Admin`: `add_milestone(ticket.id, "", admin)` y `add_milestone(ticket.id, "Hola", admin, start_progress="yes")` **(dec. 9, G-21)** | `ValidationError` (el formato precede al `403` del `Admin`) | `tests/unit/milestones/test_milestone_service.py` |
 | TKT-27 | TC-TKT-27h | integration | `admin_client`: `POST /tickets/9999/milestones` con `{"content": "Hola"}`, `POST /tickets/{id}/milestones` con `{"content": ""}`, `GET /tickets/9999/milestones` y `GET /tickets/{id}/milestones` **(dec. 9, 11 y 12)** | `403` `forbidden`, `400` `validation_error` (`content: required`), `403` y `403`; las tablas no cambian | `tests/integration/milestones/test_milestones_permissions.py` |
@@ -129,6 +130,20 @@ Tres barreras, como en `StateChange` (TC-TKT-16a a 16k): (a) listeners del ORM, 
 | TKT-05 | TC-TKT-05d | integration | **T-MLS-22.** Sesión de `ana` (`Client`): `POST /tickets` con `{"first_message": ""}` y con `{"client_id": 9999, "first_message": "Hola"}` | `400` `{"error": "validation_error", "fields": {"client_id": "required", "first_message": "required"}}` en el primero; `403` `{"error": "forbidden"}` (no `invalid_client`) en el segundo; sin tickets creados | `tests/integration/tickets/test_tickets_api.py` |
 | TKT-27 | TC-TKT-27i | unit | **T-MLS-22.** `Admin` como actor: `create_ticket(ana.id, [], "", admin)`, `create_ticket("abc", [], "Hola", admin)` y `create_ticket(9999, [], "Hola", admin)` | `ValidationError` en los dos primeros (`first_message: required`, `client_id: invalid`): el formato precede al `403` de SPEC-TKT-27; `PermissionDeniedError` en el tercero (el rol precede a `invalid_client`, G-06). Sin ticket guardado y sin `commit` | `tests/unit/tickets/test_ticket_service.py` |
 | TKT-27 | TC-TKT-27j | integration | **T-MLS-22.** `admin_client`: `POST /tickets` con `{"first_message": ""}` y con un cuerpo válido `{"client_id": <ana>, "first_message": "Hola"}` | `400` `validation_error` (`client_id: required`, `first_message: required`) en el primero y `403` `{"error": "forbidden"}` en el segundo; la tabla `tickets` no cambia | `tests/integration/tickets/test_tickets_permissions.py` |
+
+### Lectura del Administrador y listado sin paginar (re-sincronización del 2026-11-12)
+
+SPEC-TKT-27 está reemplazada por SPEC-TKT-32 a 34 (decisión 22 de 04 y decisión 13 de esta spec). TC-TKT-27f, 27g y 27h quedan arriba como registro y se re-trazan en T-MLS-23: la parte de **registrar** (el `Admin` sigue recibiendo `403`, ahora por SPEC-TKT-32) pasa a TC-TKT-32h, 32i y 32j; la parte de **listar** cambia de comportamiento y pasa a TC-MLS-12a y 12c. `FakeTicketRepository.get_with_milestones` lo agrega T-TKT-45 de 04.
+
+| Spec | Caso | Nivel | Datos / preparación | Resultado esperado | Archivo |
+|------|------|-------|---------------------|--------------------|---------|
+| MLS-12 | TC-MLS-12a | unit | `world` con hitos de `ana` y `raul`; `list_milestones(ticket.id, admin)` y `list_milestones(9999, admin)` (antes la parte `list_milestones` de TC-TKT-27f) | Los hitos en el mismo orden que TC-MLS-07a; `TicketNotFoundError` para el inexistente (ya no `PermissionDeniedError`); `visible_lookups` vacío (el `Admin` no usa la consulta por participante) | `tests/unit/milestones/test_milestone_service.py` |
+| MLS-12 | TC-MLS-12b | integration | `get_with_milestones(ticket.id)`, `get_with_milestones(9999)` y `get_with_milestones(2**63)`; `count_statements` como en TC-MLS-08a | El ticket con sus hitos y autores en orden (como TC-MLS-07c), `None` y `None` sin `OverflowError`; como máximo 8 sentencias (implementado en T-TKT-41 de 04) | `tests/integration/milestones/test_milestone_repository.py` |
+| MLS-12 | TC-MLS-12c | integration | `admin_client`: `GET /tickets/{id}/milestones` del ticket de `ana` y `raul`, y `GET /tickets/9999/milestones` (antes los dos `GET` de TC-TKT-27h) | `200` con el mismo cuerpo que recibe `raul` (TC-MLS-07e y 08b: contenido, autor con rol y fecha); `404` `{"error": "ticket_not_found"}` | `tests/integration/milestones/test_milestones_permissions.py` |
+| MLS-13 | TC-MLS-13a | integration | Ticket con 3 hitos; sesión de `ana`: `GET /tickets/{id}/milestones?page=1&page_size=1` y `?page=abc&page_size=0` | `200` con el arreglo plano de los 3 hitos en los dos (ni objeto paginado ni `400`) | `tests/integration/milestones/test_milestones_api.py` |
+| TKT-32 | TC-TKT-32h | unit | `Admin`: `add_milestone(9999, "Hola", admin)` y `add_milestone(ticket.id, "Hola", admin)` (antes la parte `add_milestone` de TC-TKT-27f) | `PermissionDeniedError` en los dos (el `403` precede al `404`); `visible_lookups` vacío y sin `commit` | `tests/unit/milestones/test_milestone_service.py` |
+| TKT-32 | TC-TKT-32i | unit | Igual que TC-TKT-27g (re-trazado, solo docstring) | `ValidationError` (el formato precede al `403` del `Admin`) | `tests/unit/milestones/test_milestone_service.py` |
+| TKT-32 | TC-TKT-32j | integration | `admin_client`: `POST /tickets/9999/milestones` con `{"content": "Hola"}` y `POST /tickets/{id}/milestones` con `{"content": ""}` (antes los dos `POST` de TC-TKT-27h) | `403` `forbidden` y `400` `validation_error` (`content: required`); las tablas no cambian | `tests/integration/milestones/test_milestones_permissions.py` |
 
 Casos existentes de 04 que crecen con esta área (sin IDs nuevos):
 
@@ -154,7 +169,8 @@ Casos existentes de 04 que crecen con esta área (sin IDs nuevos):
 - Un solo instante para el hito y el cambio de estado: TC-MLS-03e y TC-TKT-09b.
 - Intentos de modificar o borrar hitos por el ORM, por la colección, por SQL directo, por sentencias masivas y por la API: TC-MLS-09a a 09h y 10a a 10e.
 - Esquema creado en un intérprete nuevo (barreras activas en `init-db`): TC-MLS-09f.
-- Consultas N+1 al listar: TC-MLS-08a.
+- Consultas N+1 al listar: TC-MLS-08a (y la lectura del `Admin`: TC-MLS-12b).
+- Desde el 2026-11-12 (decisión 13): el `Admin` lista los hitos de cualquier ticket y recibe `404` por uno inexistente (TC-MLS-12a a 12c); sigue sin poder registrarlos, con el formato antes que el `403` y el `403` antes que el `404` (TC-TKT-32h a 32j). `page` y `page_size` válidos o inválidos se ignoran al listar (TC-MLS-13a).
 
 ## RNF cubiertos
 
@@ -164,4 +180,6 @@ Casos existentes de 04 que crecen con esta área (sin IDs nuevos):
 | RNF 4 (privacidad de tickets) | TC-MLS-06a a 06e (responder y listar un ticket ajeno responde igual que uno inexistente: la parte "responder" que 04 dejó pendiente), TC-MLS-04c y 04e (el `400` de formato no revela si el ticket existe), TC-TKT-19c, 20c, 30c y 30d con los endpoints de hitos |
 | RNF 5 (inmutabilidad, `Milestone`) | TC-MLS-09a a 09h y 10a a 10e (la parte de hitos que TC-TKT-16k dejó para 05: TC-MLS-09f) |
 | RNF 6 (auditoría de estado) | TC-TKT-09b, 09c y 09e, TC-MLS-03e (el `StateChange` de `start_progress` con usuario e instante correctos); TC-MLS-01c, 01d, 01g, 02c, 02e y 05c (sin `StateChange` cuando el indicador se ignora o el ticket está cerrado) |
-| RNF 7 (documentación de la API) | TC-PLT-14a y 14b en T-MLS-13 y 14, y TC-TKT-27e (el `403` de hitos documentado con `TicketForbidden`) |
+| RNF 7 (documentación de la API) | TC-PLT-14a y 14b en T-MLS-13 y 14, y TC-TKT-27e (el `403` de hitos documentado con `TicketForbidden`; desde el 2026-11-12, TC-TKT-32e: el `POST` lo declara y el `GET` ya no) |
+| RNF 2 desde el 2026-11-12 | TC-TKT-32h a 32j (el `Admin` no registra hitos) y TC-MLS-12a a 12c (el `Admin` los lee, solo lectura) |
+| RNF 10 (listados) | TC-MLS-13a (los hitos no se paginan) |

@@ -18,6 +18,8 @@ Las colecciones `Category.product_types` se mantienen solas en objetos transitor
 
 Para los tests que verifican "sin cambios", se relee la fila con `db_session.expire_all()` después del request, igual que en `01-users`.
 
+Re-sincronización del 2026-11-12: SPEC-PTY-09 está reemplazada por SPEC-PTY-22; sus casos se re-trazan como TC-PTY-22a a 22d (T-PTY-34) sin cambiar datos ni resultados. Casos nuevos para SPEC-PTY-21, 22 (`q` vacío), 23 y 24 en la sección [Búsqueda por nombre](#búsqueda-por-nombre-re-sincronización-del-2026-11-12).
+
 ## Matriz spec → casos
 
 | Spec | Caso | Nivel | Datos / preparación | Resultado esperado | Archivo |
@@ -61,6 +63,7 @@ Para los tests que verifican "sin cambios", se relee la fila con `db_session.exp
 | PTY-08 | TC-PTY-08a | unit | Implementado en `03-products` (T-PRD-21): tipo con un producto inactivo; `delete_product_type(id)` | Lanza `ProductTypeInUseError`; el tipo sigue en el repositorio y no hay commit | `tests/unit/catalog/test_catalog_service.py` |
 | PTY-08 | TC-PTY-08b | integration | Implementado en `03-products` (T-PRD-10): `ProductTypeRepository.delete` de un tipo con productos, sin pasar por el service | Lanza `ProductTypeInUseError` (FK `RESTRICT` de `products.product_type_id`) y la fila sigue | `tests/integration/catalog/test_product_type_repository.py` |
 | PTY-08 | TC-PTY-08c | integration | Implementado en `03-products` (T-PRD-27): `DELETE /product-types/{id}` de un tipo con un producto activo | `409` `{"error": "product_type_in_use"}` y el tipo sigue existiendo | `tests/integration/catalog/test_product_types_api.py` |
+| PTY-09 | — | — | **SPEC-PTY-09 reemplazada por SPEC-PTY-22 (2026-11-12)**: TC-PTY-09a a 09d pasan a TC-PTY-22a a 22d (mismos datos y resultados, ver la sección nueva); las filas siguientes quedan como registro | — | — |
 | PTY-09 | TC-PTY-09a | unit | Categorías `"Redes"` (con `"Router"` y `"Access point"`), `"audio"` (sin tipos) y `"Hardware"` (con `"Notebook"`); `list_product_types()` | Devuelve las tres categorías en el orden `"audio"`, `"Hardware"`, `"Redes"`, cada una con sus tipos ordenados por nombre (`"Access point"`, `"Router"`) y `"audio"` con la lista vacía | `tests/unit/catalog/test_catalog_service.py` |
 | PTY-09 | TC-PTY-09b | integration | Mismos datos que 09a; `list_with_product_types()` | Mismo orden de categorías y de tipos que 09a | `tests/integration/catalog/test_category_repository.py` |
 | PTY-09 | TC-PTY-09c | integration | 3 categorías con 2 tipos cada una; se cuentan las sentencias SQL con un listener `before_cursor_execute` mientras se llama a `list_with_product_types()` y se recorren todos los tipos | Como máximo 2 sentencias (sin N+1) | `tests/integration/catalog/test_category_repository.py` |
@@ -121,6 +124,31 @@ Para los tests que verifican "sin cambios", se relee la fila con `db_session.exp
 
 Además, cada task de endpoint deja en verde TC-PLT-14a y 14b (sincronización entre las rutas y el contrato), y TC-USR-16d cubre los 8 endpoints nuevos sin sesión (`401`) sin modificar el test.
 
+### Búsqueda por nombre (re-sincronización del 2026-11-12)
+
+Datos de referencia: las categorías `"Redes"` (tipos `"Router"` y `"Access point"`), `"audio"` (sin tipos), `"Hardware"` (tipos `"Notebook"` y `"Ruteador USB"`) y `"Electrónica"` (tipo `"Cámara"`), más la categoría `"50% off"` (sin tipos) para el `autoescape`. Los fakes suman `FakeCategoryRepository.list_all(q)` (filtra por `q.casefold() in name_key`) y `FakeProductTypeRepository.search(q, category_id)` (mismo filtro sobre los tipos, ordenados por `(category.name_key, category.id, name_key, id)`).
+
+| Spec | Caso | Nivel | Datos / preparación | Resultado esperado | Archivo |
+|------|------|-------|---------------------|--------------------|---------|
+| PTY-21 | TC-PTY-21a | unit | Datos de referencia con fakes; `list_categories(q="RED")` y `list_categories(q="zzz")` | `["Redes"]` y `[]` | `tests/unit/catalog/test_catalog_service.py` |
+| PTY-21 | TC-PTY-21b | integration | Datos de referencia; `list_all(q="ÓNICA")`, `list_all(q="e")` y `list_all(q="%")` | `["Electrónica"]` (mayúsculas fuera de ASCII); `"Electrónica"`, `"Redes"` en orden por nombre; `["50% off"]` (`%` literal) | `tests/integration/catalog/test_category_repository.py` |
+| PTY-21 | TC-PTY-21c | integration | Sesión de un `Client`; `GET /categories?q=re` | `200` con `[{"id", "name": "Redes"}]` | `tests/integration/catalog/test_categories_api.py` |
+| PTY-21 | TC-PTY-21d | integration | `GET /categories?q=` y `GET /categories?q=%20` (SPEC-PLT-27) | `200` con todas las categorías, igual que sin `q` | `tests/integration/catalog/test_categories_api.py` |
+| PTY-22 | TC-PTY-22a | unit | Igual que TC-PTY-09a (antes 09a; desde T-PTY-37 el resultado es una lista de `CategoryGroup`) | Igual que TC-PTY-09a | `tests/unit/catalog/test_catalog_service.py` |
+| PTY-22 | TC-PTY-22b | integration | Igual que TC-PTY-09b (antes 09b) | Igual que TC-PTY-09b | `tests/integration/catalog/test_category_repository.py` |
+| PTY-22 | TC-PTY-22c | integration | Igual que TC-PTY-09c (antes 09c) | Como máximo 2 sentencias (sin N+1) | `tests/integration/catalog/test_category_repository.py` |
+| PTY-22 | TC-PTY-22d | integration | Igual que TC-PTY-09d (antes 09d) | Igual que TC-PTY-09d | `tests/integration/catalog/test_product_types_api.py` |
+| PTY-22 | TC-PTY-22e | unit | Datos de referencia; `list_product_types(q="")` y `list_product_types(q="   ")` (SPEC-PLT-27) | Los mismos grupos que `list_product_types()`, incluida `"audio"` sin tipos | `tests/unit/catalog/test_catalog_service.py` |
+| PTY-23 | TC-PTY-23a | unit | Datos de referencia con fakes; `list_product_types(q="RUT")` | Dos grupos en orden: `"Hardware"` con `["Ruteador USB"]` y `"Redes"` con `["Router"]`; sin `"audio"` ni `"Electrónica"` (sin coincidencias) y sin `"Notebook"` ni `"Access point"` | `tests/unit/catalog/test_catalog_service.py` |
+| PTY-23 | TC-PTY-23b | integration | Datos de referencia; `search("CÁM")`, `search("rout")` y `search("rout", category_id=redes.id)` | `["Cámara"]`; `"Ruteador USB"` y `"Router"` (orden por categoría y nombre); solo `"Router"` | `tests/integration/catalog/test_product_type_repository.py` |
+| PTY-23 | TC-PTY-23c | integration | 3 categorías con 2 tipos cada una; `count_statements` mientras se llama a `search("o")` y se recorre la categoría de cada tipo | Como máximo 2 sentencias (sin N+1) | `tests/integration/catalog/test_product_type_repository.py` |
+| PTY-23 | TC-PTY-23d | unit | `list_product_types(category_id=hardware.id, q="note")`, `list_product_types(category_id=hardware.id, q="zzz")`, `list_product_types(category_id=9999, q="a")` y `list_product_types(category_id="abc", q="a")` | `[Hardware: ["Notebook"]]`; `[]` (la categoría sin coincidencias se omite); `CategoryNotFoundError`; `ValidationError` `{"category_id": "invalid"}` | `tests/unit/catalog/test_catalog_service.py` |
+| PTY-23 | TC-PTY-23e | unit | Datos de referencia; `list_product_types(q="redes")` (coincide con el nombre de la categoría `"Redes"`, no con el de ningún tipo) | `[]`: `q` busca en el nombre del tipo, no en el de la categoría | `tests/unit/catalog/test_catalog_service.py` |
+| PTY-23 | TC-PTY-23f | integration | Sesión de un `Representative`; `GET /product-types?q=rut` y `GET /product-types?category_id=<redes>&q=rut` | `200` con los grupos `"Hardware"` y `"Redes"` (solo los tipos que coinciden) y con solo `"Redes"` | `tests/integration/catalog/test_product_types_api.py` |
+| PTY-23 | TC-PTY-23g | integration | `GET /product-types?q=` y `GET /product-types?category_id=abc&q=rut` | `200` igual que sin `q` (incluida `"audio"`); `400` `{"error": "validation_error", "fields": {"category_id": "invalid"}}` | `tests/integration/catalog/test_product_types_api.py` |
+| PTY-24 | TC-PTY-24a | integration | `GET /categories?page=0&page_size=abc` y `GET /categories?page=1&page_size=1` | `200` con el arreglo plano de todas las categorías en los dos (ni `400` ni objeto `{items, ...}`) | `tests/integration/catalog/test_categories_api.py` |
+| PTY-24 | TC-PTY-24b | integration | `GET /product-types?page=abc`, `GET /product-types?page=1&page_size=1` y `GET /product-types?q=rut&page=2` | `200` con el arreglo plano de grupos en los tres; el último, filtrado por `q` como TC-PTY-23f | `tests/integration/catalog/test_product_types_api.py` |
+
 ## Casos borde
 
 - Nombre duplicado con otra combinación de mayúsculas y espacios alrededor: TC-PTY-02c, 02f, 02h y 05a.
@@ -139,11 +167,16 @@ Además, cada task de endpoint deja en verde TC-PLT-14a y 14b (sincronización e
 - Orden alfabético sin distinguir mayúsculas: TC-PTY-09a, 09b y 17a.
 - Baja de una categoría con tipos por un camino que no pasa por el service (repositorio o SQL directo): TC-PTY-14c y 14d.
 - Claves que `PATCH` no admite (`id`): TC-PTY-06e.
-- Consultas N+1 en el listado agrupado: TC-PTY-09c.
+- Consultas N+1 en el listado agrupado: TC-PTY-09c (hoy TC-PTY-22c) y en la búsqueda de tipos: TC-PTY-23c.
+- `q` con mayúsculas fuera de ASCII, con `%`, vacío o solo espacios: TC-PTY-21b, 21d, 22e, 23b y 23g.
+- `q` que solo coincide con el nombre de una categoría (no con sus tipos): TC-PTY-23e.
+- `q` con filtro de categoría: categoría sin coincidencias, inexistente o mal formada: TC-PTY-23d y 23g.
+- `page` y `page_size` inválidos o válidos se ignoran en los dos listados: TC-PTY-24a y 24b.
 
 ## RNF cubiertos
 
 | RNF | Casos |
 |-----|-------|
-| RNF 2 (autenticación y permisos) | TC-PTY-11a y 11b (`403` para no admins en los 6 endpoints de escritura), TC-USR-16d (`401` sin sesión en los 8 endpoints), y TC-PTY-09d, 10b y 17c (las lecturas solo piden sesión) |
-| RNF 7 (documentación de la API) | TC-PLT-14a y 14b en cada task de endpoint (T-PTY-21 a 28) |
+| RNF 2 (autenticación y permisos) | TC-PTY-11a y 11b (`403` para no admins en los 6 endpoints de escritura), TC-USR-16d (`401` sin sesión en los 8 endpoints; hoy TC-USR-49a), y TC-PTY-09d (hoy 22d), 10b, 17c, 21c y 23f (las lecturas solo piden sesión) |
+| RNF 7 (documentación de la API) | TC-PLT-14a y 14b en cada task de endpoint (T-PTY-21 a 28); TC-PLT-23a y 23b en T-PTY-39 |
+| RNF 10 (listados; estos no se paginan por decisión del usuario) | TC-PTY-24a y 24b |

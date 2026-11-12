@@ -1,6 +1,8 @@
 # 02 — Tipos de producto y rubros · Plan de implementación
 
-Specs cubiertas: SPEC-PTY-01 a SPEC-PTY-20 ([spec.md](spec.md)). RNF: 2 (autenticación y permisos) y 7 (API documentada). SPEC-PTY-08 se verifica completa en `03-products` (decisión 3 de la spec).
+Specs cubiertas: SPEC-PTY-01 a SPEC-PTY-24 ([spec.md](spec.md)). SPEC-PTY-09 está reemplazada por SPEC-PTY-22 (2026-11-12, mismo comportamiento sin `q`). RNF: 2 (autenticación y permisos), 7 (API documentada) y 10 (estos listados **no** se paginan, SPEC-PTY-24). SPEC-PTY-08 se verifica completa en `03-products` (decisión 3 de la spec).
+
+> **Re-sincronización del 2026-11-12** (nueva área [07-ui](../07-ui/spec.md)): búsqueda `q` en `GET /categories` y `GET /product-types`, sin paginación. Ver [Búsqueda por nombre](#búsqueda-por-nombre-2026-11-12) y las tasks T-PTY-34 a 41. Las secciones anteriores describen el diseño original; donde algo cambió, manda la sección nueva.
 
 ## Enfoque
 
@@ -119,6 +121,41 @@ Cuerpos de error (`{"error": "<código>"}`); los de `401` y `403` ya existen:
 | `get_catalog_service()` vive en un módulo nuevo `app/wiring.py` | Los controllers no pueden usar la `Session` (prohibición de AGENTS.md), así que alguien fuera de `controllers/` tiene que armar el service con `get_session()`. `app/auth.py` arma `UserService` porque lo necesita para `current_user()`; sumarle el catálogo mezclaría responsabilidades. Se descartaron armar el service dentro de `controllers/catalog.py` (usaría `get_session()`) y ponerlo en `app/auth.py`. `get_user_service()` se queda donde está para no tocar `01-users`. |
 | Cada task de endpoint agrega la operación a `docs/openapi.json` **y** la ruta en el mismo ciclo TDD | Igual que en `01-users`: el test de SPEC-PLT-14 falla si el contrato y `app.url_map` difieren en cualquiera de los dos sentidos. En la fase roja fallan el test del endpoint y TC-PLT-14b; en la verde pasan los dos. El JSON se edita cargándolo y reescribiéndolo, nunca pegando texto (errores a evitar en Engram, `tp-final/pitfall/*`). |
 | Sin reloj inyectable en esta área | Ninguna spec del catálogo registra fechas. |
+
+## Búsqueda por nombre (2026-11-12)
+
+### Componentes por capa (cambios)
+
+| Capa | Archivo | Cambio | Specs |
+|------|---------|--------|-------|
+| Repositories | `app/repositories/category_repository.py` | `list_all(q=None)`: con `q`, filtra `name_key` que contiene `q.casefold()` (`autoescape`); mismo orden `name_key`, `id` | PTY-21 |
+| Repositories | `app/repositories/product_type_repository.py` | `search(q, category_id=None) -> list[ProductType]`: tipos cuyo `name_key` contiene `q.casefold()`, opcionalmente de una categoría, con `selectinload(ProductType.category)` y orden `Category.name_key`, `Category.id`, `ProductType.name_key`, `ProductType.id` | PTY-23 |
+| Services | `app/services/catalog_service.py` | `CategoryGroup(category, product_types)` (dataclass congelada). `list_categories(q=None)`; `list_product_types(category_id=None, q=None) -> list[CategoryGroup]`: sin `q`, los grupos salen de `list_with_product_types()` o de la categoría pedida (como hoy); con `q`, de agrupar `search(...)` por categoría. Los protocolos suman `q` y `search` | PTY-10, 21, 22, 23 |
+| Controllers | `app/controllers/catalog.py` | `GET /categories` y `GET /product-types` pasan `request.args.get("q")`; no leen `page` ni `page_size` | PTY-21, 23, 24 |
+| Controllers | `app/controllers/serializers.py` | `category_group_json(group)` recibe el `CategoryGroup` (mismo JSON que hoy) | PTY-22, 23 |
+| Contrato | `docs/openapi.json` | Parámetro `Q` (de 00) en las dos operaciones; la descripción aclara que no se paginan | RNF 7, PTY-24 |
+
+Sin cambios en el modelo de datos: `name_key` ya guarda `casefold()` del nombre.
+
+### Decisiones técnicas
+
+| Decisión | Motivo y alternativas descartadas |
+|----------|-----------------------------------|
+| `q` se compara contra `name_key` con `q.casefold()` | La columna ya existe para la unicidad sin distinguir mayúsculas (incluidas las no ASCII, TC-PTY-02a); no hace falta la función SQL `casefold` de 01. `contains(..., autoescape=True)` busca `%` y `_` literales. |
+| Con `q`, el listado de tipos se arma desde `ProductTypeRepository.search` y el service agrupa por categoría en un `CategoryGroup`, en lugar de cargar `Category.product_types` con criterio (`selectinload(Category.product_types.and_(...))`) | Una colección cargada con criterio deja objetos `Category` con `product_types` parcial en el identity map de la sesión: otro acceso en el mismo request vería datos falsos, y los fakes no pueden imitarlo sin mutar las colecciones. Agrupar en el service es explícito y los fakes lo reproducen con una lista. Costo: un refactor previo (T-PTY-37) para que el service devuelva siempre grupos y el serializador los reciba. |
+| El refactor T-PTY-37 va separado y antes del comportamiento nuevo | Cambia el tipo que devuelve `list_product_types` sin cambiar el JSON; aislarlo deja ver que la suite sigue en verde antes de agregar `q` (mismo criterio que T-PTY-01 y T-PRD-01). |
+| Con `category_id` y `q`, primero el formato (`400`) y la existencia de la categoría (`404`), después la búsqueda; una categoría sin coincidencias da `[]` | SPEC-PTY-23 omite las categorías sin coincidencias "con o sin filtro de categoría"; SPEC-PTY-18 y 20 siguen rigiendo para el `category_id`. Mismo orden que hoy. |
+| `q` busca solo en el nombre del tipo, no en el de la categoría | SPEC-PTY-23: "tipos cuyo nombre contiene ese texto". TC-PTY-23e. |
+| `page` y `page_size` no se leen en estos endpoints | SPEC-PTY-24 y la decisión 6 (del usuario): se ignoran, sin `400` ni objeto paginado. |
+| SPEC-PTY-09 → 22 se resuelve re-trazando los docstrings (T-PTY-34), sin código | Es el mismo comportamiento acotado a "sin `q`". Los IDs TC-PTY-09a a 09d quedan en el test-plan como registro y sus tests pasan a citar TC-PTY-22a a 22d. |
+
+### Riesgos
+
+| Riesgo | Mitigación |
+|--------|------------|
+| Un N+1 al recorrer la categoría de cada tipo buscado | `selectinload(ProductType.category)`; TC-PTY-23c cuenta como máximo 2 sentencias. |
+| El refactor de `CategoryGroup` cambia el JSON de `GET /product-types` sin que se note | TC-PTY-22d (antes 09d) y 10b comparan el cuerpo completo y siguen en verde sin cambios. |
+| Un `page_size` inválido termina en `400` por reutilizar el helper de paginación por error | TC-PTY-24a y 24b. |
 
 ## Dependencias con otras áreas
 

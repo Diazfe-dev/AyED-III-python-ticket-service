@@ -4,6 +4,8 @@ Specs cubiertas: SPEC-MLS-01 a SPEC-MLS-11 ([spec.md](spec.md)), con las decisio
 
 > **Estado**: la spec está validada (PASS) con las decisiones 1 a 12 y sin preguntas abiertas. G-01 y G-02 de este plan se resolvieron el 2026-11-11 (ver Engram: `tp-final/decision/milestones-plan-g01-g02-formato-antes-que-rol`): G-01 → opción B (el formato precede al `403` también en `create_ticket`) y G-02 → opción 1 (las decisiones 11 y 19 de 04 se editan en el lugar, con la inversión y la fecha). Las tasks propias de 05 (T-MLS-01 a 18) no están bloqueadas; las de seguimiento de 04 (T-MLS-19 a 22) esperan solo que el usuario apruebe el texto de [Seguimiento de 04](#seguimiento-de-04-por-g-21-decisión-9). G-03 a G-06 son comportamientos por defecto del plan que el usuario puede vetar. El desglose está en [tasks.md](tasks.md) (22 tasks).
 
+> **Re-sincronización del 2026-11-12** (nueva área [07-ui](../07-ui/spec.md)): SPEC-MLS-12 (el `Admin` lista los hitos de cualquier ticket) y SPEC-MLS-13 (los hitos no se paginan). Specs cubiertas desde entonces: SPEC-MLS-01 a SPEC-MLS-13, con las decisiones 1 a 14. Donde este plan dice que el `Admin` que **lista** hitos recibe `403` (decisiones 9 y 12), desde ahora no aplica (decisión 13); el `403` al **registrar** sigue, por SPEC-TKT-32. Ver [Re-sincronización del 2026-11-12](#re-sincronización-del-2026-11-12) y las tasks T-MLS-23 a 26. RNF 10 se suma a los cubiertos.
+
 ## Enfoque
 
 Área chica que se monta casi entera sobre `04-tickets`. No hay tablas ni columnas nuevas: la tabla `milestones`, la entidad `Milestone`, la relación `Ticket.milestones` (con `order_by=(created_at, id)`, sin `delete-orphan` y con `passive_deletes="all"`) y el helper `make_immutable` ya existen. Lo que agrega esta área:
@@ -140,6 +142,35 @@ Detectados por el validador de requerimientos; no bloquean y este plan no los ap
 - (a) Acotar SPEC-MLS-06 para que no cubra literalmente al `Admin` (hoy dice "quien no es el cliente dueño ni el representante asignado", y al `Admin` le corresponde `403` por la decisión 9). Redacción sugerida: *"**Si** un cliente que no es el dueño o un representante que no es el asignado intenta registrar el hito, …"*. El plan sigue la decisión 9 (`403`).
 - (b) Citar SPEC-TKT-19 y 20 en la decisión 12, como lo hace la decisión 11.
 - (c) Opcional: agregar `401` como paso 0 en las decisiones 11 y 12 y mencionar G-27 en el encabezado de las decisiones aprobadas el 2026-11-11.
+
+## Re-sincronización del 2026-11-12
+
+### Componentes (cambios)
+
+| Capa | Archivo | Cambio | Specs |
+|------|---------|--------|-------|
+| Services | `app/services/ticket_service.py` | `list_milestones(ticket_id, actor)`: sin `_reject_admin`; el `Admin` usa `get_with_milestones(ticket_id)` y el resto `get_visible_with_milestones(ticket_id, actor)`, con la tabla por rol que `get_ticket` estrena en T-TKT-45; `None` → `TicketNotFoundError`. `add_milestone` no cambia | MLS-12 |
+| Repositories | `app/repositories/ticket_repository.py` | `get_with_milestones(ticket_id)` lo agrega T-TKT-41 de 04 (sin filtro de participante, con la guarda de rango y la carga de hitos y autores) | MLS-12 |
+| Controllers | `app/controllers/milestones.py` | Sin cambios: `GET` ya no lee `page` ni `page_size` | MLS-13 |
+| Contrato | `docs/openapi.json` | `GET /tickets/{ticket_id}/milestones` deja de declarar `403` (lo hace T-TKT-48 de 04, que depende de T-MLS-23) | MLS-12, RNF 7 |
+
+**Orden al listar** (decisión 13): (0) `401` sin sesión; (1) `404` `ticket_not_found` si el ticket no existe o es ajeno (un `Admin` nunca lo recibe por ajeno). **Orden al registrar** (decisión 11): sin cambios.
+
+### Decisiones técnicas
+
+| Decisión | Motivo y alternativas descartadas |
+|----------|-----------------------------------|
+| La lectura del `Admin` reutiliza la tabla por rol de `get_ticket` (04) en lugar de un `if isinstance` en `list_milestones` | Un solo lugar decide qué consulta usa cada rol para leer un ticket (detalle, hitos e historial). Se descartó que `get_visible_with_milestones` mire el rol (regla de negocio en el repositorio, ver el plan de 04). |
+| Los casos de SPEC-TKT-27 de esta área se re-trazan: registrar → TC-TKT-32h a 32j; listar → TC-MLS-12a y 12c | La spec que trazaban está reemplazada; los IDs viejos quedan en el test-plan como registro y no se reutilizan. |
+| SPEC-MLS-13 se verifica con un test sin código nuevo | El controller ya no lee `page` ni `page_size`; el test protege que nadie le agregue la convención de 00 por error. Pasa sin fase roja propia (se registra). |
+| T-MLS-23 va después de T-TKT-46 y antes de T-TKT-48 y 49 | Las cuatro editan `app/services/ticket_service.py` o dependen del cambio de comportamiento (el contrato no debe quitar el `403` de la lectura antes de que el código lo haga). |
+
+### Riesgos
+
+| Riesgo | Mitigación |
+|--------|------------|
+| Al quitar `_reject_admin` de `list_milestones` también se quita por error de `add_milestone` | TC-TKT-32h y 32j (re-trazados) siguen exigiendo `403` al registrar; TC-TKT-32a (04) incluye `add_milestone`. |
+| Entre T-MLS-23 y T-TKT-48 el contrato todavía declara `403` en el `GET` de hitos | Transitorio y sin tests en rojo: TC-TKT-27e/32e exige el `403` hasta T-TKT-48, que lo invierte con su propio test en rojo. |
 
 ## Dependencias con otras áreas
 
