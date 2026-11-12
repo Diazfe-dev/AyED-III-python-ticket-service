@@ -28,15 +28,15 @@ sequenceDiagram
 
     Rep->>TC: POST /tickets (client_id, product_ids, first_message)
     TC->>TS: create_ticket(client_id, product_ids, first_message, actor=current_user)
-    alt actor no es Representative
-        TS-->>TC: raise PermissionDeniedError
-        TC-->>Rep: 403 forbidden (SPEC-TKT-05, 27)
-    else actor es Representative
-        Note over TS: formato de client_id, product_ids y first_message, todos juntos
-        alt algún campo es inválido
-            TS-->>TC: raise ValidationError con todos los campos
-            TC-->>Rep: 400 validation_error (SPEC-TKT-23, 24)
-        else formato válido
+    Note over TS: formato de client_id, product_ids y first_message, todos juntos, antes del rol (decisión 19, G-01 de 05)
+    alt algún campo es inválido
+        TS-->>TC: raise ValidationError con todos los campos
+        TC-->>Rep: 400 validation_error, también para el Admin y el Client (SPEC-TKT-05, 23, 24, 27)
+    else formato válido
+        alt actor no es Representative
+            TS-->>TC: raise PermissionDeniedError
+            TC-->>Rep: 403 forbidden, antes de verificar cliente y productos (SPEC-TKT-05, 27)
+        else actor es Representative
             TS->>UR: get(client_id)
             UR-->>TS: User o None
             alt no existe, no es Client o está inactivo
@@ -222,15 +222,15 @@ sequenceDiagram
 
     Rep->>TC: POST /tickets/{id}/products (product_ids) o DELETE /tickets/{id}/products/{pid}
     TC->>TS: add_products(ticket_id, product_ids, actor) o remove_product(ticket_id, product_id, actor)
+    opt asociar con product_ids inválido
+        Note over TS: formato de product_ids antes del rol y de buscar el ticket (decisión 19, G-21)
+        TS-->>TC: raise ValidationError
+        TC-->>Rep: 400 validation_error, también para el Admin (SPEC-TKT-24)
+    end
     alt actor es Admin
         TS-->>TC: raise PermissionDeniedError
         TC-->>Rep: 403 forbidden (SPEC-TKT-27)
     else actor no es Admin
-        opt asociar con product_ids inválido
-            Note over TS: formato de product_ids antes de buscar el ticket (decisión 19)
-            TS-->>TC: raise ValidationError
-            TC-->>Rep: 400 validation_error (SPEC-TKT-24)
-        end
         TS->>TR: get_visible(ticket_id, actor)
         TR-->>TS: ticket o None
         alt no existe, está fuera de rango o no es visible
