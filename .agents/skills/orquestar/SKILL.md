@@ -14,7 +14,7 @@ Target area: `$ARGUMENTS`. Resolve it to a folder `specs/<NN>-<name>/` (accept `
 
 ## Before starting
 
-1. Consult `MEMORY.md` (mandatory by `AGENTS.md`) without reading it whole: `rg -n` for the topic, or Read with `offset`/`limit`; always read its "Estado actual del proyecto" and "Próximos pasos" sections. Read `docs/constitution.md`. The constitution overrides everything, including this skill.
+1. Read `MEMORY.md` (mandatory by `AGENTS.md`; small, read it whole) and `mem_search` Engram (project `tp-final`) for the area topic (decisions and pitfalls). Read `docs/constitution.md`. The constitution overrides everything, including this skill.
 2. Check the git branch. If on `main` or `dev`, propose a branch name following `AGENTS.md` and wait for confirmation.
 3. Tell the user, in one short block, the phases that will run and where the human gates are.
 
@@ -33,7 +33,7 @@ Each subagent ends its report with `VERDICT:`. Route only on that field.
 
 Skip rules:
 
-- Phase 3: if `plan.md`, `tasks.md` and `test-plan.md` already exist and `MEMORY.md` records the plan as approved, ask the planner only to check that they are in sync with `spec.md`. If they are, skip the human gate.
+- Phase 3: if `plan.md`, `tasks.md` and `test-plan.md` already exist and `MEMORY.md` records the plan as approved (change log or Engram), ask the planner only to check that they are in sync with `spec.md`. If they are, skip the human gate.
 - Phase 4: implement only tasks still `[ ]` or `[~]`. Schedule them in waves (see Parallelism rule); in series, pass slices of at most 8 tasks and report progress between slices.
 
 ## Correction round (bounded)
@@ -43,18 +43,18 @@ If the validator returns `FAIL`, send its `BLOCKER` findings to the `implementer
 ## Questions and decisions
 
 - When any subagent returns `NEEDS_DECISION`, relay every question with all its options and impacts, unchanged and in order. Ask one at a time if there are several, and wait for each answer.
-- Record every decision the user takes: in `MEMORY.md` (Decisiones, with absolute date `YYYY-MM-DD`) and, if it changes behavior, ask the user to approve the `spec.md` change before resuming from phase 1.
+- Record every decision the user takes: in Engram (`mem_save`, topic_key `tp-final/decision/<slug>`, with absolute date `YYYY-MM-DD`) and reference it from the "Cambios y motivación" entry of `MEMORY.md` and, if it changes behavior, ask the user to approve the `spec.md` change before resuming from phase 1.
 - Never answer a question on the user's behalf, never assume defaults.
 
 ## Closing
 
-1. Update `MEMORY.md` yourself: Estado actual, new Decisiones rows, Errores a evitar if any appeared, Próximos pasos.
+1. Update `MEMORY.md` yourself: Estado actual, a "Cambios y motivación" entry (what changed and why, with the Engram topic_keys), Próximos pasos; and `mem_save` any new decision (`tp-final/decision/<slug>`) or pitfall (`tp-final/pitfall/<slug>`), including the ones the implementer reported.
 2. Give the user a short final report: phases run, tasks done, test and coverage numbers from the validator, open items.
 3. Do not commit, push or open a PR unless the user asks. When they do, follow the commit and PR rules in `AGENTS.md`.
 
 ## Prohibitions
 
-- Do not edit code, tests, specs or diagrams yourself; only `MEMORY.md`.
+- Do not edit code, tests, specs or diagrams yourself; only `MEMORY.md` and Engram.
 - Do not skip a gate or continue after a non-`PASS` verdict.
 - Never run two writers that share a file, or where one depends on the other, in parallel. Follow the parallelism rule below.
 

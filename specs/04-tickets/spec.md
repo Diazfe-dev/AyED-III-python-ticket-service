@@ -65,7 +65,7 @@ Transiciones válidas:
 
 ## Decisiones
 
-Resueltas el 2026-11-09 y registradas en [MEMORY.md](../../MEMORY.md):
+Resueltas el 2026-11-09 y registradas en Engram (`tp-final/decision/*`) y en [MEMORY.md](../../MEMORY.md) (Cambios y motivación):
 
 1. Un ticket reabierto vuelve a `InProgress`.
 2. La reapertura por parte del cliente es directa, sin aprobación del representante.

@@ -1,7 +1,7 @@
 ---
 name: planner
 description: Design and planning agent. Derives plan.md, tasks.md and test-plan.md for a spec area from its approved spec.md, or re-syncs them when the spec changed. Writes only inside the area folder.
-tools: Read, Grep, Glob, Write, Edit
+tools: Read, Grep, Glob, Write, Edit, mcp__plugin_engram_engram__mem_search, mcp__plugin_engram_engram__mem_get_observation
 model: opus
 ---
 
@@ -9,7 +9,7 @@ You are the design and planning agent. You turn an approved `spec.md` into the r
 
 ## Inputs
 
-The orchestrator gives you the area folder, the requirements-validator report and the discovery brief. Read `docs/constitution.md`, `AGENTS.md`, `specs/README.md` and `<area>/spec.md`. Consult `MEMORY.md` without reading it whole: `rg -n` for the topic, or Read with `offset`/`limit`; always read its "Estado actual del proyecto" and "Próximos pasos" sections. Use already-implemented areas (for example `specs/03-products/`) as the format reference.
+The orchestrator gives you the area folder, the requirements-validator report and the discovery brief. Read `docs/constitution.md`, `AGENTS.md`, `specs/README.md` and `<area>/spec.md`. Read `MEMORY.md` (small: read it whole) and `mem_search` Engram (project `tp-final`) for the topic (decisions and pitfalls, topic keys `tp-final/decision/*` and `tp-final/pitfall/*`), opening hits with `mem_get_observation`. Use already-implemented areas (for example `specs/03-products/`) as the format reference.
 
 ## What to produce
 

@@ -17,7 +17,7 @@ Comportamiento técnico transversal que necesitan todas las demás áreas: confi
 
 | ID | Tipo | Especificación | Origen |
 |----|------|----------------|--------|
-| SPEC-PLT-05 | Ubicuo | **El sistema deberá** activar la verificación de claves foráneas (`PRAGMA foreign_keys = ON`) en cada conexión a SQLite. | AGENTS.md, MEMORY.md |
+| SPEC-PLT-05 | Ubicuo | **El sistema deberá** activar la verificación de claves foráneas (`PRAGMA foreign_keys = ON`) en cada conexión a SQLite. | AGENTS.md, Engram `tp-final/pitfall/pragma-foreign-keys` |
 | SPEC-PLT-06 | Por evento | **Cuando** se procesa un request, **el sistema deberá** proveer una sesión de base de datos propia de ese request y reutilizarla durante todo el request. | AGENTS.md |
 | SPEC-PLT-07 | Por evento | **Cuando** termina un request, **el sistema deberá** cerrar su sesión de base de datos. | AGENTS.md |
 | SPEC-PLT-08 | No deseado | **Si** un request termina con una excepción no manejada, **entonces el sistema deberá** revertir (rollback) los cambios pendientes de su sesión antes de cerrarla. | AGENTS.md |
@@ -42,7 +42,7 @@ Comportamiento técnico transversal que necesitan todas las demás áreas: confi
 
 ## Decisiones
 
-Aprobadas el 2026-11-10 y registradas en [MEMORY.md](../../MEMORY.md):
+Aprobadas el 2026-11-10 y registradas en Engram (`tp-final/decision/*`) y en [MEMORY.md](../../MEMORY.md) (Cambios y motivación):
 
 1. La plataforma se trata como un área más (`00-platform`), para que el esqueleto respete spec-as-source y TDD sin crear excepciones a la constitución.
 2. `create-admin` (SPEC-USR-20) **no** forma parte del esqueleto: se implementa con el área `01-users`, cuando esa área tenga sus cuatro archivos.

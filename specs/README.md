@@ -23,7 +23,7 @@ Cada spec usa exactamente uno de estos patrones. Las palabras clave van en **neg
 - **Trazable**: cada spec indica el RF de origen y, si aplica, los RNF y el diagrama relacionados.
 - **Inmutable una vez implementada**: si el comportamiento cambia, se marca la spec como `Reemplazada por SPEC-...` y se crea una nueva. No se reutilizan IDs.
 - Las nuevas specs de un área toman el siguiente número libre y se ubican en la sección que corresponde, aunque el orden de IDs no quede correlativo.
-- Cada `spec.md` termina con una sección **Decisiones** (ambigüedades ya resueltas) y, si hace falta, **Preguntas abiertas**. Una spec que depende de una pregunta abierta no se implementa hasta resolverla. La decisión se registra en [MEMORY.md](../MEMORY.md) y se pasa a la sección Decisiones.
+- Cada `spec.md` termina con una sección **Decisiones** (ambigüedades ya resueltas) y, si hace falta, **Preguntas abiertas**. Una spec que depende de una pregunta abierta no se implementa hasta resolverla. La decisión se registra en la sección Decisiones de la spec y en Engram (`tp-final/decision/<slug>`), y se referencia desde [MEMORY.md](../MEMORY.md) (Cambios y motivación).
 
 ## Estructura de un área
 

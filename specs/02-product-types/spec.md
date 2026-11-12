@@ -41,7 +41,7 @@ Jerarquía de clasificación: `Category` (rubro) → `ProductType` → `Product`
 
 ## Decisiones
 
-Resueltas el 2026-11-09 y registradas en [MEMORY.md](../../MEMORY.md):
+Resueltas el 2026-11-09 y registradas en Engram (`tp-final/decision/*`) y en [MEMORY.md](../../MEMORY.md) (Cambios y motivación):
 
 1. Las categorías tienen ABM completo (RF 1.2.3). Su baja es física y se rechaza si tienen tipos asociados.
 

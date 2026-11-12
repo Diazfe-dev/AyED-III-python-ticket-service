@@ -28,7 +28,7 @@ Origen: RF 1.3 · Diagramas: [secuencias](../../diagrams/sequences/03-products.m
 
 ## Decisiones
 
-Resueltas el 2026-11-09 y registradas en [MEMORY.md](../../MEMORY.md):
+Resueltas el 2026-11-09 y registradas en Engram (`tp-final/decision/*`) y en [MEMORY.md](../../MEMORY.md) (Cambios y motivación):
 
 1. La baja de productos es lógica (`is_active`). Un producto inactivo no se puede asociar a tickets nuevos (SPEC-TKT-08), pero sigue apareciendo en los existentes.
 

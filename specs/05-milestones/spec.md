@@ -22,7 +22,7 @@ Un hito (`Milestone`) es un mensaje o evento registrado en un ticket, con conten
 
 ## Decisiones
 
-Resueltas el 2026-11-09 y registradas en [MEMORY.md](../../MEMORY.md):
+Resueltas el 2026-11-09 y registradas en Engram (`tp-final/decision/*`) y en [MEMORY.md](../../MEMORY.md) (Cambios y motivación):
 
 1. Los hitos son solo texto, sin adjuntos.
 2. Un ticket cerrado no acepta hitos: primero hay que reabrirlo (SPEC-MLS-05).
@@ -31,13 +31,13 @@ Aprobada el 2026-11-10 (revisión transversal de huecos):
 
 3. Un contenido que no es texto se rechaza como inválido (SPEC-MLS-11), con el mismo criterio que SPEC-USR-25.
 
-Aprobadas el 2026-11-11 y registradas en [MEMORY.md](../../MEMORY.md) (huecos G-22, Q1 y Q2):
+Aprobadas el 2026-11-11 y registradas en Engram (`tp-final/decision/*`) y en [MEMORY.md](../../MEMORY.md) (Cambios y motivación) (huecos G-22, Q1 y Q2):
 
 4. **Precedencia entre `400` y `404` (SPEC-MLS-04, 11 y 06, G-22)**: la decisión 19 de [04-tickets](../04-tickets/spec.md#decisiones) rige también para `POST /tickets/{id}/milestones`. El formato del cuerpo se valida antes de buscar el ticket: un cuerpo con formato inválido responde `400` aunque el ticket no exista o sea ajeno, y no revela si existe (RNF 4). Con un cuerpo de formato válido, un ticket inexistente o ajeno responde `404` (SPEC-MLS-06, SPEC-TKT-19, 20 y 30).
 5. **`start_progress` sobre un ticket que no está en `New` (SPEC-TKT-09 y 13, Q1)**: si el representante asignado envía `start_progress: true` y el ticket ya está en `InProgress`, el indicador se ignora: el hito se guarda, el ticket no cambia de estado, no se registra un cambio de estado y la respuesta es `201`. Es una excepción explícita a SPEC-TKT-13: el indicador no es una solicitud de transición independiente sino un agregado del alta del hito, y el efecto buscado (ticket en curso) ya se cumple; rechazar un mensaje válido por un indicador redundante sería hostil. Se descartaron responder `409` sin guardar el hito y guardarlo informando el rechazo. Un ticket en `Closed` sigue rechazando el hito por SPEC-MLS-05, con o sin el indicador.
 6. **`start_progress` enviado por el cliente dueño (SPEC-TKT-09, Q2)**: si el cliente dueño envía `start_progress: true`, el indicador se ignora: el hito se guarda y la respuesta es `201`. El indicador solo actúa si lo envía el representante asignado y el ticket está en `New`. Es coherente con la decisión 5 y no obliga a buscar el ticket ni a conocer el rol frente a él antes de validar el formato (decisión 4). Se descartaron `403` y `400`.
 
-Aprobadas el 2026-11-11 y registradas en [MEMORY.md](../../MEMORY.md) (huecos G-25, G-21, G-26 y G-27):
+Aprobadas el 2026-11-11 y registradas en Engram (`tp-final/decision/*`) y en [MEMORY.md](../../MEMORY.md) (Cambios y motivación) (huecos G-25, G-21, G-26 y G-27):
 
 7. **Tipo de `start_progress` (SPEC-TKT-09)**: el campo es opcional; si falta, vale `false`. Un valor que no es booleano (incluidos `null`, `"yes"` y `1`) responde `400` indicando el campo como inválido, con el mismo criterio que SPEC-USR-25.
 8. **Validación del contenido (SPEC-MLS-04 y 11)**: un `content` ausente, vacío o con solo espacios → `required`; un valor que no es texto → `invalid` (misma convención que la decisión 12 de 04-tickets para el primer mensaje). El contenido no tiene longitud máxima.

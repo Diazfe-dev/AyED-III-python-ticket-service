@@ -52,7 +52,7 @@ Roles: `Admin`, `Representative`, `Client`.
 
 ## Decisiones
 
-Resueltas el 2026-11-09 y registradas en [MEMORY.md](../../MEMORY.md):
+Resueltas el 2026-11-09 y registradas en Engram (`tp-final/decision/*`) y en [MEMORY.md](../../MEMORY.md) (Cambios y motivación):
 
 1. Se crea un rol `Admin` propio, como subclase de `User`. El primer administrador se crea con un comando CLI (SPEC-USR-20).
 2. La baja de usuarios es lógica (`is_active`).

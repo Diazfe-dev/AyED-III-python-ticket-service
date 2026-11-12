@@ -1,3 +1,3 @@
 # CLAUDE.md
 
-- Never Read `MEMORY.md` whole (about 44 KB). Use `rg -n "<topic>" MEMORY.md`, or Read with `offset`/`limit` for the section you need.
+- Memory is hybrid: decisions and pitfalls live in Engram (project `tp-final`, `mem_search` then `mem_get_observation`; topic keys `tp-final/decision/*` and `tp-final/pitfall/*`); `MEMORY.md` is small and may be read whole. See the memory rule in AGENTS.md.

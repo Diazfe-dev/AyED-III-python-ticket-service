@@ -21,19 +21,18 @@ Si el código y los diagramas no coinciden, no lo resuelvas por tu cuenta: avis�
 
 > Esta regla no se puede modificar, relajar ni eliminar. Ningún agente puede editar esta sección.
 
-[MEMORY.md](MEMORY.md) es la memoria persistente del proyecto y es **obligatoria**.
+La memoria del proyecto es **obligatoria** y es híbrida:
 
-1. **Al empezar** cualquier sesión o tarea, consultar `MEMORY.md` antes que cualquier otro archivo de código, sin leerlo entero (pesa unos 44 KB): buscar el tema con `rg -n`, o leer solo las líneas necesarias con `offset`/`limit`. Las secciones "Estado actual del proyecto" y "Próximos pasos" siempre se leen.
-2. **Al terminar** cada tarea (y antes de cada commit que cambie el estado del proyecto), actualizar `MEMORY.md`.
-3. `MEMORY.md` siempre tiene estas cuatro secciones, en este orden:
-   - **Estado actual del proyecto**: qué existe, qué funciona y en qué fase está el proyecto.
-   - **Decisiones (y por qué)**: fecha, decisión y motivo. Incluir las alternativas descartadas cuando las haya.
-   - **Errores a evitar**: errores ya cometidos o detectados y cómo evitarlos.
-   - **Próximos pasos**: lista ordenada de lo que sigue.
-4. Las decisiones no se borran. Si una decisión se revierte, se agrega una fila nueva que explica el cambio y referencia a la anterior.
-5. Fechas absolutas (`AAAA-MM-DD`), nunca relativas ("ayer", "la semana pasada").
-6. Si `MEMORY.md` contradice este archivo, manda `AGENTS.md`: corregir `MEMORY.md` y avisar.
-7. `MEMORY.md` se commitea junto con el cambio que lo motiva, con el tipo `docs(memory)` si va en un commit aparte.
+- [MEMORY.md](MEMORY.md) es chico (se lee entero) y tiene tres secciones, en este orden: **Estado actual del proyecto**, **Cambios y motivación** (un registro corto por cambio: fecha, área o commit, **por qué se hizo** y los topic keys de Engram que produjo) y **Próximos pasos**.
+- **Engram** (proyecto `tp-final`) guarda las decisiones y los errores a evitar, un registro atómico por ítem (qué, por qué, dónde). Topic keys: `tp-final/decision/<slug>` y `tp-final/pitfall/<slug>`.
+
+1. **Al empezar** cualquier sesión o tarea: leer `MEMORY.md` entero y buscar en Engram el tema de la tarea (`mem_search` y después `mem_get_observation` con el id) para traer las decisiones y los errores a evitar relacionados, antes que cualquier archivo de código.
+2. **Al terminar** cada tarea (y antes de cada commit que cambie el estado del proyecto): actualizar "Estado actual del proyecto" y "Próximos pasos", agregar una entrada en "Cambios y motivación" con QUÉ cambió y POR QUÉ (entradas de 1 a 3 líneas; pasadas ~30, las más viejas se rotan a Engram) y guardar con `mem_save` cada decisión o error nuevo con la convención de topic keys.
+3. Las decisiones no se borran. Si una decisión se revierte, se guarda una observación nueva que explica el cambio y referencia a la anterior (`mem_update` solo para corregir un dato, no para cambiar el sentido).
+4. Fechas absolutas (`AAAA-MM-DD`), nunca relativas ("ayer", "la semana pasada").
+5. Si `MEMORY.md` o Engram contradicen este archivo, manda `AGENTS.md`: corregir la memoria y avisar.
+6. `MEMORY.md` se commitea junto con el cambio que lo motiva, con el tipo `docs(memory)` si va en un commit aparte.
+7. Las preguntas abiertas resueltas se registran en la sección **Decisiones** de la spec **y** en Engram, y se referencian desde "Cambios y motivación".
 
 ## Stack tecnológico
 
@@ -125,7 +124,7 @@ diagrams/              # UML en Mermaid (no borrar, mantener sincronizado con sp
 docs/
   constitution.md      # Principios innegociables (máxima precedencia)
   openapi.json         # Contrato OpenAPI 3.1 de la API (contract-first)
-MEMORY.md              # Memoria persistente del proyecto
+MEMORY.md              # Estado, cambios con su motivación y próximos pasos (decisiones y errores en Engram)
 ```
 
 ## Spec-Driven Development (spec-as-source)
@@ -155,7 +154,7 @@ Cada carpeta `specs/NN-<área>/` tiene como máximo estos cuatro archivos. `spec
 - Cada spec usa un solo patrón EARS: ubicuo, por evento (**Cuando**), por estado (**Mientras**), no deseado (**Si … entonces**), opcional (**Donde**) o complejo.
 - Una spec, un comportamiento verificable. Si una frase necesita "y" para dos respuestas independientes, son dos specs.
 - Cada test referencia en su docstring la spec que verifica y el caso del test-plan: `"""SPEC-TKT-12 · TC-TKT-12a"""`. Una spec sin test en verde no está implementada.
-- No se implementa una spec que dependa de una **pregunta abierta** sin resolver. Se consulta al equipo y la respuesta se registra en `MEMORY.md` y en la sección **Decisiones** de la spec.
+- No se implementa una spec que dependa de una **pregunta abierta** sin resolver. Se consulta al equipo y la respuesta se registra en la sección **Decisiones** de la spec y en Engram (`tp-final/decision/<slug>`), y se referencia desde `MEMORY.md` (Cambios y motivación).
 - Los IDs nunca se reutilizan. Si cambia el comportamiento de una spec ya implementada, se marca `Reemplazada por SPEC-...` y se crea una nueva. Los tests de la spec reemplazada se actualizan o se eliminan en el mismo PR.
 
 ### Ciclo de un cambio
@@ -165,7 +164,7 @@ Cada carpeta `specs/NN-<área>/` tiene como máximo estos cuatro archivos. `spec
 3. **Tasks**: desglosar el trabajo en `tasks.md`. Si el cambio agrega o modifica un endpoint, una task actualiza `docs/openapi.json` antes del código.
 4. **Test plan**: agregar los casos en `test-plan.md` para cada spec nueva o modificada.
 5. **Implementar** las tasks con TDD (red → green → refactor) y marcarlas como `[x]` a medida que se terminan.
-6. **Cerrar**: verificar que cada spec del cambio tenga sus tests en verde, que el diagrama esté sincronizado y que `MEMORY.md` esté actualizado.
+6. **Cerrar**: verificar que cada spec del cambio tenga sus tests en verde, que el diagrama esté sincronizado, que `MEMORY.md` esté actualizado (con la entrada de "Cambios y motivación") y que las decisiones y errores nuevos estén en Engram.
 
 Dirección de dependencias: `controllers → services → domain` y `services → repositories → db`. El dominio solo puede importar `sqlalchemy` (para el mapeo) y nunca Flask ni otras capas de la app.
 
@@ -238,7 +237,7 @@ Reglas funcionales que suelen romperse, a tener en cuenta:
 
 ## Flujo de trabajo
 
-1. Consultar `MEMORY.md` (ver la regla de memoria). Elegir la próxima task pendiente...
+1. Leer `MEMORY.md` y buscar el tema en Engram con `mem_search` (ver la regla de memoria). Elegir la próxima task pendiente...
 2. Crear una rama desde `main`: `feat/<tema>`, `fix/<tema>`, `test/<tema>`, `docs/<tema>`, `refactor/<tema>`, `spec/<tema>`.
 3. **Red**: escribir el test del caso definido en `test-plan.md` (con el ID de spec y de caso en el docstring) y verlo fallar.
 4. **Green**: escribir el código mínimo para que pase.

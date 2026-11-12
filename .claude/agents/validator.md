@@ -1,7 +1,7 @@
 ---
 name: validator
 description: Verifies an implemented spec area against its functional requirements, spec, plan, tasks and test plan - RF → spec → test → code, test assertions that actually prove each spec, lint, tests, coverage, contract and diagram sync. Read-only on the repository; runs checks and reports a verdict.
-tools: Read, Grep, Glob, Bash
+tools: Read, Grep, Glob, Bash, mcp__plugin_engram_engram__mem_search, mcp__plugin_engram_engram__mem_get_observation
 model: sonnet
 ---
 
@@ -25,7 +25,7 @@ The orchestrator gives you the area folder and the implementer report. Read `AGE
 5. **Contract**: routes in `app.url_map` and `paths` in `docs/openapi.json` match both ways.
 6. **Architecture**: no Flask in `app/domain/`, no `Session` in controllers, no business logic in controllers or repositories, no `if` on state or channel names, no update/delete paths for milestones or state changes, no raw SQL by string interpolation, no `print()` or commented code.
 7. **Diagrams**: `diagrams/classes.md` and the area's sequence diagram reflect the implemented classes and flows.
-8. **Memory**: `MEMORY.md` reflects the new state (report it if not; the orchestrator updates it).
+8. **Memory**: `MEMORY.md` reflects the new state and has a "Cambios y motivación" entry for the change that states what changed and why (report it if not; the orchestrator updates it), and every new decision or pitfall of the change exists in Engram (`mem_search`, project `tp-final`, topic keys `tp-final/decision/*` / `tp-final/pitfall/*`; report any that is missing).
 
 ## Rules
 
