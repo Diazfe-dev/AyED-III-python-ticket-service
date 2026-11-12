@@ -226,7 +226,7 @@ Detectados al leer `spec.md` contra `REQUERIMIENTOS.md`, los diagramas y el cód
 | Services | `app/services/ticket_service.py` | `get_ticket` resuelve al `Admin` con `get` (tabla por rol); `close_ticket` y `reopen_ticket` llaman a `_reject_admin` explícitamente; `list_tickets(actor, state, client_id, representative_id, q, order, page, page_size)` con formato → filtros prohibidos → alcance por rol → `search`; `list_state_changes(ticket_id, actor)`. El protocolo `TicketRepository` cambia en consecuencia | TKT-32 a 48 |
 | Controllers | `app/controllers/tickets.py` | `GET /tickets` pasa los parámetros crudos y responde con `listing_json`; `GET /tickets/<int:ticket_id>/state-changes` (`login_required`, sin leer `page` ni `page_size`) | TKT-35 a 47 |
 | Controllers | `app/controllers/serializers.py` | `state_change_json(change)`: `{"state", "user": author_json(change.user), "timestamp"}` | TKT-36 |
-| Contrato | `docs/openapi.json` | Parámetros `State`, `ClientId`, `RepresentativeId`, `Order` (más `Q`, `Page` y `PageSize` de 00) en `GET /tickets`; esquemas `TicketPage` y `StateChange`; path `GET /tickets/{ticket_id}/state-changes`; se quita el `403` de `GET /tickets/{ticket_id}` y de `GET /tickets/{ticket_id}/milestones`; `TicketForbidden` con la descripción actualizada | RNF 7 |
+| Contrato | `docs/openapi.json` | Parámetros `State` (con `enum` `New`, `InProgress`, `Closed`, decisión 29), `ClientId`, `RepresentativeId`, `Order` (más `Q`, `Page` y `PageSize` de 00) en `GET /tickets`; esquemas `TicketPage` y `StateChange` (`state` con el mismo `enum`, `user` con `$ref` a `MilestoneAuthor`, `timestamp` con `format: date-time`, todos en `required`; la respuesta de `GET .../state-changes` es `type: array` de `StateChange`, decisión 28); path `GET /tickets/{ticket_id}/state-changes`; se quita el `403` de `GET /tickets/{ticket_id}` y de `GET /tickets/{ticket_id}/milestones`; `TicketForbidden` con la descripción actualizada | RNF 7 |
 
 Sin cambios en el modelo de datos: `Ticket.state_history`, `StateChange` (con `user` y `timestamp`) y `Ticket.created_at` ya existen. Sin filas nuevas en `ERROR_RESPONSES`: `ValidationError`, `PermissionDeniedError` y `TicketNotFoundError` ya están.
 
@@ -262,12 +262,12 @@ Sin cambios en el modelo de datos: `Ticket.state_history`, `StateChange` (con `u
 
 ### Huecos y preguntas
 
-Ninguno bloquea. El validador de requerimientos ya marcó como asunto de 07-ui las respuestas que llegan fuera de orden (no es un comportamiento de la API).
+Ninguno bloquea. El validador de requerimientos ya marcó como asunto de 07-ui las respuestas que llegan fuera de orden (no es un comportamiento de la API; 07-ui lo resolvió con SPEC-UI-135 y 136). G-25 y G-26 quedaron **resueltos** el 2026-11-12 con las decisiones 28 y 29 de la [spec](spec.md#decisiones), que confirman el comportamiento del plan y agregan un impacto en el contrato.
 
-| ID | Specs | Hueco | Comportamiento del plan |
-|----|-------|-------|-------------------------|
-| G-25 | TKT-36 | La spec no nombra los campos JSON del cambio de estado | `state`, `user` (`id`, `name`, `role`) y `timestamp` (decisión técnica de arriba). Lo fija el contrato, como los demás nombres de campo |
-| G-26 | TKT-38, 43 | No dice si `state` distingue mayúsculas | Solo los tres valores exactos (`New`, `InProgress`, `Closed`); `closed` es `400` (TC-TKT-43a). Mismo criterio que `is_active` en 01 y 03 |
+| ID | Specs | Hueco | Comportamiento del plan | Estado |
+|----|-------|-------|-------------------------|--------|
+| G-25 | TKT-36 | La spec no nombra los campos JSON del cambio de estado | `state`, `user` (`id`, `name`, `role`) y `timestamp` (decisión técnica de arriba). Lo fija el contrato, como los demás nombres de campo | **Resuelto** por la decisión 28: `{state, user: {id, name, role}, timestamp}`. Contrato: esquema `StateChange` con `state` en `enum`, `user` → `MilestoneAuthor`, `timestamp` `date-time` y respuesta en arreglo plano (T-TKT-50, TC-TKT-36b nuevo) |
+| G-26 | TKT-38, 43 | No dice si `state` distingue mayúsculas | Solo los tres valores exactos (`New`, `InProgress`, `Closed`); `closed` es `400` (TC-TKT-43a). Mismo criterio que `is_active` en 01 y 03 | **Resuelto** por la decisión 29: solo los valores exactos; otro valor (`closed`, `In Progress`, vacío) es `400` `validation_error` con `state`, antes del `403` de SPEC-TKT-46. Contrato: `enum` en el parámetro `State` de `GET /tickets` (T-TKT-47, TC-TKT-43c nuevo) |
 
 ### Riesgos
 
