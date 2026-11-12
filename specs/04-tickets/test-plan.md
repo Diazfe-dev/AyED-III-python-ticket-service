@@ -16,7 +16,7 @@ Dobles para tests unitarios (sin Flask ni base), en `tests/unit/tickets/fakes.py
 - `FakeTicketRepository` (nuevo): diccionario en memoria que asigna ids; `get_visible(ticket_id, actor)` devuelve el ticket solo si `actor` es su cliente o su representante, y registra cada llamada (TC-TKT-24j comprueba que no se llamó, dec. 19); `list_by_client` y `list_by_representative` ordenan por `(created_at, id)` descendente.
 - `FakeProductRepository` (existente): suma `get_many(product_ids)` con el mismo contrato que el real (existentes, activos e inactivos, sin duplicados).
 - `FakeUserRepository` (`tests/unit/users/fakes.py`) y `CommitSpy` (`tests/unit/fakes.py`) sin cambios.
-- `FakeTicketNotifier`: **no se crea** en esta área. Nadie llama a `notify` hasta `06-notifications`.
+- `FakeTicketNotifier` (`tests/unit/tickets/fakes.py`): existe y lo usa `06-notifications` para verificar las llamadas a `notify`. Los tests de esta área no verifican esas llamadas.
 
 Datos de referencia de los casos: el cliente `"Ana"` y el representante `"Raúl"` (su ticket), el cliente `"Beto"` y el representante `"Rosa"` (los ajenos), la categoría `"Hardware"` con el tipo `"Notebook"` y los productos `"XPS 13"` (activo) y `"Optiplex"` (inactivo). Para los tests que verifican "sin cambios", se relee la fila con `db_session.expire_all()` después del request. Todas las fechas son `datetime` con `tzinfo=UTC`.
 

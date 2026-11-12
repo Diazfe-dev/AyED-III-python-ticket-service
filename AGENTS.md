@@ -68,7 +68,7 @@ app/
   __init__.py          # create_app(): config, blueprints, manejadores de errores y comandos
   config.py            # load_config(): configuración desde el entorno
   db.py                # engine, sessionmaker, sesión por request, comando init-db (create_all), fits_integer_column
-  wiring.py            # get_catalog_service, get_product_service y get_ticket_service: arman los services del request sin que los controllers toquen la Session
+  wiring.py            # get_catalog_service, get_product_service y get_ticket_service (con el NotificationService) y notification_strategies: arman los services del request sin que los controllers toquen la Session
   auth.py              # get_user_service, current_user y decoradores login_required (401) y admin_required (403)
   cli.py               # comando create-admin
   domain/              # Entidades mapeadas con SQLAlchemy; sin Flask ni HTTP
@@ -82,7 +82,7 @@ app/
     state_change.py    # StateChange (registro de auditoría)
     users.py           # User, Admin, Representative, Client (tabla única) y ROLE_CLASSES
     products.py        # Category, ProductType y Product (mixin CatalogName: name + name_key), normalize_name
-    notifications.py   # Notification (interfaz), MailNotification, WhatsappNotification
+    notifications.py   # Notification (entidad), protocolo NotificationStrategy, MailNotification, WhatsappNotification y default_strategies
   services/            # Casos de uso: orquestan dominio, repositorios y notificaciones
     passwords.py       # PasswordHasher (protocolo) y WerkzeugPasswordHasher
     validation.py      # validadores de campos compartidos (text_error, id_error, flag_error, parse_id, raise_if_invalid)
@@ -90,6 +90,8 @@ app/
     catalog_service.py # CatalogService: ABM y listados de categorías y tipos de producto
     product_service.py # ProductService: alta, modificación, baja lógica y listados de productos
     ticket_service.py  # TicketService: alta, lectura, listados, transiciones, productos e hitos del ticket (add_milestone, list_milestones); protocolo TicketNotifier
+    notification_service.py  # NotificationService(strategies, clock, commit): elige la estrategia, registra la notificación en el ticket y confirma
+    notification_messages.py # textos de las notificaciones, una función por evento
   repositories/        # Consultas con la Session de SQLAlchemy; devuelven y reciben entidades
     user_repository.py # SqlAlchemyUserRepository
     category_repository.py      # SqlAlchemyCategoryRepository
