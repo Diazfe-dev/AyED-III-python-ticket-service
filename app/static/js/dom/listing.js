@@ -1,5 +1,12 @@
 import { translateError } from "../core/messages.js";
-import { applyFilter, listState, nextPage, previousPage, reloadQuery } from "../core/query.js";
+import {
+  applyFilter,
+  lastValidPage,
+  listState,
+  nextPage,
+  previousPage,
+  reloadQuery,
+} from "../core/query.js";
 import { renderPaginator } from "./paginator.js";
 import { clear, el, emptyResults, loadingIndicator } from "./render.js";
 
@@ -74,13 +81,17 @@ export function createListing({ request, showError, path, columns, row, filters 
     }
   }
 
-  async function load() {
+  async function load({ clampToLastPage = false } = {}) {
     showError("");
     clear(element);
     element.append(loadingIndicator());
     const response = await request("GET", reloadQuery(path, state), undefined, LIST_KEY);
     if (!element.isConnected) {
       return;
+    }
+    if (response.ok && clampToLastPage && response.body.items.length === 0 && response.body.total > 0) {
+      state = listState(state.filters, lastValidPage(response.body.total));
+      return load();
     }
     clear(element);
     if (response.ok) {
@@ -98,6 +109,7 @@ export function createListing({ request, showError, path, columns, row, filters 
   return {
     element,
     load,
+    reload: () => load({ clampToLastPage: true }),
     apply: (changes) => go(applyFilter(state, changes)),
     state: () => state,
   };
