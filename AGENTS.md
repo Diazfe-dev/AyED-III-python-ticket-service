@@ -82,6 +82,7 @@ app/
     users.py           # User, Admin, Representative, Client (tabla única) y ROLE_CLASSES
     products.py        # Category, ProductType y Product (mixin CatalogName: name + name_key), normalize_name
     notifications.py   # Notification (entidad), protocolo NotificationStrategy, MailNotification, WhatsappNotification y default_strategies
+    paging.py          # PageRequest y Page: paginación de listados, sin SQLAlchemy ni Flask
   services/            # Casos de uso: orquestan dominio, repositorios y notificaciones
     passwords.py       # PasswordHasher (protocolo) y WerkzeugPasswordHasher
     validation.py      # validadores de campos compartidos (text_error, id_error, flag_error, parse_id, raise_if_invalid)
@@ -91,12 +92,14 @@ app/
     ticket_service.py  # TicketService: alta, lectura, listados, transiciones, productos e hitos del ticket (add_milestone, list_milestones); protocolo TicketNotifier
     notification_service.py  # NotificationService(strategies, clock, commit): elige la estrategia, registra la notificación en el ticket y confirma
     notification_messages.py # textos de las notificaciones, una función por evento
+    listing.py         # page_request (valida page y page_size) y search_text (un texto en blanco equivale a no enviarlo)
   repositories/        # Consultas con la Session de SQLAlchemy; devuelven y reciben entidades
     user_repository.py # SqlAlchemyUserRepository
     category_repository.py      # SqlAlchemyCategoryRepository
     product_type_repository.py  # SqlAlchemyProductTypeRepository
     product_repository.py       # SqlAlchemyProductRepository (sin métodos de borrado)
     ticket_repository.py        # SqlAlchemyTicketRepository (add, get_visible, get_visible_with_milestones y listados; sin métodos de borrado)
+    paging.py                   # fetch: cuenta el total y devuelve la Page pedida de una consulta
   controllers/         # Blueprints de Flask: HTTP de entrada y salida, nada más
     health.py          # /health
     api_docs.py        # /openapi.json y /docs
@@ -106,6 +109,7 @@ app/
     milestones.py      # POST y GET /tickets/{id}/milestones (MilestoneController)
     errors.py          # tabla DomainError → status y código JSON
     serializers.py     # lectura del cuerpo JSON y representación de usuarios, categorías, tipos y productos
+    listing.py         # listing_json: serializa un listado como arreglo o como página
 tests/
   conftest.py          # fixtures: app con base en memoria, client, usuarios de prueba
   unit/                # dominio y servicios, sin Flask ni disco (fakes.py: dobles compartidos, como CommitSpy)
