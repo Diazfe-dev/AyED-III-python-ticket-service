@@ -266,8 +266,8 @@ classDiagram
         +update_product(product_id, body)
         +deactivate_product(product_id)
         +activate_product(product_id)
-        +list_products()
-        +list_available_products()
+        +list_products(category_id, product_type_id, q, is_active, page, page_size)
+        +list_available_products(q, page, page_size)
         -_listing_args(names) dict
     }
 
