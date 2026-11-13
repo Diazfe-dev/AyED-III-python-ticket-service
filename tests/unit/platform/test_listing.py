@@ -4,7 +4,7 @@ import pytest
 
 from app.domain.errors import ValidationError
 from app.domain.paging import MAX_PAGE_SIZE, PageRequest
-from app.services.listing import MAX_PAGE, page_request
+from app.services.listing import MAX_PAGE, page_request, search_text
 
 INVALID_VALUES = ["0", "-1", "abc", "", "1.5", " 1", "+1", "١"]
 
@@ -76,3 +76,15 @@ def test_page_size_limit_is_one_hundred():
 def test_huge_page_is_clamped():
     """SPEC-PLT-22 · TC-PLT-22b"""
     assert page_request("9" * 5000, "5").page == MAX_PAGE
+
+
+@pytest.mark.parametrize("value", [None, "", "   ", "\t"])
+def test_blank_search_text_is_treated_as_absent(value):
+    """SPEC-PLT-27 · TC-PLT-27a"""
+    assert search_text(value) is None
+
+
+@pytest.mark.parametrize("value", ["ana", " an a "])
+def test_search_text_with_content_is_returned_unchanged(value):
+    """SPEC-PLT-27 · TC-PLT-27a"""
+    assert search_text(value) == value

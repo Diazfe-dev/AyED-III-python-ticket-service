@@ -1,4 +1,4 @@
-"""Optional pagination of the listings: validates `page` and `page_size`."""
+"""Listing query parameters: optional pagination (`page`, `page_size`) and search text (`q`)."""
 
 from app.domain.paging import DEFAULT_PAGE_SIZE, MAX_PAGE_SIZE, PageRequest
 from app.services.validation import INVALID, raise_if_invalid
@@ -21,6 +21,13 @@ def page_request(page: str | None, page_size: str | None) -> PageRequest | None:
         }
     )
     return PageRequest(page=min(number, MAX_PAGE), page_size=size)
+
+
+def search_text(q: str | None) -> str | None:
+    """The text to search, or `None` when `q` is absent, empty or only whitespace (SPEC-PLT-27)."""
+    if q is None or not q.strip():
+        return None
+    return q
 
 
 def _positive(text: str) -> int | None:
