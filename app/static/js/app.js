@@ -1,4 +1,4 @@
-import { initialRequests, issue, verdict } from "./core/requests.js";
+import { initialRequests, issue, openScreen, verdict } from "./core/requests.js";
 import { canSend, currentUser, initialState, transition } from "./core/session.js";
 import { clear, clearMessages, setTitle, showError, showStatus } from "./dom/render.js";
 import { renderShell } from "./dom/shell.js";
@@ -71,7 +71,12 @@ async function runRequest({ kind, method, path }) {
 }
 
 const EFFECTS = {
-  render: (effect) => showScreen(effect.screen, effect.params),
+  render: (effect) => {
+    if (currentUser(state) !== null) {
+      requests = openScreen(requests);
+    }
+    showScreen(effect.screen, effect.params);
+  },
   replaceHash: (effect) => window.history.replaceState(null, "", effect.hash),
   request: runRequest,
   showError: (effect) => showError(effect.message),
