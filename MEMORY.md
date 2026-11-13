@@ -49,7 +49,7 @@ Un registro por cambio (área de spec, feature o commit). Más nuevo arriba. Pas
 
 ## Próximos pasos
 
-1. Mergear contra `dev`, en este orden: #26 (`04-tickets` + `05-milestones`) y el PR del front `feat/ui-front` (apilado sobre #26: si #26 se mergea con squash, retargetear el del front a `dev` y resolver conflictos de `MEMORY.md` y `tasks.md` quedándose con la rama). Confirmar que el CI corra en verde en GitHub (primer run real de `.github/workflows/ci.yml`, T-UI-17) y cerrar así T-UI-38.
+1. Mergear contra `dev` el PR del front (`feat/ui-front`, T-UI-01 a 39). #26 (`04-tickets` + `05-milestones`) ya está en `dev`; #27 se mergeó por error a `feat/tickets-ui-api` (su base apilada) y el front no llegó a `dev`, así que va en un PR nuevo desde `feat/ui-front` con `dev` ya mergeado. Confirmar que el CI corra en verde en GitHub (primer run real de `.github/workflows/ci.yml`, T-UI-17) y cerrar así T-UI-38. Al apilar PRs, abrirlos siempre contra `dev` o retargetear antes de mergear.
 1b. Opcional de las validaciones: test de borde de 19 dígitos para el tope de `page` (00), caso con `_` literal en los tests de repositorio de 02, y pasar los diagramas por `mermaid-cli`.
 2. Limpiar un texto viejo en `specs/04-tickets/plan.md` (~línea 222) que todavía llama a G-22 "Pendiente para 05" (ya resuelto).
 3. Opcional en `06`: ampliar el `catch` de `NotificationService.notify` a cualquier excepción de la estrategia y corregir la cita NTF-04 → NTF-14 en `diagrams/sequences/04-tickets.md:5`.
