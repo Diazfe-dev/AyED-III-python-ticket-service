@@ -280,6 +280,79 @@ Casos deterministas de `POST /logout` y de `GET /me` (sin `sleep`): la prueba cr
 | UI-125 | TC-UI-125b | e2e | Usuarios en la página 3; tras «Dar de baja», la recarga devuelve `items: []` y `total: 40` | Se pide `page=2` con los mismos filtros y se muestra | `e2e/users.spec.js` |
 | UI-125 | TC-UI-125c | e2e | Ídem en productos | Ídem | `e2e/products.spec.js` |
 
+### Tablas, diseño de pantalla y diálogos
+
+| Spec | Caso | Nivel | Datos / preparación | Resultado esperado | Archivo |
+|------|------|-------|---------------------|--------------------|---------|
+| UI-26 | TC-UI-26e | unit | `listQuery` con tamaño 50 y 10 y sin tamaño; `listState` y `reloadQuery` | `page_size` es el elegido; 20 por defecto | `js/query.test.js` |
+| UI-26 | TC-UI-26f | e2e | Usuarios; elige 50 en «Filas por página» | El pedido lleva `page_size=50` y se dibujan 50 filas | `e2e/tables.spec.js` |
+| UI-30 | TC-UI-30b | e2e | Representante abre `#/tickets/new` | Se ve el listado (`h1` «Tickets») con el diálogo abierto, con cliente, primer mensaje y productos, y el foco en su primer campo | `e2e/dialogs.spec.js` |
+| UI-33 | TC-UI-33b | e2e | `#/tickets/new`; completa y envía; `POST /tickets` → `201` | Se cierra el diálogo y se muestra el detalle `#/tickets/15` | `e2e/dialogs.spec.js` |
+| UI-50 | TC-UI-50b | e2e | Tipos con categorías `Computación` y `Redes` | Cada tipo es una fila con su categoría en la tabla | `e2e/tables.spec.js` |
+| UI-120 | TC-UI-120f | e2e | Usuarios con tamaño 10 en la página 2; «Dar de baja» | La recarga pide `page=2` y `page_size=10` | `e2e/tables.spec.js` |
+| UI-139 | TC-UI-139a | e2e | Usuarios, productos, categorías y tipos | `table` con nombre accesible, `th scope="col"` y «Acciones» como última columna | `e2e/tables.spec.js` |
+| UI-139 | TC-UI-139b | e2e | Tickets como representante, administrador y cliente | Columnas Número, Cliente, Estado y Creado, sin «Acciones» | `e2e/tables.spec.js` |
+| UI-140 | TC-UI-140a | unit | `PAGE_SIZE_OPTIONS`, `DEFAULT_PAGE_SIZE` y `normalizePageSize` | Opciones 10, 20 y 50; 20 por defecto; un valor ajeno vuelve a 20 | `js/query.test.js` |
+| UI-140 | TC-UI-140b | e2e | Los cinco listados | El pie tiene el selector «Filas por página» con 10, 20 y 50 y 20 elegido | `e2e/tables.spec.js` |
+| UI-141 | TC-UI-141a | unit | `changePageSize` desde la página 3 con filtros, `q` y orden | Página 1, tamaño nuevo y los mismos filtros, `q` y orden | `js/query.test.js` |
+| UI-141 | TC-UI-141b | unit | `nextPage`, `previousPage` y `applyFilter` con tamaño 10 | Conservan el tamaño | `js/query.test.js` |
+| UI-141 | TC-UI-141c | e2e | Tickets con estado, orden y `q`, en la página 2; elige 50 | Se pide `page=1`, `page_size=50` y los mismos `state`, `order` y `q` | `e2e/tables.spec.js` |
+| UI-141 | TC-UI-141d | e2e | Usuarios y productos; elige 10 y pulsa «Siguiente» | Se piden `page_size=10` con `page=1` y después `page=2` | `e2e/tables.spec.js` |
+| UI-142 | TC-UI-142a | unit | `rangeText` para páginas 1, 2 y última parcial, y tamaños 10 y 50 | «1–20 de 57», «21–40 de 57», «41–57 de 57», «1–3 de 3» y «1–50 de 57» | `js/query.test.js` |
+| UI-142 | TC-UI-142b | unit | `rangeText` con total 0 | «0 de 0» | `js/query.test.js` |
+| UI-142 | TC-UI-142c | e2e | Usuarios con total 57; recorre las tres páginas | El pie muestra el rango y el total de cada página | `e2e/tables.spec.js` |
+| UI-142 | TC-UI-142d | e2e | Listados vacíos | El pie muestra «0 de 0», «No hay resultados» y los dos controles deshabilitados | `e2e/tables.spec.js` |
+| UI-143 | TC-UI-143a | unit | `memoryPage` con 57 elementos, páginas 1 y 3, tamaños 10, 20 y 50, y lista vacía | Porción, página, tamaño y total correctos | `js/query.test.js` |
+| UI-143 | TC-UI-143a | e2e | 45 categorías | `GET /categories` sin parámetros; 20 filas en la página 1, 5 en la 3 y «Siguiente» deshabilitado al final | `e2e/tables.spec.js` |
+| UI-144 | TC-UI-144a | unit | `flattenProductTypes` con tipos en desorden y una categoría inexistente | Una fila por tipo, en el orden de la API, con el nombre de su categoría | `js/query.test.js` |
+| UI-144 | TC-UI-144b | e2e | Cinco tipos en dos categorías | `GET /product-types` sin parámetros; columnas Nombre, Categoría y Acciones; filas en el orden de la API; sin grupos | `e2e/tables.spec.js` |
+| UI-144 | TC-UI-144c | e2e | 45 tipos | Se pagina en el navegador (20 filas y «1–20 de 45») | `e2e/tables.spec.js` |
+| UI-145 | TC-UI-145a | unit | `nextPage`, `changePageSize` y `memoryPage` sobre 45 elementos | Otra porción de la misma lista, página 1 con un tamaño nuevo | `js/query.test.js` |
+| UI-145 | TC-UI-145a | e2e | Categorías y tipos con 45 elementos; «Siguiente», «Anterior» y tamaños 10 y 50 | La cantidad de pedidos a la API no cambia | `e2e/tables.spec.js` |
+| UI-146 | TC-UI-146a | unit | `applyFilter` con `q` desde la página 3 y tamaño 50 | Página 1 y tamaño 50 | `js/query.test.js` |
+| UI-146 | TC-UI-146a | e2e | Categorías y tipos en la página 2 con tamaño 10; busca `00` | Se pide `?q=00` y se muestra «1–10 de 15» con el tamaño conservado | `e2e/tables.spec.js` |
+| UI-147 | TC-UI-147a | unit | `memoryPage` con página fuera de rango, válida y lista vacía; `lastValidPage` con tamaños | Última página válida o la misma página; 1 con total 0 | `js/query.test.js` |
+| UI-147 | TC-UI-147b | e2e | 21 categorías en la página 2; «Eliminar» la última; la recarga devuelve 20 | Se muestra «1–20 de 20» con un solo pedido de recarga | `e2e/tables.spec.js` |
+| UI-147 | TC-UI-147c | e2e | 45 categorías, tamaño 10, página 3; «Eliminar»; la recarga devuelve 44 | Se conservan la página y el tamaño («21–30 de 44») | `e2e/tables.spec.js` |
+| UI-148 | TC-UI-148a | e2e | Los cinco listados | Un encabezado y una única `.surface` con barra de herramientas, tabla y pie, en ese orden vertical | `e2e/layout.spec.js` |
+| UI-148 | TC-UI-148b | e2e | Ventanas de 1000 y 1900 px | El ancho de la superficie es el del área de contenido | `e2e/layout.spec.js` |
+| UI-149 | TC-UI-149a | e2e | `#/users` como administrador | `h1` «Usuarios» y el botón «Nuevo usuario» a su derecha, con relleno primario | `e2e/layout.spec.js` |
+| UI-150 | TC-UI-150a | e2e | `#/categories` | `h1` «Categorías» y botón «Nueva categoría» | `e2e/layout.spec.js` |
+| UI-151 | TC-UI-151a | e2e | `#/product-types` | `h1` «Tipos de producto» y botón «Nuevo tipo de producto» | `e2e/layout.spec.js` |
+| UI-152 | TC-UI-152a | e2e | `#/products` | `h1` «Productos» y botón «Nuevo producto» | `e2e/layout.spec.js` |
+| UI-153 | TC-UI-153a | e2e | Representante en `#/tickets` y `#/tickets/new` | `h1` «Tickets» y botón «Nuevo ticket» | `e2e/layout.spec.js` |
+| UI-153 | TC-UI-153b | e2e | Administrador y cliente en `#/tickets` | `h1` «Tickets» sin botón de acción | `e2e/layout.spec.js` |
+| UI-154 | TC-UI-154a | e2e | Los cinco listados | Los filtros y la búsqueda están en `.toolbar` de la superficie y no en el encabezado ni fuera de ella | `e2e/layout.spec.js` |
+| UI-155 | TC-UI-155a | e2e | Los cinco listados, con y sin diálogo abierto | No hay `form` (salvo la búsqueda) fuera de un `dialog` | `e2e/dialogs.spec.js` |
+| UI-156 | TC-UI-156a | e2e | Botón principal de cada listado | Se abre el diálogo de alta vacío y el hash no cambia | `e2e/dialogs.spec.js` |
+| UI-157 | TC-UI-157a | e2e | «Editar» en usuarios (con un nombre con HTML), categorías, tipos y productos | El diálogo muestra los valores de la fila como texto de campo, sin nodos HTML | `e2e/dialogs.spec.js` |
+| UI-158 | TC-UI-158a | e2e | «Restablecer contraseña» de una fila | Diálogo con dos campos de contraseña vacíos y sin pedidos | `e2e/dialogs.spec.js` |
+| UI-159 | TC-UI-159a | e2e | Los diez diálogos de la tabla de textos | `:modal`, dentro de `#app`, `aria-labelledby` con el título de la tabla y botones «Cancelar» y de envío | `e2e/dialogs.spec.js` |
+| UI-159 | TC-UI-159b | e2e | Restablecimiento con confirmación distinta | El aviso aparece dentro del diálogo, sin pedido | `e2e/dialogs.spec.js` |
+| UI-160 | TC-UI-160a | e2e | Alta y edición de cada pantalla | El foco está en el primer campo del diálogo | `e2e/dialogs.spec.js` |
+| UI-161 | TC-UI-161a | e2e | Cierra con `Escape` y con «Cancelar» el diálogo de alta, edición y restablecimiento | El foco vuelve al control que lo abrió | `e2e/dialogs.spec.js` |
+| UI-161 | TC-UI-161b | e2e | Edición con éxito (la recarga reemplaza la fila) | El foco queda en el botón principal del encabezado | `e2e/dialogs.spec.js` |
+| UI-162 | TC-UI-162a | e2e | Escribe en el alta y cierra con `Escape` y con «Cancelar»; vuelve a abrir | Cero pedidos y campos vacíos | `e2e/dialogs.spec.js` |
+| UI-163 | TC-UI-163a | e2e | Alta de usuario con `validation_error` y después `409` | Marcas y mensaje dentro del diálogo, que sigue abierto; lo escrito se conserva menos la contraseña | `e2e/dialogs.spec.js` |
+| UI-163 | TC-UI-163b | e2e | `409` en categorías y productos | El mensaje de la API aparece dentro del diálogo | `e2e/dialogs.spec.js` |
+| UI-164 | TC-UI-164a | e2e | Alta de usuario con `201` | Diálogo cerrado, «Usuario creado.» y recarga del listado | `e2e/dialogs.spec.js` |
+| UI-164 | TC-UI-164b | e2e | Alta de categoría con `201` | Diálogo cerrado, sin mensaje y con recarga | `e2e/dialogs.spec.js` |
+| UI-165 | TC-UI-165a | e2e | Envío retenido con `defer` | Todos los controles del diálogo deshabilitados y `Escape` no lo cierra; al liberar se cierra | `e2e/dialogs.spec.js` |
+| UI-166 | TC-UI-166a | e2e | Diálogo abierto; «Cerrar sesión» con `POST /logout` retenido | El diálogo se cierra de inmediato y el único pedido es `POST /logout` | `e2e/dialogs.spec.js` |
+| UI-166 | TC-UI-166b | e2e | Envío retenido; otro pedido responde `401` | Se muestra el login con el aviso, sin diálogo; el `201` tardío no muestra nada | `e2e/dialogs.spec.js` |
+| UI-167 | TC-UI-167a | e2e | Envío retenido; cambia el hash; se libera el `201` | Sin mensaje, sin recarga y sin navegar | `e2e/dialogs.spec.js` |
+| UI-167 | TC-UI-167b | e2e | Ídem con `400`, `500` y `route.abort` | Sin error visible ni marcas | `e2e/dialogs.spec.js` |
+| UI-167 | TC-UI-167c | e2e | Envío retenido; sale y vuelve a abrir el diálogo de tickets; llega un `400` del anterior | El diálogo nuevo no muestra marcas | `e2e/dialogs.spec.js` |
+| UI-168 | TC-UI-168a | e2e | Diálogo abierto en productos; «Atrás» | Se muestra `#/users`, sin diálogo y sin escrituras | `e2e/dialogs.spec.js` |
+| UI-169 | TC-UI-169a | e2e | `#/tickets/new`; `Escape` y «Cancelar» | `location.hash` es `#/tickets` y el historial no suma entradas | `e2e/dialogs.spec.js` |
+| UI-169 | TC-UI-169b | e2e | Diálogo abierto con el botón principal; `Escape` | El hash no cambia | `e2e/dialogs.spec.js` |
+| UI-170 | TC-UI-170a | e2e | Listado con estado y `q`; cambia a `#/tickets/new` y vuelve a `#/tickets` | No hay pedidos nuevos del listado y se conservan estado y `q` | `e2e/dialogs.spec.js` |
+| UI-170 | TC-UI-170b | e2e | Enlace «Nuevo ticket» y «Atrás» | El foco va al primer campo y después al botón principal, nunca al `h1` | `e2e/dialogs.spec.js` |
+| UI-170 | TC-UI-170c | unit | `sharesScreenInstance` con las pantallas de tickets y otras | Verdadero solo entre `tickets-list` y `ticket-new` | `js/routes.test.js` |
+| UI-171 | TC-UI-171a | e2e | Ventana de 360 × 320 | Diálogo dentro de la ventana, con desplazamiento propio y sin desplazamiento horizontal de la página | `e2e/dialogs.spec.js` |
+| UI-172 | TC-UI-172a | e2e | `POST /users/5/password` responde `204` | El diálogo de restablecimiento se cierra y la región de estado muestra «Contraseña restablecida.» | `e2e/users.spec.js` |
+| UI-137 | TC-UI-137f | e2e | Representante; enlace «Nuevo ticket» | El foco está en el primer campo del diálogo | `e2e/a11y.spec.js` |
+
 ### Errores y mensajes en español
 
 | Spec | Caso | Nivel | Datos / preparación | Resultado esperado | Archivo |
@@ -361,8 +434,8 @@ Casos deterministas de `POST /logout` y de `GET /me` (sin `sleep`): la prueba cr
 | UI-98 | TC-UI-98a | integration | Lee `playwright.config.js` y `tests/ui/e2e/` | El archivo existe, nombra `tests/ui/e2e` como `testDir` y hay al menos un `*.spec.js` | `test_traceability.py` |
 | UI-99 | TC-UI-99a | integration | Todas las pruebas de esta área (títulos y docstrings) | Cumplen `^SPEC-UI-\d+(, SPEC-UI-\d+)* [\x20-\x7E]+$` y los títulos son literales | `test_traceability.py` |
 | UI-99 | TC-UI-99b | integration | Textos de muestra con `test(...)`, `it(...)`, `describe(...)`, `test.describe(...)` y una plantilla con `${}` | El extractor toma solo los de prueba e informa la plantilla | `test_traceability.py` |
-| UI-121 | TC-UI-121a | integration | IDs de `spec.md` y citas de todo el repo | Cada uno de los 138 IDs tiene al menos una cita | `test_traceability.py` |
-| UI-121 | TC-UI-121b | integration | Lectura de `spec.md` | Lee 138 IDs, solo de las filas de las tablas (no de las decisiones) | `test_traceability.py` |
+| UI-121 | TC-UI-121a | integration | IDs de `spec.md` y citas de todo el repo | Cada uno de los 171 IDs tiene al menos una cita | `test_traceability.py` |
+| UI-121 | TC-UI-121b | integration | Lectura de `spec.md` | Lee 171 IDs, solo de las filas de las tablas (no de las decisiones) | `test_traceability.py` |
 
 ### Casos de otras áreas que esta área completa
 
@@ -433,14 +506,14 @@ Mecanismos: **P** = `pytest`, **N** = `node --test`, **W** = Playwright (con API
 | UI-23 | 23a, 23b | N, W | T-UI-04, 22 |
 | UI-24 | 24a, 24b, 24c | N, W | T-UI-04, 22 |
 | UI-25 | 25a, 25b | N, W | T-UI-04, 22 |
-| UI-26 | 26a, 26b, 26c, 26d | N, W | T-UI-04, 22, 26, 29 |
+| UI-26 | 26a, 26b, 26c, 26d, 26e, 26f | N, W | T-UI-04, 22, 26, 29, 42 |
 | UI-27 | 27a, 27b | W, W\* | T-UI-23, 35 |
 | UI-28 | 28a | W | T-UI-23 |
 | UI-29 | 29a, 29b | N, W | T-UI-07, 23 |
-| UI-30 | 30a | W | T-UI-25 |
+| UI-30 | 30a, 30b | W | T-UI-25, 45 |
 | UI-31 | 31a | W | T-UI-25 |
 | UI-32 | 32a, 32b | W | T-UI-25, 24 |
-| UI-33 | 33a | W | T-UI-25 |
+| UI-33 | 33a, 33b | W | T-UI-25, 45 |
 | UI-34 | 34a, 34b | W | T-UI-24 |
 | UI-35 | 35a, 35b | W, N | T-UI-24, 08 |
 | UI-36 | 36a | W | T-UI-24 |
@@ -457,7 +530,7 @@ Mecanismos: **P** = `pytest`, **N** = `node --test`, **W** = Playwright (con API
 | UI-47 | 47a | W | T-UI-26 |
 | UI-48 | 48a | W | T-UI-26 |
 | UI-49 | 49a | W | T-UI-27 |
-| UI-50 | 50a | W | T-UI-28 |
+| UI-50 | 50a, 50b | W | T-UI-28, 43 |
 | UI-51 | 51a | W | T-UI-29 |
 | UI-52 | 52a | W | T-UI-29 |
 | UI-53 | 53a | W | T-UI-29 |
@@ -527,7 +600,7 @@ Mecanismos: **P** = `pytest`, **N** = `node --test`, **W** = Playwright (con API
 | UI-117 | 117a, 117b, 117c, 117d | N, W | T-UI-11, 18, 19 |
 | UI-118 | 118a, 118b, 118c, 118d | N, W | T-UI-11, 18, 19 |
 | UI-119 | 119a, 119b | N, W | T-UI-05, 22 |
-| UI-120 | 120a, 120b, 120c, 120d, 120e | W, N | T-UI-26, 29, 27, 28, 04 |
+| UI-120 | 120a, 120b, 120c, 120d, 120e, 120f | W, N | T-UI-26, 29, 27, 28, 04, 42 |
 | UI-121 | 121a, 121b | P | T-UI-36 |
 | UI-122 | 122a, 122b | W | T-UI-21 |
 | UI-123 | 123a, 123b | N, W | T-UI-06, 32 |
@@ -544,9 +617,43 @@ Mecanismos: **P** = `pytest`, **N** = `node --test`, **W** = Playwright (con API
 | UI-134 | 134a, 134b | W, N | T-UI-30, 12 |
 | UI-135 | 135a, 135b, 135c, 135d, 135e, 135f, 135g, 135h | N, W | T-UI-39, 22, 31, 24 |
 | UI-136 | 136a, 136b, 136c, 136d, 136e, 136f, 136g | N, W | T-UI-39, 25, 31 |
-| UI-137 | 137a, 137b, 137c, 137d, 137e | W | T-UI-40 |
+| UI-137 | 137a, 137b, 137c, 137d, 137e, 137f | W | T-UI-40, 45 |
 | UI-138 | 138a, 138b, 138c, 138d | N, W | T-UI-41 |
+| UI-139 | 139a, 139b | W | T-UI-42 |
+| UI-140 | 140a, 140b | N, W | T-UI-42 |
+| UI-141 | 141a, 141b, 141c, 141d | N, W | T-UI-42 |
+| UI-142 | 142a, 142b, 142c, 142d | N, W | T-UI-42 |
+| UI-143 | 143a | N, W | T-UI-43 |
+| UI-144 | 144a, 144b, 144c | N, W | T-UI-43 |
+| UI-145 | 145a | N, W | T-UI-43 |
+| UI-146 | 146a | N, W | T-UI-43 |
+| UI-147 | 147a, 147b, 147c | N, W | T-UI-43 |
+| UI-148 | 148a, 148b | W | T-UI-44 |
+| UI-149 | 149a | W | T-UI-44 |
+| UI-150 | 150a | W | T-UI-44 |
+| UI-151 | 151a | W | T-UI-44 |
+| UI-152 | 152a | W | T-UI-44 |
+| UI-153 | 153a, 153b | W | T-UI-44 |
+| UI-154 | 154a | W | T-UI-44 |
+| UI-155 | 155a | W | T-UI-45 |
+| UI-156 | 156a | W | T-UI-45 |
+| UI-157 | 157a | W | T-UI-45 |
+| UI-158 | 158a | W | T-UI-45 |
+| UI-159 | 159a, 159b | W | T-UI-45 |
+| UI-160 | 160a | W | T-UI-45 |
+| UI-161 | 161a, 161b | W | T-UI-45 |
+| UI-162 | 162a | W | T-UI-45 |
+| UI-163 | 163a, 163b | W | T-UI-45 |
+| UI-164 | 164a, 164b | W | T-UI-45 |
+| UI-165 | 165a | W | T-UI-45 |
+| UI-166 | 166a, 166b | W | T-UI-45 |
+| UI-167 | 167a, 167b, 167c | W | T-UI-45 |
+| UI-168 | 168a | W | T-UI-45 |
+| UI-169 | 169a, 169b | W | T-UI-45 |
+| UI-170 | 170a, 170b, 170c | N, W | T-UI-45 |
+| UI-171 | 171a | W | T-UI-45 |
+| UI-172 | 172a | W | T-UI-46 |
 
 ## Resumen
 
-279 casos sobre 138 specs (todas con al menos un caso; las de la fila de Playwright de la tabla de verificación tienen al menos uno de Playwright, y las de la fila de `node --test`, al menos uno de `node --test`; SPEC-UI-135 y 136 están en las dos filas y tienen casos de los dos): **15** `pytest` (integration), **86** `node --test` (unit) y **178** Playwright (e2e: 174 con API simulada y 4 contra el servidor sembrado). Más 2 casos de otras áreas que se completan acá (TC-PLT-23d y TC-USR-49b). La re-sincronización del 2026-11-12 (G-01, opción A) sumó TC-UI-135a, 135b, 136a y 136b (`node --test`, T-UI-39) y TC-UI-135c y 136c (Playwright, T-UI-22 y T-UI-25). La re-sincronización con las decisiones 62 a 65 sumó TC-UI-135d, 135e y 136d (`node --test`, T-UI-39: escrituras nunca descartadas, recursos distintos sin reemplazo, nueva instancia de la misma ruta) y TC-UI-135f (T-UI-22), 135h (T-UI-24), 136e y 136f (T-UI-25), 135g y 136g (T-UI-31) en Playwright: obsoletos `400`, `500` y `route.abort` sin error, `401` obsoleto con «Tu sesión venció», vuelta a `#/tickets/new` sin navegar y los tres `GET` en paralelo dibujados. La ampliación de accesibilidad (SPEC-UI-137 y 138) sumó TC-UI-137a a 137e y 138a a 138c en Playwright (T-UI-40 y T-UI-41) y TC-UI-138d en `node --test` (`routeOf`).
+346 casos sobre 171 specs (todas con al menos un caso; las de la fila de Playwright de la tabla de verificación tienen al menos uno de Playwright, y las de la fila de `node --test`, al menos uno de `node --test`; SPEC-UI-135 y 136 están en las dos filas): **15** `pytest` (integration), **98** `node --test` (unit) y **233** Playwright (e2e). La re-sincronización del 2026-11-13 (decisiones 66 a 72, SPEC-UI-139 a 171) sumó 12 casos de `node --test` (TC-UI-26e, 140a, 141a, 141b, 142a, 142b, 143a, 144a, 145a, 146a, 147a y 170c) y 55 de Playwright (`e2e/layout.spec.js`, `e2e/tables.spec.js`, `e2e/dialogs.spec.js` y TC-UI-137f). Casos anteriores que cambiaron de forma (no de exigencia) por el diálogo y la tabla: TC-UI-30a, 33a, 136c, 136e, 136f y 136g (el formulario vive en el diálogo y se sale cambiando el hash), TC-UI-50a (fila con categoría en vez de grupo), TC-UI-101b y 22b (rango «1–20 de 45» en vez de «45 resultados»), TC-UI-04b y 137c (`#/tickets/new` abre el diálogo sobre «Tickets»), TC-UI-68a (recorrido con el diálogo) y TC-UI-85a y 64c (el diálogo se cierra con éxito).

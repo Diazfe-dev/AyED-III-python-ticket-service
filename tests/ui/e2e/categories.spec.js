@@ -11,6 +11,10 @@ const listRequests = (api) =>
 const writes = (api, method) =>
   api.requests.filter((r) => r.method === method && /\/categories(\/|$)/.test(r.url));
 
+const newDialog = (page) => page.getByRole("dialog", { name: "Nueva categoría" });
+const openNewDialog = (page) =>
+  page.getByRole("main").getByRole("button", { name: "Nueva categoría" }).click();
+
 async function openCategories(page, items = [COMPUTING, NETWORKS]) {
   const api = await installFakeApi(page);
   api.on("GET", "/me", { status: 200, body: USERS.Admin });
@@ -37,8 +41,9 @@ test("SPEC-UI-115 shows an empty message when there are no categories (TC-UI-115
 test("SPEC-UI-86 creates a category with its name (TC-UI-86a)", async ({ page }) => {
   const api = await openCategories(page);
   api.on("POST", "/categories", { status: 201, body: { id: 9, name: "Impresión" } });
-  await page.getByLabel("Nombre", { exact: true }).fill("Impresión");
-  await page.getByRole("button", { name: "Crear" }).click();
+  await openNewDialog(page);
+  await newDialog(page).getByLabel("Nombre", { exact: true }).fill("Impresión");
+  await newDialog(page).getByRole("button", { name: "Crear" }).click();
   await expect.poll(() => writes(api, "POST").length).toBe(1);
   expect(writes(api, "POST")[0].body).toEqual({ name: "Impresión" });
 });
@@ -49,16 +54,18 @@ test("SPEC-UI-86 marks the name field on a validation error (TC-UI-86a)", async 
     status: 400,
     body: { error: "validation_error", fields: { name: "required" } },
   });
-  await page.getByRole("button", { name: "Crear" }).click();
-  await expect(page.getByText("Este campo es obligatorio")).toBeVisible();
+  await openNewDialog(page);
+  await newDialog(page).getByRole("button", { name: "Crear" }).click();
+  await expect(newDialog(page).getByText("Este campo es obligatorio")).toBeVisible();
 });
 
 test("SPEC-UI-87 edits the name of a category (TC-UI-87a)", async ({ page }) => {
   const api = await openCategories(page);
   api.on("PATCH", "/categories/3", { status: 200, body: { id: 3, name: "Cómputo" } });
   await page.getByRole("button", { name: "Editar Computación" }).click();
-  await page.getByLabel("Nuevo nombre de Computación").fill("Cómputo");
-  await page.getByRole("button", { name: "Guardar" }).click();
+  const edit = page.getByRole("dialog", { name: "Editar categoría" });
+  await edit.getByLabel("Nombre", { exact: true }).fill("Cómputo");
+  await edit.getByRole("button", { name: "Guardar" }).click();
   await expect.poll(() => writes(api, "PATCH").length).toBe(1);
   expect(writes(api, "PATCH")[0].url).toMatch(/\/categories\/3$/);
   expect(writes(api, "PATCH")[0].body).toEqual({ name: "Cómputo" });
@@ -114,8 +121,9 @@ test("SPEC-UI-120 reloads the full list with the same q after a creation (TC-UI-
     body: [COMPUTING, { id: 9, name: "Computadoras" }],
   });
   const before = listRequests(api).length;
-  await page.getByLabel("Nombre", { exact: true }).fill("Computadoras");
-  await page.getByRole("button", { name: "Crear" }).click();
+  await openNewDialog(page);
+  await newDialog(page).getByLabel("Nombre", { exact: true }).fill("Computadoras");
+  await newDialog(page).getByRole("button", { name: "Crear" }).click();
   await expect(page.getByText("Computadoras", { exact: true })).toBeVisible();
   const reloads = listRequests(api).slice(before);
   expect(reloads).toHaveLength(1);

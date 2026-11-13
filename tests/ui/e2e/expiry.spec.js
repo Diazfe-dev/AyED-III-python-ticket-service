@@ -135,13 +135,16 @@ test("SPEC-UI-136 a 401 of a previous screen instance shows the notice (TC-UI-13
   api.on("GET", "/clients", { status: 200, body: [ANA] });
   await loginAs(page, api, "Representative");
   await page.goto("/#/tickets/new");
-  await expect(page.getByLabel("Cliente", { exact: true }).locator("option")).toHaveCount(2);
+  const dialog = page.getByRole("dialog", { name: "Nuevo ticket" });
+  await expect(dialog.getByLabel("Cliente", { exact: true }).locator("option")).toHaveCount(2);
   const gate = api.defer("POST", "/tickets");
-  await page.getByLabel("Cliente", { exact: true }).selectOption({ label: "Ana Gómez" });
-  await page.getByLabel("Primer mensaje", { exact: true }).fill("No enciende");
-  await page.getByRole("button", { name: "Crear ticket" }).click();
+  await dialog.getByLabel("Cliente", { exact: true }).selectOption({ label: "Ana Gómez" });
+  await dialog.getByLabel("Primer mensaje", { exact: true }).fill("No enciende");
+  await dialog.getByRole("button", { name: "Crear", exact: true }).click();
   await gate.requested;
-  await page.getByRole("link", { name: "Mi cuenta", exact: true }).click();
+  await page.evaluate(() => {
+    window.location.hash = "#/account";
+  });
   await expect(page.getByRole("heading", { name: "Mi cuenta", exact: true })).toBeVisible();
   gate.release(401, { error: "no" });
   await expectExpiredLogin(page);

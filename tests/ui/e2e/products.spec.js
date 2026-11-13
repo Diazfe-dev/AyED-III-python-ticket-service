@@ -30,8 +30,10 @@ const byPage = (items, total) => (record) => ({
   body: pageOf(items, Number(new URL(record.url).searchParams.get("page")), total),
 });
 
-const createForm = (page) => page.getByRole("form", { name: "Nuevo producto" });
-const editForm = (page) => page.getByRole("form", { name: "Editar producto" });
+const createForm = (page) => page.getByRole("dialog", { name: "Nuevo producto" });
+const editForm = (page) => page.getByRole("dialog", { name: "Editar producto" });
+const openCreateDialog = (page) =>
+  page.getByRole("main").getByRole("button", { name: "Nuevo producto" }).click();
 
 async function openProducts(page, listing = { status: 200, body: pageOf([LENOVO, ARCHER]) }) {
   const api = await installFakeApi(page);
@@ -114,6 +116,7 @@ test("SPEC-UI-52 creates a product with the type chosen in the selector (TC-UI-5
 }) => {
   const api = await openProducts(page);
   api.on("POST", PRODUCTS_PATH, { status: 201, body: product(11, "Dell", LAPTOP_TYPE, COMPUTING) });
+  await openCreateDialog(page);
   await createForm(page).getByLabel("Nombre").fill("Dell");
   await createForm(page).getByLabel("Tipo").selectOption({ label: "Notebook" });
   await createForm(page).getByRole("button", { name: "Crear" }).click();
@@ -168,6 +171,7 @@ test("SPEC-UI-120 reloads the current page with the same filters after a create 
   await expect(page.getByText("Página 2")).toBeVisible();
   const before = productCalls(api).length;
   api.on("GET", PRODUCTS_PATH, { status: 200, body: pageOf([ARCHER], 2, 46) });
+  await openCreateDialog(page);
   await createForm(page).getByLabel("Nombre").fill("Dell");
   await createForm(page).getByLabel("Tipo").selectOption({ label: "Notebook" });
   await createForm(page).getByRole("button", { name: "Crear" }).click();

@@ -37,11 +37,13 @@ async function openUsers(page, listing = { status: 200, body: pageOf([LUIS, OLGA
   return api;
 }
 
-const createForm = (page) => page.getByRole("form", { name: "Nueva cuenta" });
-const editForm = (page) => page.getByRole("form", { name: "Editar cuenta" });
-const resetForm = (page) => page.getByRole("form", { name: "Restablecer contraseña" });
+const createForm = (page) => page.getByRole("dialog", { name: "Nuevo usuario" });
+const editForm = (page) => page.getByRole("dialog", { name: "Editar usuario" });
+const resetForm = (page) => page.getByRole("dialog", { name: "Restablecer contraseña" });
+const openCreateDialog = (page) => page.getByRole("main").getByRole("button", { name: "Nuevo usuario" }).click();
 
 async function fillCreate(page, values) {
+  await openCreateDialog(page);
   const form = createForm(page);
   await form.getByLabel("Nombre").fill(values.name ?? "");
   await form.getByLabel("Email").fill(values.email ?? "");
@@ -103,6 +105,7 @@ test("SPEC-UI-83 requests the listing with the active filter (TC-UI-83a)", async
 
 test("SPEC-UI-84 offers the three roles in the create form (TC-UI-84a)", async ({ page }) => {
   await openUsers(page);
+  await openCreateDialog(page);
   const options = createForm(page).getByLabel("Rol").locator("option");
   await expect(options.filter({ hasText: "Administrador" })).toHaveAttribute("value", "Admin");
   await expect(options.filter({ hasText: "Representante" })).toHaveAttribute(
@@ -162,6 +165,8 @@ test("SPEC-UI-85 confirms the creation with Usuario creado (TC-UI-85a)", async (
   });
   await createForm(page).getByRole("button", { name: "Crear" }).click();
   await expect(page.locator("#status")).toHaveText("Usuario creado.");
+  await expect(createForm(page)).toHaveCount(0);
+  await openCreateDialog(page);
   await expect(createForm(page).getByLabel("Nombre")).toHaveValue("");
 });
 
@@ -194,20 +199,20 @@ test("SPEC-UI-64 empties the password fields after success and after error (TC-U
     { status: 409, body: { error: "duplicate_email" } },
     { status: 201, body: account(9, "Rosa Paz", "Client") },
   ]);
-  const password = createForm(page).getByLabel("Contraseña", { exact: true });
   await fillCreate(page, {
     name: "Rosa Paz",
     email: "rosa@example.com",
     role: "Cliente",
     password: "clave-larga-1",
   });
+  const password = createForm(page).getByLabel("Contraseña", { exact: true });
   await createForm(page).getByRole("button", { name: "Crear" }).click();
-  await expect(page.locator("#alert, [role=alert]").filter({ hasText: "Ya existe un usuario" }).first()).toBeVisible();
+  await expect(createForm(page).getByRole("alert").filter({ hasText: "Ya existe un usuario" })).toBeVisible();
   await expect(password).toHaveValue("");
   await password.fill("clave-larga-1");
   await createForm(page).getByRole("button", { name: "Crear" }).click();
   await expect(page.locator("#status")).toHaveText("Usuario creado.");
-  await expect(password).toHaveValue("");
+  await expect(createForm(page)).toHaveCount(0);
 
   api.on("POST", "/users/5/password", [
     { status: 400, body: { error: "validation_error", fields: { new_password: "too_short" } } },
@@ -273,6 +278,17 @@ test("SPEC-UI-48 resets the password with only the new one (TC-UI-48a)", async (
   await resetForm(page).getByRole("button", { name: "Restablecer" }).click();
   await expect.poll(() => writes(api, "POST", "/users/5/password").length).toBe(1);
   expect(writes(api, "POST", "/users/5/password")[0].body).toEqual({ new_password: "clave-nueva-1" });
+});
+
+test("SPEC-UI-172 closes the reset dialog and confirms the reset (TC-UI-172a)", async ({ page }) => {
+  const api = await openUsers(page);
+  api.on("POST", "/users/5/password", { status: 204 });
+  await rowFor(page, "Luis Mora").getByRole("button", { name: "Restablecer contraseña" }).click();
+  await resetForm(page).getByLabel("Nueva contraseña", { exact: true }).fill("clave-nueva-1");
+  await resetForm(page).getByLabel("Confirmar nueva contraseña").fill("clave-nueva-1");
+  await resetForm(page).getByRole("button", { name: "Restablecer" }).click();
+  await expect(page.getByRole("status")).toHaveText("Contraseña restablecida.");
+  await expect(page.locator("dialog[open]")).toHaveCount(0);
 });
 
 test("SPEC-UI-100 shows a mismatch in the reset form without a request (TC-UI-100a)", async ({

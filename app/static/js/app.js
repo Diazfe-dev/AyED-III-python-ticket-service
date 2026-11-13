@@ -1,6 +1,7 @@
 import { initialRequests, issue, openScreen, verdict } from "./core/requests.js";
-import { routeOf } from "./core/routes.js";
+import { classify, routeOf, sharesScreenInstance } from "./core/routes.js";
 import { canSend, currentUser, initialState, transition } from "./core/session.js";
+import { closeDialogs } from "./dom/dialog.js";
 import { setInert } from "./dom/inert.js";
 import { clear,clearMessages, setTitle, showError, showStatus } from "./dom/render.js";
 import { renderShell } from "./dom/shell.js";
@@ -13,6 +14,7 @@ const header = document.getElementById("shell");
 let state = initialState();
 let requests = initialRequests();
 let pendingCredentials;
+let shown = { name: null, instance: null };
 
 const browserFetch = (path, init) => window.fetch(path, init);
 const client = createApiClient(browserFetch, {
@@ -51,9 +53,24 @@ function screenContext(params) {
     navigate: (hash) => {
       window.location.hash = hash;
     },
+    replaceHash,
     showError,
     showStatus,
   };
+}
+
+function replaceHash(hash) {
+  window.history.replaceState(null, "", hash);
+  const route = classify(hash, currentUser(state)?.role);
+  if (route.kind === "screen") {
+    shown.name = route.screen;
+    refreshChrome(route.screen, route.params ?? {});
+  }
+}
+
+function refreshChrome(name, params) {
+  renderShell(header, currentUser(state), () => dispatch({ type: "logoutClicked" }), routeOf(name));
+  setTitle(screens[name].title(params));
 }
 
 function focusHeading() {
@@ -68,10 +85,20 @@ function showScreen(name, params) {
   const screen = screens[name];
   clearMessages();
   clear(root);
-  renderShell(header, currentUser(state), () => dispatch({ type: "logoutClicked" }), routeOf(name));
-  setTitle(screen.title(params));
-  screen.mount(screenContext(params));
-  focusHeading();
+  shown = { name, instance: null };
+  refreshChrome(name, params);
+  shown.instance = screen.mount(screenContext(params)) ?? null;
+  if (shown.instance?.holdsFocus?.() !== true) {
+    focusHeading();
+  }
+}
+
+function continuesScreen(screen) {
+  return (
+    shown.name !== screen &&
+    typeof shown.instance?.setRoute === "function" &&
+    sharesScreenInstance(shown.name, screen)
+  );
 }
 
 async function runRequest({ kind, method, path }) {
@@ -83,6 +110,12 @@ async function runRequest({ kind, method, path }) {
 
 const EFFECTS = {
   render: (effect) => {
+    if (currentUser(state) !== null && continuesScreen(effect.screen)) {
+      shown.name = effect.screen;
+      refreshChrome(effect.screen, effect.params);
+      shown.instance.setRoute(effect.screen);
+      return;
+    }
     if (currentUser(state) !== null) {
       requests = openScreen(requests);
     }
@@ -91,7 +124,12 @@ const EFFECTS = {
   replaceHash: (effect) => window.history.replaceState(null, "", effect.hash),
   request: runRequest,
   showError: (effect) => showError(effect.message),
-  setInert: (effect) => setInert([header, root], effect.inert),
+  setInert: (effect) => {
+    if (effect.inert) {
+      closeDialogs(root);
+    }
+    setInert([header, root], effect.inert);
+  },
 };
 
 function dispatch(event) {

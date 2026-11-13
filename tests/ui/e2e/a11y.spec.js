@@ -11,7 +11,7 @@ const USER_ROWS = [
 ];
 const SCREENS = [
   { name: "tickets", role: "Admin", hash: "#/tickets", heading: "Tickets" },
-  { name: "new ticket", role: "Representative", hash: "#/tickets/new", heading: "Nuevo ticket" },
+  { name: "new ticket", role: "Representative", hash: "#/tickets/new", heading: "Tickets" },
   { name: "ticket detail", role: "Representative", hash: "#/tickets/7", heading: "Ticket #7" },
   { name: "account", role: "Client", hash: "#/account", heading: "Mi cuenta" },
   { name: "users", role: "Admin", hash: "#/users", heading: "Usuarios" },
@@ -139,17 +139,18 @@ test("SPEC-UI-68 the whole flow works with the keyboard only (TC-UI-68a)", async
 
   await tabTo(page, { tag: "A", text: "Nuevo ticket" });
   await page.keyboard.press("Enter");
-  await expect(headingOf(page, "Nuevo ticket")).toBeVisible();
-  await expect(page.getByLabel("Cliente", { exact: true }).locator("option")).toHaveCount(3);
+  await expect(page.getByRole("dialog", { name: "Nuevo ticket" })).toBeVisible();
+  await expect(
+    page.getByRole("dialog").getByLabel("Cliente", { exact: true }).locator("option"),
+  ).toHaveCount(3);
 
   await tabTo(page, isField("ticket-client"));
   await page.keyboard.press("ArrowDown");
   await page.keyboard.type("Ana");
-  await page.keyboard.press("Escape");
-  await expect(page.getByLabel("Cliente", { exact: true })).toHaveValue("11");
+  await expect(page.getByRole("dialog").getByLabel("Cliente", { exact: true })).toHaveValue("11");
   await tabTo(page, isField("ticket-message"));
   await page.keyboard.type("No enciende");
-  await tabTo(page, isButton("Crear ticket"));
+  await tabTo(page, isButton("Crear"));
   await page.keyboard.press("Space");
   await expect(headingOf(page, "Ticket #15")).toBeVisible();
 
@@ -409,11 +410,23 @@ test("SPEC-UI-137 moves focus to the heading of each screen reached from the nav
   const api = await installFakeApi(page);
   await loginAs(page, api, "Representative");
   await expect(headingOf(page, "Tickets")).toBeVisible();
-  for (const name of ["Nuevo ticket", "Mi cuenta", "Tickets"]) {
+  for (const name of ["Mi cuenta", "Tickets"]) {
     await navLink(page, name).click();
     await expect(headingOf(page, name)).toBeVisible();
     expect(await focusedHeading(page), name).toBe(name);
   }
+});
+
+test("SPEC-UI-137 moves focus to the first field of the dialog on #/tickets/new (TC-UI-137f)", async ({
+  page,
+}) => {
+  const api = await installFakeApi(page);
+  await loginAs(page, api, "Representative");
+  await expect(headingOf(page, "Tickets")).toBeVisible();
+  await navLink(page, "Nuevo ticket").click();
+  const dialog = page.getByRole("dialog", { name: "Nuevo ticket" });
+  await expect(dialog).toBeVisible();
+  await expect(dialog.locator("input, select, textarea").first()).toBeFocused();
 });
 
 test("SPEC-UI-137 moves focus to the heading of the not-found screen (TC-UI-137d)", async ({
@@ -440,8 +453,21 @@ test("SPEC-UI-137 keeps the focus indicator on controls while the heading has no
   );
   expect(outline).toBe("none");
   await page.keyboard.press("Tab");
-  const control = await page.evaluate(() => getComputedStyle(document.activeElement).outlineStyle);
-  expect(control).not.toBe("none");
+  const control = await page.evaluate(() => {
+    const node = document.activeElement;
+    const read = () => {
+      const style = getComputedStyle(node);
+      return { outline: style.outlineStyle, width: style.outlineWidth, shadow: style.boxShadow };
+    };
+    const focused = read();
+    node.blur();
+    const plain = read();
+    node.focus();
+    return { focused, plain };
+  });
+  const ring = control.focused.outline !== "none" && control.focused.width !== "0px";
+  const shadow = control.focused.shadow !== "none" && control.focused.shadow !== control.plain.shadow;
+  expect(ring || shadow).toBe(true);
 });
 
 const currentLinks = (page) =>

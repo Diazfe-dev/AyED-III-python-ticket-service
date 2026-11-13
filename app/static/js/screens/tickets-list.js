@@ -1,7 +1,9 @@
 import { formatDateTime } from "../core/dates.js";
 import { stateLabel } from "../core/labels.js";
+import { pageHeader, surface, toolbar } from "../dom/layout.js";
 import { createListing, fillOptions, searchField, selectField } from "../dom/listing.js";
 import { el } from "../dom/render.js";
+import { openTicketDialog } from "./ticket-create-dialog.js";
 
 const COLUMNS = ["Número", "Cliente", "Estado", "Creado"];
 const STATES = ["New", "InProgress", "Closed"];
@@ -40,14 +42,38 @@ function personFilter({ id, label, allLabel, listing, field }) {
   });
 }
 
-export function mount({ root, user, request, showError }) {
+const LIST_ROUTE = "tickets-list";
+const CREATE_ROUTE = "ticket-new";
+const LIST_HASH = "#/tickets";
+
+export function mount({ root, user, request, showError, navigate, replaceHash, route = LIST_ROUTE }) {
+  let current = route;
+  let dialog = null;
+  let header = null;
   const listing = createListing({
     request,
     showError,
     path: "/tickets",
+    label: title(),
     columns: COLUMNS,
     row: ticketRow,
   });
+
+  function openCreate(opener = null) {
+    dialog = openTicketDialog({
+      root,
+      request,
+      opener,
+      fallback: () => header.button,
+      navigate,
+      onCancel: () => {
+        if (current === CREATE_ROUTE) {
+          current = LIST_ROUTE;
+          replaceHash(LIST_HASH);
+        }
+      },
+    });
+  }
   const stateFilter = selectField({
     id: "filter-state",
     label: "Estado",
@@ -67,6 +93,7 @@ export function mount({ root, user, request, showError }) {
     onSubmit: (value) => listing.apply({ q: value }),
   });
   const controls = [stateFilter.element, order.element, searchForm];
+  const canCreate = user.role === "Representative";
   const selectors = [];
   if (user.role !== "Client") {
     const clients = personFilter({
@@ -94,13 +121,27 @@ export function mount({ root, user, request, showError }) {
       key: "representatives",
     });
   }
-  root.append(
-    el("h1", {}, [title()]),
-    el("div", { class: "filters" }, controls),
-    listing.element,
-  );
+  header = pageHeader({
+    title: title(),
+    action: canCreate ? { label: "Nuevo ticket", onClick: openCreate } : null,
+  });
+  root.append(header.element, surface({ toolbar: toolbar(controls), table: listing.element }));
   listing.load();
   for (const selector of selectors) {
     fillOptions({ ...selector, request, showError });
   }
+  if (canCreate && current === CREATE_ROUTE) {
+    openCreate();
+  }
+  return {
+    holdsFocus: () => dialog !== null && dialog.isOpen(),
+    setRoute(next) {
+      current = next;
+      if (next === CREATE_ROUTE && canCreate && !(dialog?.isOpen() ?? false)) {
+        openCreate();
+      } else if (next === LIST_ROUTE && dialog?.isOpen()) {
+        dialog.close();
+      }
+    },
+  };
 }

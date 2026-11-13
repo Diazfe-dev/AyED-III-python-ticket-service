@@ -57,7 +57,7 @@ Reglas de la estructura:
 - **Puros contra impuros** (SPEC-UI-73 y 74): `core/` no nombra `fetch`, `document` ni `window` (ni como identificador suelto) y solo importa de `core/`. `net/api-client.js` no usa el `fetch` global: lo recibe por parámetro (SPEC-UI-75) y por eso también se importa desde `node --test`. `dom/` y `screens/` usan el DOM y reciben el cliente de la API por parámetro. Solo `app.js` liga `window.fetch` y los eventos globales.
 - **Texto siempre como texto** (SPEC-UI-63): `dom/render.js` expone `el(tag, attrs, children)`, que crea nodos con `textContent` y atributos con `setAttribute` sobre una lista blanca. Ningún archivo del front usa `innerHTML`, `outerHTML`, `insertAdjacentHTML` ni `document.write` (lo controla el escaneo estático).
 - **Sin estilos ni scripts en línea** (SPEC-UI-65): ni `<script>` sin `src`, ni atributos `on*=`, ni atributos `style`; la apariencia se cambia con clases. Así la página funciona con `default-src 'self'` sin `'unsafe-inline'`.
-- **Sin orígenes externos** (SPEC-UI-05 y 06): rutas de la forma `/me`, `/static/...`; nada de `http://`, `https://` ni `//host`; fuentes del sistema (sin `@font-face` ni `@import` remotos).
+- **Sin orígenes externos** (SPEC-UI-05 y 06): rutas de la forma `/me`, `/static/...`; nada de `http://`, `https://` ni `//host`; fuentes del sistema o servidas desde `/static/fonts/` (sin `@import` ni `@font-face` hacia otro origen).
 - **Sin almacenamiento** (SPEC-UI-62): el rol y la identidad viven solo en el estado de la máquina (memoria). Ningún archivo nombra `localStorage`, `sessionStorage` ni `document.cookie`.
 - **Fechas**: `core/dates.js` usa `Intl.DateTimeFormat` con `hourCycle: "h23"` y arma `dd/mm/aaaa HH:mm` con `formatToParts`; recibe la zona como parámetro opcional (por defecto, la del navegador) para probarla en Node con zonas fijas.
 
@@ -179,6 +179,14 @@ Convención de títulos y docstrings de esta área: `SPEC-UI-NN <english descrip
 | `e2e` | `setup-python` + `pip install` (el servidor es Flask) → `setup-node` 22 → `npm ci` → `npx playwright install --with-deps chromium` → `npm run test:e2e`; si falla, sube `playwright-report/` como artefacto | siempre, en paralelo; no depende de los otros jobs |
 
 Si algún job falla, el PR no se mergea (constitución, principio 4).
+
+## Tablas, diseño de pantalla y diálogos (SPEC-UI-139 a 171)
+
+- **Pantalla de listado**: `dom/layout.js` arma el encabezado (`h1` y botón principal) y una única superficie con la barra de herramientas, la tabla (`dom/table.js`) y el pie (`dom/paginator.js`: «Filas por página», rango «1–20 de 57», «Anterior» y «Siguiente»).
+- **Lógica pura** en `core/query.js`: opciones de tamaño (10, 20 y 50; 20 por defecto), página 1 al cambiar el tamaño, formato del rango, aplanado de los tipos de producto, porción en memoria (`memoryPage`, que también da la última página válida) y `sharesScreenInstance` en `core/routes.js`.
+- **Dos listados**: `createListing` (la API pagina) y `createMemoryListing` (categorías y tipos: pide el arreglo completo y lo corta en el navegador, sin pedidos al mover de página o de tamaño).
+- **Diálogos**: `dom/dialog.js` crea un `<dialog>` dentro de `#app` (lo cubren `setInert` y el reemplazo de pantalla), lo abre con `showModal`, mueve el foco al primer campo y lo devuelve al disparador (o al botón principal, o al `h1`). `send` deshabilita los controles mientras dura el pedido, ignora la respuesta si el diálogo ya no está abierto (SPEC-UI-167) y muestra errores dentro. `app.js` cierra los diálogos al pasar a inerte (SPEC-UI-166); el cambio de pantalla los elimina (SPEC-UI-168).
+- **`#/tickets/new`**: `screens/ticket-new.js` monta `tickets-list.js` con `route: "ticket-new"`. `app.js` conserva la instancia entre las dos rutas (`continuesScreen`), llama a `setRoute` y no mueve el foco al `h1`; al cancelar el diálogo de la ruta, `replaceHash("#/tickets")`.
 
 ## Componentes por capa
 

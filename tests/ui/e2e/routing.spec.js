@@ -23,7 +23,9 @@ test("SPEC-UI-04 changes screen without reloading the document (TC-UI-04b)", asy
     if (request.resourceType() === "document") documents.push(request.url());
   });
   await nav(page, "Nuevo ticket").click();
-  await expect(heading(page, "Nuevo ticket")).toBeVisible();
+  await expect(heading(page, "Tickets")).toBeVisible();
+  await expect(page.getByRole("dialog", { name: "Nuevo ticket" })).toBeVisible();
+  await page.keyboard.press("Escape");
   await nav(page, "Mi cuenta").click();
   await expect(heading(page, "Mi cuenta")).toBeVisible();
   await nav(page, "Tickets").click();
