@@ -24,6 +24,15 @@ def test_deactivate_marks_user_as_inactive() -> None:
     assert client.is_active is False
 
 
+def test_activate_marks_user_as_active() -> None:
+    """SPEC-USR-28 · TC-USR-28a"""
+    client = Client(name="Ana", email="ana@x.com", is_active=False)
+
+    client.activate()
+
+    assert client.is_active is True
+
+
 def test_normalize_email_strips_spaces_and_lowercases() -> None:
     """SPEC-USR-03 · TC-USR-03a"""
     assert normalize_email("  Ana@X.COM ") == "ana@x.com"

@@ -37,6 +37,10 @@ class User(Base):
         """Logical deletion: the row and its history are kept."""
         self.is_active = False
 
+    def activate(self) -> None:
+        """Reactivation: mirror of `deactivate`."""
+        self.is_active = True
+
 
 class Admin(User):
     __mapper_args__ = {"polymorphic_identity": "Admin"}
