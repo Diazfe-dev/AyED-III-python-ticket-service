@@ -1197,25 +1197,18 @@
     },
     "/tickets": {
       "get": {
-        "summary": "List my tickets",
-        "description": "A client sees the tickets it owns and a representative the tickets assigned to it; nobody sees the tickets of others. Newest first: ordered by creation date and, for the same instant, by id, both descending. Admins receive `403`.",
+        "summary": "List tickets",
+        "description": "The tickets the session user may see: an administrator sees all of them, a client the tickets it owns and a representative the tickets assigned to it. `state`, `client_id`, `representative_id` and `q` narrow the result (all must match); `q` searches the client name and the first message, without case. `client_id` is forbidden to clients and `representative_id` to clients and representatives (`403`, even with their own id). The format of every query parameter is validated together (`400`) before the forbidden filters are checked. Newest first by default (`order`). `page` and `page_size` are optional: without them the response is an array.",
         "operationId": "listTickets",
         "tags": [
           "tickets"
         ],
         "responses": {
           "200": {
-            "description": "The tickets of the session user; an empty list when it has none.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/Ticket"
-                  }
-                }
-              }
-            }
+            "$ref": "#/components/responses/TicketList"
+          },
+          "400": {
+            "$ref": "#/components/responses/ValidationFailed"
           },
           "401": {
             "$ref": "#/components/responses/AuthenticationRequired"
@@ -1223,7 +1216,30 @@
           "403": {
             "$ref": "#/components/responses/TicketForbidden"
           }
-        }
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/TicketState"
+          },
+          {
+            "$ref": "#/components/parameters/TicketClientId"
+          },
+          {
+            "$ref": "#/components/parameters/TicketRepresentativeId"
+          },
+          {
+            "$ref": "#/components/parameters/Q"
+          },
+          {
+            "$ref": "#/components/parameters/TicketOrder"
+          },
+          {
+            "$ref": "#/components/parameters/Page"
+          },
+          {
+            "$ref": "#/components/parameters/PageSize"
+          }
+        ]
       },
       "post": {
         "summary": "Create a ticket",
@@ -1307,7 +1323,7 @@
       ],
       "get": {
         "summary": "Get a ticket",
-        "description": "The client of the ticket and its assigned representative. Any other user, including another client or representative, gets the same `404` as for a ticket that does not exist or whose id is out of range. Admins receive `403`.",
+        "description": "The client of the ticket, its assigned representative and admins. Any other user, including another client or representative, gets the same `404` as for a ticket that does not exist or whose id is out of range. Admins read any ticket; a missing one is `404`.",
         "operationId": "getTicket",
         "tags": [
           "tickets"
@@ -1325,9 +1341,6 @@
           },
           "401": {
             "$ref": "#/components/responses/AuthenticationRequired"
-          },
-          "403": {
-            "$ref": "#/components/responses/TicketForbidden"
           },
           "404": {
             "$ref": "#/components/responses/TicketNotFound"
@@ -1576,7 +1589,7 @@
       },
       "get": {
         "summary": "List the milestones of a ticket",
-        "description": "The client of the ticket and its assigned representative, in any state of the ticket. Milestones come in chronological order (oldest first), with their author (id, name and role). Any other user gets the same `404` as for a ticket that does not exist or whose id is out of range. Admins receive `403`.",
+        "description": "The client of the ticket, its assigned representative and admins, in any state of the ticket. Milestones come in chronological order (oldest first), with their author (id, name and role). Any other user gets the same `404` as for a ticket that does not exist or whose id is out of range. Admins read the milestones of any ticket; a missing one is `404`.",
         "operationId": "listMilestones",
         "tags": [
           "tickets"
@@ -1598,8 +1611,41 @@
           "401": {
             "$ref": "#/components/responses/AuthenticationRequired"
           },
-          "403": {
-            "$ref": "#/components/responses/TicketForbidden"
+          "404": {
+            "$ref": "#/components/responses/TicketNotFound"
+          }
+        }
+      }
+    },
+    "/tickets/{ticket_id}/state-changes": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/TicketId"
+        }
+      ],
+      "get": {
+        "summary": "List the state changes of a ticket",
+        "description": "The client of the ticket, its assigned representative and admins. Every change of state of the ticket (the opening included) comes in chronological order (oldest first, ties in order of registration), each with the new state, the user who made it and the time. The response is always the plain array of all the changes: it is not paged and `page` and `page_size` are ignored. Any other user gets the same `404` as for a ticket that does not exist or whose id is out of range.",
+        "operationId": "listStateChanges",
+        "tags": [
+          "tickets"
+        ],
+        "responses": {
+          "200": {
+            "description": "The state changes of the ticket, oldest first.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/StateChange"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/AuthenticationRequired"
           },
           "404": {
             "$ref": "#/components/responses/TicketNotFound"
@@ -1871,7 +1917,7 @@
         }
       },
       "TicketForbidden": {
-        "description": "The session user may not perform this operation on tickets (`forbidden`): an administrator, or a user who is not allowed to act on the ticket (for example a client changing its products).",
+        "description": "The session user may not perform this operation on tickets (`forbidden`): an administrator on any write operation, a forbidden listing filter (`client_id` for clients, `representative_id` for clients and representatives), a non-representative creating a ticket, or a user who is not allowed to act on the ticket (for example a client changing its products).",
         "content": {
           "application/json": {
             "schema": {
@@ -1970,6 +2016,26 @@
             },
             "example": {
               "error": "invalid_current_password"
+            }
+          }
+        }
+      },
+      "TicketList": {
+        "description": "The tickets ordered by creation date and, for the same instant, by id in the same direction. A plain array, or a page object when `page` or `page_size` was sent.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "oneOf": [
+                {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Ticket"
+                  }
+                },
+                {
+                  "$ref": "#/components/schemas/TicketPage"
+                }
+              ]
             }
           }
         }
@@ -2517,6 +2583,34 @@
           }
         }
       },
+      "StateChange": {
+        "type": "object",
+        "description": "Immutable record of one transition of a ticket.",
+        "required": [
+          "state",
+          "user",
+          "timestamp"
+        ],
+        "properties": {
+          "state": {
+            "type": "string",
+            "enum": [
+              "New",
+              "InProgress",
+              "Closed"
+            ],
+            "description": "The state the ticket moved to."
+          },
+          "user": {
+            "$ref": "#/components/schemas/MilestoneAuthor"
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time",
+            "description": "ISO 8601, UTC."
+          }
+        }
+      },
       "AddMilestoneRequest": {
         "type": "object",
         "required": [
@@ -2640,6 +2734,38 @@
         "required": [
           "new_password"
         ]
+      },
+      "TicketPage": {
+        "type": "object",
+        "description": "A page of tickets.",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Ticket"
+            }
+          },
+          "page": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "page_size": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 100
+          },
+          "total": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "Matching records across all pages."
+          }
+        },
+        "required": [
+          "items",
+          "page",
+          "page_size",
+          "total"
+        ]
       }
     },
     "parameters": {
@@ -2723,6 +2849,53 @@
           "enum": [
             "true",
             "false"
+          ]
+        }
+      },
+      "TicketState": {
+        "name": "state",
+        "in": "query",
+        "required": false,
+        "description": "Keep the tickets in this state. Only the exact values are accepted; any other, including an empty one or a different case, is rejected with `400`.",
+        "schema": {
+          "type": "string",
+          "enum": [
+            "New",
+            "InProgress",
+            "Closed"
+          ]
+        }
+      },
+      "TicketClientId": {
+        "name": "client_id",
+        "in": "query",
+        "required": false,
+        "description": "Keep the tickets of this client. A positive integer, otherwise `400`. Administrators and representatives only; a client sending it gets `403` (after the format check).",
+        "schema": {
+          "type": "integer",
+          "minimum": 1
+        }
+      },
+      "TicketRepresentativeId": {
+        "name": "representative_id",
+        "in": "query",
+        "required": false,
+        "description": "Keep the tickets assigned to this representative. A positive integer, otherwise `400`. Administrators only; clients and representatives sending it get `403` (after the format check), even with their own id.",
+        "schema": {
+          "type": "integer",
+          "minimum": 1
+        }
+      },
+      "TicketOrder": {
+        "name": "order",
+        "in": "query",
+        "required": false,
+        "description": "Creation order: `desc` (default, newest first) or `asc` (oldest first). Any other value is rejected with `400`.",
+        "schema": {
+          "type": "string",
+          "enum": [
+            "asc",
+            "desc"
           ]
         }
       }

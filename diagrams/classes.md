@@ -237,6 +237,7 @@ classDiagram
         +create_ticket(client_id, product_ids, first_message)
         +list_tickets()
         +get_ticket(ticket_id)
+        +list_state_changes(ticket_id)
         +close_ticket(ticket_id)
         +reopen_ticket(ticket_id)
         +add_products(ticket_id, product_ids)
@@ -303,8 +304,9 @@ classDiagram
         +Callable commit
         +TicketNotifier notifier
         +create_ticket(client_id, product_ids, first_message, actor) Ticket
-        +list_tickets(actor) list
+        +list_tickets(actor, state, client_id, representative_id, q, order, page, page_size) list or Page
         +get_ticket(ticket_id, actor) Ticket
+        +list_state_changes(ticket_id, actor) list
         +close_ticket(ticket_id, actor) Ticket
         +reopen_ticket(ticket_id, actor) Ticket
         +add_milestone(ticket_id, content, actor, start_progress) Milestone
@@ -379,17 +381,23 @@ classDiagram
     class TicketRepository {
         <<interface>>
         +add(ticket) None
+        +get(ticket_id) Ticket
+        +get_with_milestones(ticket_id) Ticket
         +get_visible(ticket_id, actor) Ticket
         +get_visible_with_milestones(ticket_id, actor) Ticket
-        +list_by_client(client_id) list
-        +list_by_representative(representative_id) list
+        +get_visible_with_history(ticket_id, actor) Ticket
+        +get_with_history(ticket_id) Ticket
+        +search(client_id, representative_id, state, q, ascending, window) list or Page
     }
     class SqlAlchemyTicketRepository {
         +add(ticket) None
+        +get(ticket_id) Ticket
+        +get_with_milestones(ticket_id) Ticket
         +get_visible(ticket_id, actor) Ticket
         +get_visible_with_milestones(ticket_id, actor) Ticket
-        +list_by_client(client_id) list
-        +list_by_representative(representative_id) list
+        +get_visible_with_history(ticket_id, actor) Ticket
+        +get_with_history(ticket_id) Ticket
+        +search(client_id, representative_id, state, q, ascending, window) list or Page
     }
     class CategoryRepository {
         +add(category) None
@@ -500,7 +508,7 @@ classDiagram
 - **Búsqueda en el catálogo (`02-product-types`)**: `CatalogService.list_categories(q)` y `list_product_types(category_id, q)` normalizan `q` con `search_text` (un `q` vacío o de solo espacios equivale a no enviarlo) y no paginan: los controllers ignoran `page` y `page_size` y siempre serializan una lista (SPEC-PTY-24). `CategoryRepository.list_all(q)` filtra con `name_key` contiene `q.casefold()` (`%` y `_` literales) y ordena por `(name_key, id)` (SPEC-PTY-21). `list_product_types` devuelve `list[CategoryGroup]`, un `dataclass` inmutable con la categoría y sus tipos ya ordenados. Sin `q` arma los grupos con `list_with_product_types` (o con la categoría pedida), incluidas las categorías sin tipos (SPEC-PTY-22). Con `q` usa `ProductTypeRepository.search(q, category_id)`, que une con la categoría, filtra por `name_key`, carga la categoría con `selectinload` y ordena por `(Category.name_key, Category.id, ProductType.name_key, ProductType.id)`; `_group` agrupa ese resultado conservando el orden y omite las categorías sin coincidencias (SPEC-PTY-23).
 - `ProductRepository.add` traduce el `IntegrityError` del `UNIQUE` a `DuplicateProductError` y `ProductTypeRepository.delete` traduce el de la FK `RESTRICT` de `products` a `ProductTypeInUseError`; `CatalogService.delete_product_type` además lo chequea antes con `has_products`. `ProductRepository.list_matching` filtra por categoría con un `join` sobre el tipo, ordena por `(name_key, id)` y carga tipo y categoría con `selectinload` (3 consultas como máximo). Se llama `list_matching` y no `list` porque un método `list` taparía al tipo `list` en las anotaciones de la clase. `ProductRepository` no tiene métodos de borrado. `get_many` lo usa `TicketService` (`04-tickets`).
 - **Notificador de tickets**: `TicketService` depende del protocolo `TicketNotifier` (`notify(recipient, actor, ticket, message)`), definido en `app/services/ticket_service.py` junto con el protocolo `TicketRepository`. `NotificationService(strategies, clock, commit)` (`app/services/notification_service.py`) lo implementa: elige la estrategia con `strategies[recipient.preferred_channel]`, lee `clock()` una vez, envía, registra la notificación con `Ticket.record_notification` (o `record_failed_notification` si la estrategia lanza `NotificationError`, sin propagarla) y hace `commit()`; si `recipient is actor` retorna sin registrar ni confirmar (SPEC-NTF-11). No hay `NotificationRepository` ni `NullTicketNotifier`. `TicketService` llama a `notify` como última acción de `create_ticket`, `close_ticket`, `reopen_ticket` y `add_milestone`, después de su `commit()` (SPEC-NTF-15); `add_products` y `remove_product` no notifican (SPEC-NTF-17). Los mensajes salen de `app/services/notification_messages.py`. `app/wiring.py` arma `NotificationService(notification_strategies(), utc_now, session.commit)` con `notification_strategies()` (que devuelve `default_strategies()`) y `get_ticket_service` lo inyecta en `TicketService` por request con `utc_now` como reloj y `session.commit`.
-- `SqlAlchemyTicketRepository` implementa `TicketRepository`: `add` hace `flush()`; `get_visible_with_milestones` comparte con él la guarda y el filtro (`_visible_statement`) y carga además `Ticket.milestones` y sus autores con `selectinload`; `get_visible` devuelve `None` si el ticket no existe, no es del actor o el id no entra en el `INTEGER` de SQLite (`fits_integer_column`), lo que el service traduce en `404`; los listados ordenan por `(created_at desc, id desc)` y cargan cliente, representante y productos con `selectinload`. `TicketService.list_tickets` rechaza al `Admin` (`403`) y elige el listado por `actor.role`. `ProductRepository.get_many(product_ids)` devuelve los productos hallados (activos o no) y el service compara cantidades.
+- `SqlAlchemyTicketRepository` implementa `TicketRepository`: `add` hace `flush()`; `get_visible_with_milestones` comparte con él la guarda y el filtro (`_ticket_statement(ticket_id, participant)`) y carga además `Ticket.milestones` y sus autores con `selectinload`; `get_visible` devuelve `None` si el ticket no existe, no es del actor o el id no entra en el `INTEGER` de SQLite (`fits_integer_column`), lo que el service traduce en `404`; `get` y `get_with_milestones` son las versiones sin filtro de participante, para el `Admin`, y `get_visible_with_history` y `get_with_history` cargan `Ticket.state_history` (en orden) y el usuario de cada cambio, sin N+1; `search(client_id, representative_id, state, q, ascending, window)` combina los filtros con AND, busca `q` como subcadena sin distinguir mayúsculas (`%` y `_` literales) en el nombre del cliente o en el primer hito, ordena por `(created_at, id)` (descendente salvo `ascending`), carga cliente, representante y productos con `selectinload` y delega en `fetch` (arreglo o `Page`). `TicketService.list_tickets(actor, state, client_id, representative_id, q, order, page, page_size)` valida el formato de todos los valores juntos (`400`), después rechaza los filtros que el rol no puede usar (`403`: `client_id` y `representative_id` para el `Client`, `representative_id` para el `Representative`) y después fija el alcance por rol (`_LISTING_RULES`): el `Admin` ve todo, el `Client` los suyos y el `Representative` los asignados. `TicketService.get_ticket`, `list_milestones` y `list_state_changes` buscan con `get`, `get_with_milestones` y `get_with_history` para el `Admin` y con las variantes `get_visible*` para los demás, y lanzan `TicketNotFoundError` si no hay ticket; solo las escrituras rechazan al `Admin` (`_reject_admin`, `403`). `list_state_changes` devuelve la lista completa de `StateChange` sin paginar (SPEC-TKT-47) y el controller la serializa con `state_change_json` (`state`, `user` como `author_json` y `timestamp`). `ProductRepository.get_many(product_ids)` devuelve los productos hallados (activos o no) y el service compara cantidades.
 - **Paginación y búsqueda (`00-platform`)**: `PageRequest` (`page`, `page_size`, propiedades `offset` y `limit`) y `Page[T]` (`items`, `page`, `page_size`, `total`) son dataclasses inmutables de la capa de dominio (`app/domain/paging.py`) que comparten services y repositories. En services, `app/services/listing.py` tiene `page_request(page, page_size)` (devuelve `None` si no llegó ningún parámetro y lanza `ValidationError` si alguno es inválido) y `search_text(q)` (devuelve `None` si `q` falta o es solo espacios). En repositories, `app/repositories/paging.py` tiene `fetch(session, statement, window)`, que devuelve la lista completa o un `Page` con el total. En controllers, `app/controllers/listing.py` tiene `listing_json(result, item_json)`, que serializa una lista como arreglo y un `Page` como objeto paginado.
 - No hay `MilestoneService`: los hitos forman parte del agregado `Ticket` y se gestionan desde `TicketService`.
 - **Productos (`03-products`)**: `Product.activate()` es el espejo de `deactivate()` (`is_active = True`); `ProductService.activate_product` lo llama sin error si el producto ya estaba activo (SPEC-PRD-23) y responde `404` si no existe (SPEC-PRD-24). `POST /products/{id}/activate` usa `admin_required` (SPEC-PRD-25). `list_products(category_id, product_type_id, q, is_active, page, page_size)` recibe todo como texto de la query, valida los ids, `is_active` (`bool_query_error`, `parse_bool_query`) y la paginación juntos (`400`), después comprueba que existan la categoría y el tipo (`404`) y llama a `ProductRepository.list_matching(category_id, product_type_id, is_active, q, window)`, que combina los filtros con AND y filtra `q` como subcadena literal de `name_key` (SPEC-PRD-26 a 29). `list_available_products(q, page, page_size)` fija `is_active=True` y no admite otros filtros (SPEC-PRD-30). En el controller, `_listing_args(*names)` toma de `request.args` solo los parámetros nombrados, así `GET /products/available` ignora el resto, y `listing_json` serializa la lista o el `Page`.

@@ -1,6 +1,7 @@
 from types import SimpleNamespace
 
 import pytest
+from flask import Flask
 from flask.testing import FlaskClient
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
@@ -88,17 +89,15 @@ def test_listing_a_foreign_ticket_answers_like_a_missing_one(
         assert response.get_json() == NOT_FOUND
 
 
-def test_the_admin_precedence_on_the_milestone_endpoints(
+def test_the_admin_cannot_post_milestones_and_the_format_comes_first(
     admin_client: FlaskClient, db_session: Session, world: SimpleNamespace
 ) -> None:
-    """SPEC-TKT-27 · TC-TKT-27h"""
+    """SPEC-TKT-32 · TC-TKT-32j"""
     before = counts(db_session)
     ticket_id = world.ticket.id
 
     missing_post = admin_client.post("/tickets/9999/milestones", json={"content": "Hola"})
     invalid_post = admin_client.post(f"/tickets/{ticket_id}/milestones", json={"content": ""})
-    missing_get = admin_client.get("/tickets/9999/milestones")
-    own_get = admin_client.get(f"/tickets/{ticket_id}/milestones")
 
     assert missing_post.status_code == 403
     assert missing_post.get_json() == {"error": "forbidden"}
@@ -107,6 +106,22 @@ def test_the_admin_precedence_on_the_milestone_endpoints(
         "error": "validation_error",
         "fields": {"content": "required"},
     }
-    assert missing_get.status_code == own_get.status_code == 403
-    assert missing_get.get_json() == own_get.get_json() == {"error": "forbidden"}
     assert counts(db_session) == before
+
+
+def test_the_admin_reads_the_milestones_like_a_participant(
+    app: Flask, admin_client: FlaskClient, login_as: LoginAs, world: SimpleNamespace
+) -> None:
+    """SPEC-MLS-12 · TC-MLS-12c"""
+    ticket_id = world.ticket.id
+    representative = app.test_client()
+    login_as(representative, world.raul)
+
+    own = admin_client.get(f"/tickets/{ticket_id}/milestones")
+    missing = admin_client.get("/tickets/9999/milestones")
+
+    assert own.status_code == 200
+    assert own.get_json() == representative.get(f"/tickets/{ticket_id}/milestones").get_json()
+    assert own.get_json()
+    assert missing.status_code == 404
+    assert missing.get_json() == NOT_FOUND

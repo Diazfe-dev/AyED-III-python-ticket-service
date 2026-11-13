@@ -6,6 +6,7 @@ from flask import request
 
 from app.domain.milestone import Milestone
 from app.domain.products import Category, Product, ProductType
+from app.domain.state_change import StateChange
 from app.domain.ticket import Ticket
 from app.domain.users import User
 from app.services.catalog_service import CategoryGroup
@@ -75,6 +76,14 @@ def milestone_json(milestone: Milestone) -> dict[str, Any]:
         "content": milestone.content,
         "author": author_json(milestone.author),
         "created_at": milestone.created_at.isoformat(),
+    }
+
+
+def state_change_json(change: StateChange) -> dict[str, Any]:
+    return {
+        "state": change.state_name,
+        "user": author_json(change.user),
+        "timestamp": change.timestamp.isoformat(),
     }
 
 

@@ -12,7 +12,7 @@ Convenciones del código actual:
 
 ## 1. Creación de ticket
 
-Specs: SPEC-TKT-01, 02, 03, 04, 05, 06, 08, 15, 23, 24, 27, 31 · SPEC-NTF-05, 15
+Specs: SPEC-TKT-01, 02, 03, 04, 05, 06, 08, 15, 23, 24, 31, 32 · SPEC-NTF-05, 15
 
 ```mermaid
 sequenceDiagram
@@ -31,11 +31,11 @@ sequenceDiagram
     Note over TS: formato de client_id, product_ids y first_message, todos juntos, antes del rol (decisión 19, G-01 de 05)
     alt algún campo es inválido
         TS-->>TC: raise ValidationError con todos los campos
-        TC-->>Rep: 400 validation_error, también para el Admin y el Client (SPEC-TKT-05, 23, 24, 27)
+        TC-->>Rep: 400 validation_error, también para el Admin y el Client (SPEC-TKT-05, 23, 24, 32)
     else formato válido
         alt actor no es Representative
             TS-->>TC: raise PermissionDeniedError
-            TC-->>Rep: 403 forbidden, antes de verificar cliente y productos (SPEC-TKT-05, 27)
+            TC-->>Rep: 403 forbidden, antes de verificar cliente y productos (SPEC-TKT-05, 32)
         else actor es Representative
             TS->>UR: get(client_id)
             UR-->>TS: User o None
@@ -65,7 +65,7 @@ sequenceDiagram
 
 ## 2. Cierre de ticket (patrón State)
 
-Specs: SPEC-TKT-10, 13, 14, 16, 19, 20, 27, 30 · SPEC-NTF-07, 13, 15
+Specs: SPEC-TKT-10, 13, 14, 16, 19, 20, 30, 32 · SPEC-NTF-07, 13, 15
 
 ```mermaid
 sequenceDiagram
@@ -82,7 +82,7 @@ sequenceDiagram
     TC->>TS: close_ticket(ticket_id, actor=current_user)
     alt actor es Admin
         TS-->>TC: raise PermissionDeniedError
-        TC-->>U: 403 forbidden (SPEC-TKT-27)
+        TC-->>U: 403 forbidden (SPEC-TKT-32)
     else actor es Client o Representative
         TS->>TR: get_visible(ticket_id, actor)
         TR-->>TS: ticket o None
@@ -112,7 +112,7 @@ sequenceDiagram
 
 ## 3. Reapertura de ticket
 
-Specs: SPEC-TKT-11, 12, 13, 14, 16, 19, 20, 27, 30 · SPEC-NTF-07, 10, 15
+Specs: SPEC-TKT-11, 12, 13, 14, 16, 19, 20, 30, 32 · SPEC-NTF-07, 10, 15
 
 ```mermaid
 sequenceDiagram
@@ -129,7 +129,7 @@ sequenceDiagram
     TC->>TS: reopen_ticket(ticket_id, actor=current_user)
     alt actor es Admin
         TS-->>TC: raise PermissionDeniedError
-        TC-->>U: 403 forbidden (SPEC-TKT-27)
+        TC-->>U: 403 forbidden (SPEC-TKT-32)
     else actor es Client o Representative
         TS->>TR: get_visible(ticket_id, actor)
         TR-->>TS: ticket o None
@@ -158,9 +158,9 @@ sequenceDiagram
     end
 ```
 
-## 4. Acceso y privacidad
+## 4. Acceso, filtros y privacidad
 
-Specs: SPEC-TKT-17, 18, 19, 20, 27, 28, 29, 30
+Specs: SPEC-TKT-17, 18, 19, 20, 28, 29, 30, 33, 34, 38, 39, 40, 41, 42, 43, 44, 45, 46, 48
 
 ```mermaid
 sequenceDiagram
@@ -171,44 +171,59 @@ sequenceDiagram
     participant TR as TicketRepository
 
     alt listado
-        U->>TC: GET /tickets
-        TC->>TS: list_tickets(actor=current_user)
-        alt actor es Admin
-            TS-->>TC: raise PermissionDeniedError
-            TC-->>U: 403 forbidden (SPEC-TKT-27)
-        else actor es Client
-            TS->>TR: list_by_client(actor.id) (SPEC-TKT-17)
-            TR-->>TS: tickets por created_at desc, id desc (SPEC-TKT-29)
-            TC-->>U: 200 OK
-        else actor es Representative
-            TS->>TR: list_by_representative(actor.id) (SPEC-TKT-18)
-            TR-->>TS: tickets por created_at desc, id desc (SPEC-TKT-29)
-            TC-->>U: 200 OK
+        U->>TC: GET /tickets (state, client_id, representative_id, q, order, page, page_size)
+        TC->>TS: list_tickets(actor=current_user, **parámetros como texto)
+        TS->>TS: formato de todos los valores juntos (state, ids, order, page, page_size)
+        alt algún valor tiene formato inválido
+            TS-->>TC: raise ValidationError con todos los campos
+            TC-->>U: 400 validation_error, antes que cualquier 403 (SPEC-TKT-43, 48)
+        else formato válido
+            alt el rol no puede usar un filtro enviado
+                Note over TS: Client: client_id y representative_id<br/>Representative: representative_id
+                TS-->>TC: raise PermissionDeniedError
+                TC-->>U: 403 forbidden, aunque sea su propio id (SPEC-TKT-46)
+            else filtros permitidos
+                Note over TS: el alcance por rol se suma a los filtros (AND), nunca los amplía (SPEC-TKT-44)
+                alt actor es Admin
+                    TS->>TR: search(filtros, sin alcance) (SPEC-TKT-33)
+                else actor es Client
+                    TS->>TR: search(filtros, client_id=actor.id) (SPEC-TKT-17)
+                else actor es Representative
+                    TS->>TR: search(filtros, representative_id=actor.id) (SPEC-TKT-18)
+                end
+                TR-->>TS: tickets por (created_at, id), desc salvo order=asc (SPEC-TKT-29, 42)
+                Note over TR: state (SPEC-TKT-38), client_id y representative_id (SPEC-TKT-39, 40) y q sobre nombre del cliente o primer hito (SPEC-TKT-41)<br/>un id que no entra en el INTEGER de SQLite devuelve vacío sin consultar
+                alt hay page o page_size
+                    TC-->>U: 200 OK con {items, page, page_size, total} (SPEC-TKT-45)
+                else sin paginación
+                    TC-->>U: 200 OK con el arreglo
+                end
+            end
         end
-    else detalle o cualquier operación sobre un ticket
+    else detalle de un ticket
         U->>TC: GET /tickets/{id}
         TC->>TS: get_ticket(ticket_id, actor=current_user)
         alt actor es Admin
-            TS-->>TC: raise PermissionDeniedError
-            TC-->>U: 403 forbidden (SPEC-TKT-27)
+            TS->>TR: get(ticket_id)
+            Note over TR: sin filtro de participante (SPEC-TKT-34)
         else actor es Client o Representative
             TS->>TR: get_visible(ticket_id, actor)
             Note over TR: WHERE id = :id AND (client_id = :actor<br/>OR representative_id = :actor)<br/>un id que no entra en el INTEGER de SQLite devuelve None sin consultar
-            alt no existe, está fuera de rango o no pertenece al actor
-                TR-->>TS: None
-                TS-->>TC: raise TicketNotFoundError
-                TC-->>U: 404 ticket_not_found, igual que si no existiera (SPEC-TKT-19, 20, 30)
-            else visible
-                TR-->>TS: ticket
-                TC-->>U: 200 OK con el detalle (SPEC-TKT-28)
-            end
+        end
+        alt no existe, está fuera de rango o (no Admin) no pertenece al actor
+            TR-->>TS: None
+            TS-->>TC: raise TicketNotFoundError
+            TC-->>U: 404 ticket_not_found, igual que si no existiera (SPEC-TKT-19, 20, 30)
+        else visible
+            TR-->>TS: ticket
+            TC-->>U: 200 OK con el detalle (SPEC-TKT-28, 34)
         end
     end
 ```
 
 ## 5. Asociar y quitar productos
 
-Specs: SPEC-TKT-07, 08, 19, 20, 21, 22, 24, 25, 26, 27, 30 · SPEC-NTF-17
+Specs: SPEC-TKT-07, 08, 19, 20, 21, 22, 24, 25, 26, 30, 32 · SPEC-NTF-17
 
 ```mermaid
 sequenceDiagram
@@ -229,7 +244,7 @@ sequenceDiagram
     end
     alt actor es Admin
         TS-->>TC: raise PermissionDeniedError
-        TC-->>Rep: 403 forbidden (SPEC-TKT-27)
+        TC-->>Rep: 403 forbidden (SPEC-TKT-32)
     else actor no es Admin
         TS->>TR: get_visible(ticket_id, actor)
         TR-->>TS: ticket o None
@@ -267,5 +282,37 @@ sequenceDiagram
                 end
             end
         end
+    end
+```
+
+## 6. Historial de cambios de estado
+
+Specs: SPEC-TKT-19, 20, 30, 35, 36, 37, 47
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor U as Cliente, Representante o Admin
+    participant TC as TicketController
+    participant TS as TicketService
+    participant TR as TicketRepository
+
+    U->>TC: GET /tickets/{id}/state-changes (page y page_size se ignoran)
+    TC->>TS: list_state_changes(ticket_id, actor=current_user)
+    alt actor es Admin
+        TS->>TR: get_with_history(ticket_id)
+    else actor es Client o Representative
+        TS->>TR: get_visible_with_history(ticket_id, actor)
+        Note over TR: mismo filtro de participante que el detalle
+    end
+    Note over TR: carga state_history por (timestamp, id) y el usuario de cada cambio, sin N+1<br/>un id que no entra en el INTEGER de SQLite devuelve None sin consultar
+    alt no existe, está fuera de rango o (no Admin) no pertenece al actor
+        TR-->>TS: None
+        TS-->>TC: raise TicketNotFoundError
+        TC-->>U: 404 ticket_not_found, igual que si no existiera (SPEC-TKT-37, 19, 20, 30)
+    else visible
+        TR-->>TS: ticket con state_history
+        TS-->>TC: list de StateChange, sin paginar (SPEC-TKT-47)
+        TC-->>U: 200 OK con el arreglo [{state, user: {id, name, role}, timestamp}] en orden cronológico (SPEC-TKT-35, 36)
     end
 ```

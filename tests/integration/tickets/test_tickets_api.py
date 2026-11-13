@@ -540,7 +540,7 @@ def test_reopening_a_closed_ticket_leaves_it_in_progress(
     ana: Client,
     raul: Representative,
 ) -> None:
-    """SPEC-TKT-11 · TC-TKT-11d"""
+    """SPEC-TKT-11 · TC-TKT-11d, TC-TKT-11e"""
     ticket = make_ticket(ana, raul)
     close_ticket(db_session, ticket, ana)
     login_as(client, {"ana": ana, "raul": raul}[who])
@@ -859,6 +859,350 @@ def test_there_is_no_way_to_delete_or_modify_tickets_or_their_history(app: Flask
 
     assert [name for name in public if name.startswith(forbidden_prefixes)] == []
     assert not {"DELETE", "PUT", "PATCH"} & ticket_rule.methods
-    assert [rule.rule for rule in rules if "state" in rule.rule] == []
+    state_rules = [rule for rule in rules if "state" in rule.rule]
+    assert [rule.rule for rule in state_rules] == ["/tickets/<int:ticket_id>/state-changes"]
+    assert state_rules[0].methods - {"HEAD", "OPTIONS"} == {"GET"}
     milestone_methods = {m for rule in rules if "milestone" in rule.rule for m in rule.methods}
     assert not {"DELETE", "PUT", "PATCH"} & milestone_methods
+
+
+@pytest.fixture
+def history_ticket(
+    db_session: Session, make_ticket: MakeTicket, ana: Client, raul: Representative
+) -> Ticket:
+    """A ticket of ana and raul that ana closed and raul reopened, one hour apart."""
+    ticket = make_ticket(ana, raul)
+    ticket.close(ana, DEFAULT_TICKET_TIME + timedelta(hours=1))
+    ticket.reopen(raul, DEFAULT_TICKET_TIME + timedelta(hours=2))
+    db_session.commit()
+    return ticket
+
+
+def expected_history(ana: Client, raul: Representative) -> list[tuple[str, int]]:
+    return [("New", raul.id), ("Closed", ana.id), ("InProgress", raul.id)]
+
+
+@pytest.mark.parametrize("who", ["ana", "raul"])
+def test_client_and_representative_read_the_state_history(
+    who: str,
+    client: FlaskClient,
+    login_as: LoginAs,
+    history_ticket: Ticket,
+    ana: Client,
+    raul: Representative,
+) -> None:
+    """SPEC-TKT-35 · TC-TKT-35d"""
+    login_as(client, {"ana": ana, "raul": raul}[who])
+
+    response = client.get(f"/tickets/{history_ticket.id}/state-changes")
+
+    assert response.status_code == 200
+    body = response.get_json()
+    assert [(c["state"], c["user"]["id"]) for c in body] == expected_history(ana, raul)
+
+
+def test_admin_reads_the_same_state_history(
+    client: FlaskClient,
+    admin_client: FlaskClient,
+    login_as: LoginAs,
+    history_ticket: Ticket,
+    ana: Client,
+    raul: Representative,
+) -> None:
+    """SPEC-TKT-35 · TC-TKT-35f"""
+    login_as(client, ana)
+    expected = client.get(f"/tickets/{history_ticket.id}/state-changes")
+
+    response = admin_client.get(f"/tickets/{history_ticket.id}/state-changes")
+
+    assert response.status_code == 200
+    assert response.get_json() == expected.get_json()
+    assert len(response.get_json()) == 3
+
+
+def test_a_state_change_exposes_state_user_and_timestamp(
+    client: FlaskClient,
+    login_as: LoginAs,
+    history_ticket: Ticket,
+    ana: Client,
+    raul: Representative,
+) -> None:
+    """SPEC-TKT-36 · TC-TKT-36a"""
+    login_as(client, ana)
+
+    body = client.get(f"/tickets/{history_ticket.id}/state-changes").get_json()
+
+    assert all(set(change) == {"state", "user", "timestamp"} for change in body)
+    assert all(set(change["user"]) == {"id", "name", "role"} for change in body)
+    assert body[1]["user"] == {"id": ana.id, "name": "Ana", "role": "Client"}
+    assert body[2]["user"] == {"id": raul.id, "name": "Raúl", "role": "Representative"}
+    expected = [DEFAULT_TICKET_TIME + timedelta(hours=h) for h in (0, 1, 2)]
+    for change, instant in zip(body, expected, strict=True):
+        assert change["timestamp"].endswith("+00:00")
+        assert datetime.fromisoformat(change["timestamp"]) == instant
+
+
+def test_the_state_change_schema_is_documented(client: FlaskClient) -> None:
+    """SPEC-TKT-36 · TC-TKT-36b"""
+    contract = client.get("/openapi.json").get_json()
+    schema = contract["components"]["schemas"]["StateChange"]
+    ok = contract["paths"]["/tickets/{ticket_id}/state-changes"]["get"]["responses"]["200"]
+
+    assert set(schema["properties"]) == {"state", "user", "timestamp"}
+    assert set(schema["required"]) == {"state", "user", "timestamp"}
+    assert schema["properties"]["state"]["enum"] == ["New", "InProgress", "Closed"]
+    assert schema["properties"]["user"] == {"$ref": "#/components/schemas/MilestoneAuthor"}
+    assert schema["properties"]["timestamp"]["format"] == "date-time"
+    assert ok["content"]["application/json"]["schema"] == {
+        "type": "array",
+        "items": {"$ref": "#/components/schemas/StateChange"},
+    }
+
+
+def test_the_state_history_is_not_paged(
+    client: FlaskClient, login_as: LoginAs, history_ticket: Ticket, ana: Client
+) -> None:
+    """SPEC-TKT-47 · TC-TKT-47a"""
+    login_as(client, ana)
+    base = f"/tickets/{history_ticket.id}/state-changes"
+
+    for query in ("?page=1&page_size=1", "?page=abc"):
+        response = client.get(base + query)
+
+        assert response.status_code == 200
+        assert len(response.get_json()) == 3
+
+
+@pytest.fixture
+def listing_data(
+    db_session: Session,
+    make_user: MakeUser,
+    make_ticket: MakeTicket,
+    ana: Client,
+    raul: Representative,
+    rosa: Representative,
+) -> dict[str, Ticket]:
+    """Four tickets, oldest first: t1 ana/raul, t2 beto/raul, t3 ana/rosa (closed), t4 beto/rosa."""
+    beto = make_user("Client", name="Beto")
+    start = datetime(2026, 1, 1, tzinfo=UTC)
+    t1 = make_ticket(ana, raul, first_message="El router no anda", now=start)
+    t2 = make_ticket(beto, raul, now=start + timedelta(hours=1))
+    t3 = make_ticket(ana, rosa, now=start + timedelta(hours=2))
+    t4 = make_ticket(beto, rosa, first_message="Cambiar router", now=start + timedelta(hours=3))
+    t3.close(ana, start + timedelta(hours=4))
+    db_session.commit()
+    return {"t1": t1, "t2": t2, "t3": t3, "t4": t4}
+
+
+def listed_ids(response: Any) -> list[int]:
+    assert response.status_code == 200
+    return [t["id"] for t in response.get_json()]
+
+
+def test_a_client_filters_its_tickets_by_state(
+    client: FlaskClient, login_as: LoginAs, ana: Client, listing_data: dict[str, Ticket]
+) -> None:
+    """SPEC-TKT-38 · TC-TKT-38c"""
+    login_as(client, ana)
+
+    assert listed_ids(client.get("/tickets?state=New")) == [listing_data["t1"].id]
+
+
+def test_a_representative_filters_by_client_and_an_unknown_id_gives_an_empty_list(
+    client: FlaskClient,
+    admin_client: FlaskClient,
+    login_as: LoginAs,
+    raul: Representative,
+    ana: Client,
+    listing_data: dict[str, Ticket],
+) -> None:
+    """SPEC-TKT-39 · TC-TKT-39d"""
+    login_as(client, raul)
+
+    assert listed_ids(client.get(f"/tickets?client_id={ana.id}")) == [listing_data["t1"].id]
+    assert listed_ids(admin_client.get("/tickets?client_id=99999999999999999999")) == []
+
+
+def test_admin_filters_by_representative_and_client(
+    admin_client: FlaskClient,
+    rosa: Representative,
+    ana: Client,
+    listing_data: dict[str, Ticket],
+) -> None:
+    """SPEC-TKT-40 · TC-TKT-40c"""
+    only_rosa = admin_client.get(f"/tickets?representative_id={rosa.id}")
+    both = admin_client.get(f"/tickets?representative_id={rosa.id}&client_id={ana.id}")
+
+    assert listed_ids(only_rosa) == [listing_data["t4"].id, listing_data["t3"].id]
+    assert listed_ids(both) == [listing_data["t3"].id]
+
+
+def test_search_never_widens_the_visibility_of_the_role(
+    client: FlaskClient, login_as: LoginAs, rosa: Representative, listing_data: dict[str, Ticket]
+) -> None:
+    """SPEC-TKT-41 · TC-TKT-41e"""
+    login_as(client, rosa)
+
+    assert listed_ids(client.get("/tickets?q=router")) == [listing_data["t4"].id]
+
+
+@pytest.mark.parametrize("query", ["q=", "q=%20"])
+def test_a_blank_search_behaves_as_if_it_was_not_sent(
+    query: str,
+    client: FlaskClient,
+    login_as: LoginAs,
+    ana: Client,
+    listing_data: dict[str, Ticket],
+) -> None:
+    """SPEC-TKT-41 · TC-TKT-41f"""
+    login_as(client, ana)
+
+    assert listed_ids(client.get(f"/tickets?{query}")) == [
+        listing_data["t3"].id,
+        listing_data["t1"].id,
+    ]
+
+
+def test_order_asc_lists_the_oldest_first(
+    client: FlaskClient, login_as: LoginAs, ana: Client, listing_data: dict[str, Ticket]
+) -> None:
+    """SPEC-TKT-42 · TC-TKT-42c"""
+    login_as(client, ana)
+
+    assert listed_ids(client.get("/tickets?order=asc")) == [
+        listing_data["t1"].id,
+        listing_data["t3"].id,
+    ]
+
+
+def test_invalid_listing_parameters_are_rejected_together(
+    admin_client: FlaskClient, listing_data: dict[str, Ticket]
+) -> None:
+    """SPEC-TKT-43 · TC-TKT-43b"""
+    cases = {
+        "state=closed": {"state": "invalid"},
+        "client_id=abc": {"client_id": "invalid"},
+        "order=up&representative_id=0": {"order": "invalid", "representative_id": "invalid"},
+    }
+
+    for query, fields in cases.items():
+        response = admin_client.get(f"/tickets?{query}")
+        assert response.status_code == 400
+        assert response.get_json() == {"error": "validation_error", "fields": fields}
+
+
+def test_the_state_parameter_documents_its_three_values(client: FlaskClient) -> None:
+    """SPEC-TKT-43 · TC-TKT-43c"""
+    contract = client.get("/openapi.json").get_json()
+    declared = contract["paths"]["/tickets"]["get"]["parameters"]
+    resolved = [contract["components"]["parameters"][p["$ref"].split("/")[-1]] for p in declared]
+    state = next(p for p in resolved if p["name"] == "state")
+
+    assert state["schema"] == {"type": "string", "enum": ["New", "InProgress", "Closed"]}
+
+
+def test_a_filter_cannot_reveal_tickets_of_other_representatives(
+    client: FlaskClient,
+    login_as: LoginAs,
+    raul: Representative,
+    ana: Client,
+    listing_data: dict[str, Ticket],
+) -> None:
+    """SPEC-TKT-44 · TC-TKT-44c"""
+    login_as(client, raul)
+
+    assert listed_ids(client.get(f"/tickets?client_id={ana.id}&state=InProgress")) == []
+
+
+def test_admin_pages_the_tickets(
+    admin_client: FlaskClient, listing_data: dict[str, Ticket]
+) -> None:
+    """SPEC-TKT-45 · TC-TKT-45b"""
+    t = listing_data
+    plain = admin_client.get("/tickets")
+    paged = admin_client.get("/tickets?page=1&page_size=2")
+    filtered = admin_client.get("/tickets?page_size=2&state=New")
+
+    assert isinstance(plain.get_json(), list)
+    assert [i["id"] for i in paged.get_json()["items"]] == [t["t4"].id, t["t3"].id]
+    assert {k: v for k, v in paged.get_json().items() if k != "items"} == {
+        "page": 1,
+        "page_size": 2,
+        "total": 4,
+    }
+    assert [i["id"] for i in filtered.get_json()["items"]] == [t["t4"].id, t["t2"].id]
+    assert filtered.get_json()["total"] == 3
+
+
+def test_the_total_counts_only_what_the_client_may_see(
+    client: FlaskClient, login_as: LoginAs, ana: Client, listing_data: dict[str, Ticket]
+) -> None:
+    """SPEC-TKT-45 · TC-TKT-45c"""
+    login_as(client, ana)
+
+    body = client.get("/tickets?page=1").get_json()
+
+    assert [i["id"] for i in body["items"]] == [listing_data["t3"].id, listing_data["t1"].id]
+    assert (body["page"], body["page_size"], body["total"]) == (1, 20, 2)
+
+
+def test_a_page_beyond_the_last_is_empty_with_the_real_total(
+    admin_client: FlaskClient, listing_data: dict[str, Ticket]
+) -> None:
+    """SPEC-TKT-45 · TC-TKT-45d"""
+    response = admin_client.get("/tickets?page=9&page_size=2")
+
+    assert response.status_code == 200
+    assert response.get_json()["items"] == []
+    assert response.get_json()["total"] == 4
+
+
+def test_invalid_paging_values_are_rejected(
+    client: FlaskClient, login_as: LoginAs, ana: Client
+) -> None:
+    """SPEC-TKT-45 · TC-TKT-45f"""
+    login_as(client, ana)
+
+    zero = client.get("/tickets?page=0")
+    huge = client.get("/tickets?page_size=101")
+
+    assert zero.status_code == huge.status_code == 400
+    assert zero.get_json()["fields"] == {"page": "invalid"}
+    assert huge.get_json()["fields"] == {"page_size": "invalid"}
+
+
+def test_filters_forbidden_to_the_role_are_rejected(
+    client: FlaskClient,
+    login_as: LoginAs,
+    ana: Client,
+    raul: Representative,
+    listing_data: dict[str, Ticket],
+) -> None:
+    """SPEC-TKT-46 · TC-TKT-46b"""
+    login_as(client, ana)
+    own_client = client.get(f"/tickets?client_id={ana.id}")
+    other_rep = client.get(f"/tickets?representative_id={raul.id}")
+    login_as(client, raul)
+    own_rep = client.get(f"/tickets?representative_id={raul.id}")
+
+    for response in (own_client, other_rep, own_rep):
+        assert response.status_code == 403
+        assert response.get_json() == {"error": "forbidden"}
+
+
+def test_the_format_check_comes_before_the_forbidden_filters(
+    client: FlaskClient,
+    login_as: LoginAs,
+    ana: Client,
+    raul: Representative,
+    listing_data: dict[str, Ticket],
+) -> None:
+    """SPEC-TKT-48 · TC-TKT-48b"""
+    login_as(client, raul)
+    by_state = client.get(f"/tickets?state=foo&representative_id={raul.id}")
+    login_as(client, ana)
+    by_order = client.get(f"/tickets?order=x&client_id={ana.id}")
+
+    for response in (by_state, by_order):
+        assert response.status_code == 400
+        assert response.get_json()["error"] == "validation_error"

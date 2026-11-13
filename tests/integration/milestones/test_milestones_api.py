@@ -301,6 +301,21 @@ def test_both_participants_list_the_milestones_in_order(
         assert [m["content"] for m in response.get_json()] == ["Hola", "Uno", "Dos"]
 
 
+@pytest.mark.parametrize("query", ["?page=1&page_size=1", "?page=abc&page_size=0"])
+def test_listing_milestones_ignores_the_paging_parameters(
+    query: str, client: FlaskClient, login_as: LoginAs, world: SimpleNamespace
+) -> None:
+    """SPEC-MLS-13 · TC-MLS-13a"""
+    login_as(client, world.ana)
+    client.post(milestones_url(world), json={"content": "Uno"})
+    client.post(milestones_url(world), json={"content": "Dos"})
+
+    response = client.get(milestones_url(world) + query)
+
+    assert response.status_code == 200
+    assert [m["content"] for m in response.get_json()] == ["Hola", "Uno", "Dos"]
+
+
 def test_a_closed_ticket_still_lists_its_milestones(
     client: FlaskClient, login_as: LoginAs, world: SimpleNamespace
 ) -> None:

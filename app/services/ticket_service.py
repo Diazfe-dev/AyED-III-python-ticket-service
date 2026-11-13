@@ -10,15 +10,21 @@ from app.domain.errors import (
     PermissionDeniedError,
     ProductNotInTicketError,
     TicketNotFoundError,
+    ValidationError,
 )
 from app.domain.milestone import Milestone
+from app.domain.paging import Page, PageRequest
 from app.domain.products import Product
+from app.domain.state_change import StateChange
+from app.domain.states import STATES
 from app.domain.ticket import Ticket
 from app.domain.users import Admin, Client, Representative, User
 from app.services import notification_messages
+from app.services.listing import page_request, search_text
 from app.services.product_service import ProductRepository
 from app.services.user_service import UserRepository
 from app.services.validation import (
+    INVALID,
     flag_error,
     id_error,
     id_list_error,
@@ -35,9 +41,53 @@ class TicketRepository(Protocol):
 
     def get_visible_with_milestones(self, ticket_id: int, actor: User) -> Ticket | None: ...
 
-    def list_by_client(self, client_id: int) -> list[Ticket]: ...
+    def get_visible_with_history(self, ticket_id: int, actor: User) -> Ticket | None: ...
 
-    def list_by_representative(self, representative_id: int) -> list[Ticket]: ...
+    def get(self, ticket_id: int) -> Ticket | None: ...
+
+    def get_with_history(self, ticket_id: int) -> Ticket | None: ...
+
+    def get_with_milestones(self, ticket_id: int) -> Ticket | None: ...
+
+    def search(
+        self,
+        *,
+        client_id: int | None = None,
+        representative_id: int | None = None,
+        state: str | None = None,
+        q: str | None = None,
+        ascending: bool = False,
+        window: PageRequest | None = None,
+    ) -> list[Ticket] | Page[Ticket]: ...
+
+
+def _checked_listing(
+    state: str | None,
+    ids: dict[str, str | None],
+    order: str | None,
+    page: str | None,
+    page_size: str | None,
+) -> PageRequest | None:
+    """The window asked for; raise one `ValidationError` with every malformed value."""
+    errors = {
+        "state": None if state is None or state in STATES else INVALID,
+        **{name: None if value is None else id_error(value) for name, value in ids.items()},
+        "order": None if order in (None, "asc", "desc") else INVALID,
+    }
+    try:
+        window = page_request(page, page_size)
+    except ValidationError as error:
+        errors |= error.fields
+        window = None
+    raise_if_invalid(errors)
+    return window
+
+
+_LISTING_RULES: dict[str, tuple[tuple[str, ...], Callable[[User], dict[str, int]]]] = {
+    "Admin": ((), lambda actor: {}),
+    "Client": (("client_id", "representative_id"), lambda actor: {"client_id": actor.id}),
+    "Representative": (("representative_id",), lambda actor: {"representative_id": actor.id}),
+}
 
 
 class TicketNotifier(Protocol):
@@ -82,22 +132,63 @@ class TicketService:
         self._notifier.notify(client, actor, ticket, notification_messages.ticket_created(ticket))
         return ticket
 
-    def list_tickets(self, actor: User) -> list[Ticket]:
-        """The actor's tickets, newest first: the client's own or the ones assigned to them."""
-        self._reject_admin(actor)
-        listing = {
-            "Client": self._tickets.list_by_client,
-            "Representative": self._tickets.list_by_representative,
-        }[actor.role]
-        return listing(actor.id)
+    def list_tickets(
+        self,
+        actor: User,
+        state: str | None = None,
+        client_id: str | None = None,
+        representative_id: str | None = None,
+        q: str | None = None,
+        order: str | None = None,
+        page: str | None = None,
+        page_size: str | None = None,
+    ) -> list[Ticket] | Page[Ticket]:
+        """The tickets the actor may see, filtered; the query values come as text and are checked.
+
+        Order of checks: format of every value (400), filters the role may not use (403), then the
+        query, scoped by role (an admin sees all, a client its own, a representative its assigned).
+        """
+        filters = {"client_id": client_id, "representative_id": representative_id}
+        window = _checked_listing(state, filters, order, page, page_size)
+        forbidden, scope = _LISTING_RULES[actor.role]
+        if any(filters[name] is not None for name in forbidden):
+            raise PermissionDeniedError()
+        chosen = {name: None if value is None else int(value) for name, value in filters.items()}
+        return self._tickets.search(
+            **chosen | scope(actor),
+            state=state,
+            q=search_text(q),
+            ascending=order == "asc",
+            window=window,
+        )
 
     def get_ticket(self, ticket_id: int, actor: User) -> Ticket:
-        """The ticket, if the actor is its client or its assigned representative."""
-        self._reject_admin(actor)
-        return self._visible_ticket(ticket_id, actor)
+        """The ticket: any for the admin, else only if the actor is its client or representative."""
+        lookup = {
+            "Admin": lambda: self._tickets.get(ticket_id),
+            "Client": lambda: self._tickets.get_visible(ticket_id, actor),
+            "Representative": lambda: self._tickets.get_visible(ticket_id, actor),
+        }[actor.role]
+        ticket = lookup()
+        if ticket is None:
+            raise TicketNotFoundError()
+        return ticket
+
+    def list_state_changes(self, ticket_id: int, actor: User) -> list[StateChange]:
+        """The state history of a ticket the actor may see (same rule as `get_ticket`)."""
+        lookup = {
+            "Admin": lambda: self._tickets.get_with_history(ticket_id),
+            "Client": lambda: self._tickets.get_visible_with_history(ticket_id, actor),
+            "Representative": lambda: self._tickets.get_visible_with_history(ticket_id, actor),
+        }[actor.role]
+        ticket = lookup()
+        if ticket is None:
+            raise TicketNotFoundError()
+        return list(ticket.state_history)
 
     def close_ticket(self, ticket_id: int, actor: User) -> Ticket:
         """Close the ticket on behalf of its client or its assigned representative."""
+        self._reject_admin(actor)
         ticket = self.get_ticket(ticket_id, actor)
         ticket.close(actor, self._clock())
         self._commit()
@@ -106,6 +197,7 @@ class TicketService:
 
     def reopen_ticket(self, ticket_id: int, actor: User) -> Ticket:
         """Reopen a closed ticket; the representative that handled it stays assigned."""
+        self._reject_admin(actor)
         ticket = self.get_ticket(ticket_id, actor)
         ticket.reopen(actor, self._clock())
         self._commit()
@@ -144,8 +236,12 @@ class TicketService:
 
     def list_milestones(self, ticket_id: int, actor: User) -> list[Milestone]:
         """The ticket's milestones in chronological order, whatever its state."""
-        self._reject_admin(actor)
-        ticket = self._tickets.get_visible_with_milestones(ticket_id, actor)
+        lookup = {
+            "Admin": lambda: self._tickets.get_with_milestones(ticket_id),
+            "Client": lambda: self._tickets.get_visible_with_milestones(ticket_id, actor),
+            "Representative": lambda: self._tickets.get_visible_with_milestones(ticket_id, actor),
+        }[actor.role]
+        ticket = lookup()
         if ticket is None:
             raise TicketNotFoundError()
         return list(ticket.milestones)
