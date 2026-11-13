@@ -107,7 +107,10 @@ def list_products() -> ResponseReturnValue:
 @bp.get("/products/available")
 @login_required
 def list_available_products() -> ResponseReturnValue:
-    return [product_json(product) for product in get_product_service().list_available_products()]
+    products = get_product_service().list_available_products(
+        **_listing_args("q", "page", "page_size")
+    )
+    return listing_json(products, product_json)
 
 
 def _listing_args(*names: str) -> dict[str, str | None]:

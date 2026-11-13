@@ -627,3 +627,86 @@ def test_listing_products_with_a_malformed_page_is_rejected(admin_client: FlaskC
 
     assert response.status_code == 400
     assert response.get_json() == {"error": "validation_error", "fields": {"page": "invalid"}}
+
+
+def test_available_products_are_searched_by_text(
+    client: FlaskClient, login_as: LoginAs, make_user: MakeUser, searchable: dict[str, Any]
+) -> None:
+    """SPEC-PRD-26 · TC-PRD-26f"""
+    rep = logged_in_as("Representative", client, make_user, login_as)
+
+    response = rep.get("/products/available?q=xps")
+
+    assert response.status_code == 200
+    assert listed_names(response) == ["xps 13", "XPS 15"]
+
+
+def test_available_products_with_a_blank_search_text_are_all_listed(
+    client: FlaskClient, login_as: LoginAs, make_user: MakeUser, searchable: dict[str, Any]
+) -> None:
+    """SPEC-PRD-26 · TC-PRD-26g"""
+    rep = logged_in_as("Representative", client, make_user, login_as)
+
+    response = rep.get("/products/available?q=%20%20")
+
+    assert response.status_code == 200
+    assert response.get_json() == rep.get("/products/available").get_json()
+    assert len(response.get_json()) == 5
+
+
+def test_available_products_are_paged(
+    client: FlaskClient, login_as: LoginAs, make_user: MakeUser, searchable: dict[str, Any]
+) -> None:
+    """SPEC-PRD-29 · TC-PRD-29g"""
+    rep = logged_in_as("Representative", client, make_user, login_as)
+
+    toner = next(
+        product
+        for product in searchable["products"][0].product_type.products
+        if product.name == "50% Toner"
+    )
+
+    response = rep.get("/products/available?page=1&page_size=1")
+
+    assert response.status_code == 200
+    assert response.get_json() == {
+        "items": [expected_json(toner)],
+        "page": 1,
+        "page_size": 1,
+        "total": 5,
+    }
+
+
+def test_listing_available_products_with_a_malformed_page_size_is_rejected(
+    admin_client: FlaskClient,
+) -> None:
+    """SPEC-PRD-29 · TC-PRD-29h"""
+    response = admin_client.get("/products/available?page_size=0")
+
+    assert response.status_code == 400
+    assert response.get_json() == {"error": "validation_error", "fields": {"page_size": "invalid"}}
+
+
+def test_available_products_ignore_every_other_parameter(
+    admin_client: FlaskClient, searchable: dict[str, Any]
+) -> None:
+    """SPEC-PRD-30 · TC-PRD-30a"""
+    plain = admin_client.get("/products/available")
+
+    response = admin_client.get(
+        "/products/available?is_active=false&category_id=abc&product_type_id=0&foo=1"
+    )
+
+    assert response.status_code == 200
+    assert response.get_json() == plain.get_json()
+    assert len(response.get_json()) == 5
+
+
+def test_available_products_apply_the_search_and_ignore_the_category(
+    admin_client: FlaskClient, searchable: dict[str, Any]
+) -> None:
+    """SPEC-PRD-30 · TC-PRD-30b"""
+    response = admin_client.get(f"/products/available?q=xps&category_id={searchable['office'].id}")
+
+    assert response.status_code == 200
+    assert listed_names(response) == ["xps 13", "XPS 15"]
