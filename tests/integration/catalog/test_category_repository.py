@@ -69,6 +69,18 @@ def test_list_all_orders_categories_by_name_ignoring_case(db_session: Session) -
     assert [category.name for category in repository.list_all()] == ["Audio", "hardware", "redes"]
 
 
+def test_list_all_with_q_matches_by_contained_text_ignoring_case(db_session: Session) -> None:
+    """SPEC-PTY-21 · TC-PTY-21b"""
+    repository = SqlAlchemyCategoryRepository(db_session)
+    for name in ["Redes", "Electrónica", "50% off"]:
+        repository.add(Category(name=name))
+    db_session.commit()
+
+    assert [c.name for c in repository.list_all(q="ÓNICA")] == ["Electrónica"]
+    assert [c.name for c in repository.list_all(q="e")] == ["Electrónica", "Redes"]
+    assert [c.name for c in repository.list_all(q="%")] == ["50% off"]
+
+
 def new_session(app: Flask) -> Session:
     return app.extensions[EXTENSION_KEY]["session_factory"]()
 

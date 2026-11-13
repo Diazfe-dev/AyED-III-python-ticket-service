@@ -35,9 +35,15 @@ class SqlAlchemyCategoryRepository:
         statement = select(Category).where(Category.name_key == normalize_name(name))
         return self._session.scalars(statement).one_or_none()
 
-    def list_all(self) -> list[Category]:
-        """Every category, ordered by name without case."""
-        return list(self._session.scalars(select(Category).order_by(*BY_NAME)))
+    def list_all(self, q: str | None = None) -> list[Category]:
+        """Every category ordered by name without case; with `q`, only names containing it.
+
+        The match ignores case and `%` and `_` in `q` are literal.
+        """
+        statement = select(Category)
+        if q is not None:
+            statement = statement.where(Category.name_key.contains(q.casefold(), autoescape=True))
+        return list(self._session.scalars(statement.order_by(*BY_NAME)))
 
     def list_with_product_types(self) -> list[Category]:
         """Every category, empty ones included, with its product types loaded in one query."""
