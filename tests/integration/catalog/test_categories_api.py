@@ -165,3 +165,64 @@ def test_delete_category_with_types_is_a_conflict_with_the_reason(
     db_session.expire_all()
     assert db_session.get(Category, category.id) is not None
     assert db_session.get(ProductType, product_type.id) is not None
+
+
+@pytest.fixture
+def reference_categories(make_category: MakeCategory) -> dict[str, int]:
+    names = ["Redes", "audio", "Electrónica", "50% off"]
+    return {name: make_category(name).id for name in names}
+
+
+def test_listing_categories_filters_by_q(
+    client: FlaskClient,
+    make_user: MakeUser,
+    login_as: LoginAs,
+    reference_categories: dict[str, int],
+) -> None:
+    """SPEC-PTY-21 · TC-PTY-21c"""
+    login_as(client, make_user(role="Client"))
+
+    response = client.get("/categories?q=re")
+
+    assert response.status_code == 200
+    assert response.get_json() == [{"id": reference_categories["Redes"], "name": "Redes"}]
+
+
+@pytest.mark.parametrize("query", ["q=", "q=%20"])
+def test_listing_categories_with_empty_q_returns_every_category(
+    client: FlaskClient,
+    make_user: MakeUser,
+    login_as: LoginAs,
+    reference_categories: dict[str, int],
+    query: str,
+) -> None:
+    """SPEC-PTY-21 · TC-PTY-21d"""
+    login_as(client, make_user(role="Client"))
+
+    response = client.get(f"/categories?{query}")
+
+    assert response.status_code == 200
+    assert response.get_json() == client.get("/categories").get_json()
+    assert len(response.get_json()) == len(reference_categories)
+
+
+@pytest.mark.parametrize("query", ["page=0&page_size=abc", "page=1&page_size=1"])
+def test_listing_categories_ignores_page_and_page_size(
+    client: FlaskClient,
+    make_user: MakeUser,
+    login_as: LoginAs,
+    reference_categories: dict[str, int],
+    query: str,
+) -> None:
+    """SPEC-PTY-24 · TC-PTY-24a"""
+    login_as(client, make_user(role="Client"))
+
+    response = client.get(f"/categories?{query}")
+
+    assert response.status_code == 200
+    assert [item["name"] for item in response.get_json()] == [
+        "50% off",
+        "audio",
+        "Electrónica",
+        "Redes",
+    ]
