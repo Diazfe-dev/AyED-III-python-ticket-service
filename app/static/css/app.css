@@ -1,61 +1,76 @@
+/* Fonts: self-hosted (SPEC-UI-06). Roboto variable (latin) and a Material Symbols subset. */
+@font-face {
+  font-family: "Roboto";
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: swap;
+  src: url("../fonts/roboto-latin.woff2") format("woff2");
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308,
+    U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+@font-face {
+  font-family: "Material Symbols Outlined";
+  font-style: normal;
+  font-weight: 400;
+  font-display: block;
+  src: url("../fonts/material-symbols-subset.woff2") format("woff2");
+}
+
+:root {
+  color-scheme: light;
+
+  --primary: #1976d2;
+  --primary-dark: #1565c0;
+  --primary-tint: rgba(25, 118, 210, 0.08);
+  --primary-hover: rgba(25, 118, 210, 0.04);
+  --primary-outline: rgba(25, 118, 210, 0.5);
+  --text: #212121;
+  --text-secondary: #616161;
+  --icon: #757575;
+  --canvas: #f5f5f5;
+  --paper: #ffffff;
+  --divider: #e0e0e0;
+  --field-border: #8c8c8c;
+  --hover: rgba(0, 0, 0, 0.04);
+  --error: #d32f2f;
+  --error-bg: #fdeded;
+  --error-text: #5f2120;
+  --success-bg: #edf7ed;
+  --success-text: #1e4620;
+  --chip-bg: #e3f2fd;
+  --chip-text: #0d47a1;
+  --disabled-text: #5f5f5f;
+  --disabled-fill: #e0e0e0;
+
+  --radius: 4px;
+  --drawer-width: 240px;
+  --elevation-1: 0 2px 1px -1px rgba(0, 0, 0, 0.2), 0 1px 1px 0 rgba(0, 0, 0, 0.14), 0 1px 3px 0 rgba(0, 0, 0, 0.12);
+  --elevation-2: 0 3px 1px -2px rgba(0, 0, 0, 0.2), 0 2px 2px 0 rgba(0, 0, 0, 0.14), 0 1px 5px 0 rgba(0, 0, 0, 0.12);
+  --elevation-4: 0 2px 4px -1px rgba(0, 0, 0, 0.2), 0 4px 5px 0 rgba(0, 0, 0, 0.14), 0 1px 10px 0 rgba(0, 0, 0, 0.12);
+  --elevation-24: 0 11px 15px -7px rgba(0, 0, 0, 0.2), 0 24px 38px 3px rgba(0, 0, 0, 0.14),
+    0 9px 46px 8px rgba(0, 0, 0, 0.12);
+  --ease: cubic-bezier(0.4, 0, 0.2, 1);
+}
+
 *,
 *::before,
 *::after {
   box-sizing: border-box;
 }
 
-:root {
-  color-scheme: light;
-}
-
 body {
   margin: 0;
-  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  font-family: "Roboto", system-ui, -apple-system, "Segoe UI", sans-serif;
+  font-size: 1rem;
   line-height: 1.5;
-  color: #1f2933;
-  background: #f5f7fa;
+  color: var(--text);
+  background: var(--canvas);
+  -webkit-font-smoothing: antialiased;
 }
 
-main,
-.shell,
-.message {
-  max-width: 64rem;
-  margin: 0 auto;
-  padding: 1rem;
-}
-
-.shell {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 1rem;
-  align-items: center;
-  border-bottom: 1px solid #cbd2d9;
-}
-
-.brand {
-  font-weight: 700;
-}
-
-.message:empty {
-  display: none;
-}
-
-.message-error {
-  color: #8a1c1c;
-  font-weight: 600;
-}
-
-.message-status {
-  color: #14532d;
-}
-
-.loading,
-.empty {
-  color: #3e4c59;
-}
-
-.table-scroll {
-  overflow-x: auto;
+::selection {
+  background: rgba(25, 118, 210, 0.2);
 }
 
 button,
@@ -65,45 +80,871 @@ textarea {
   font: inherit;
 }
 
-h1[tabindex="-1"]:focus {
-  outline: none;
+/* ---------- Shell: permanent drawer (signed in) ---------- */
+
+body:has(#shell nav) {
+  display: grid;
+  grid-template-columns: var(--drawer-width) minmax(0, 1fr);
+  grid-template-rows: auto auto 1fr;
+  grid-template-areas:
+    "drawer alert"
+    "drawer status"
+    "drawer main";
+  min-height: 100vh;
 }
 
-:focus-visible {
-  outline: 3px solid #1d4ed8;
-  outline-offset: 2px;
+.shell {
+  grid-area: drawer;
+  display: flex;
+  flex-direction: column;
+  background: var(--paper);
 }
 
-button:disabled,
-input:disabled,
-select:disabled,
-textarea:disabled {
-  color: #4b5563;
-  background: #e5e7eb;
-  cursor: not-allowed;
+body:has(#shell nav) .shell {
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  overflow-y: auto;
+  border-right: 1px solid var(--divider);
 }
 
-a[aria-disabled="true"] {
-  color: #4b5563;
-  cursor: not-allowed;
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 64px;
+  padding: 0 20px;
+  font-size: 1.25rem;
+  font-weight: 500;
+  letter-spacing: 0.0075em;
+  border-bottom: 1px solid var(--divider);
+}
+
+.brand::before,
+nav a::before,
+nav button::before {
+  font-family: "Material Symbols Outlined";
+  font-size: 24px;
+  font-weight: 400;
+  line-height: 1;
+  letter-spacing: normal;
+  text-transform: none;
+  -webkit-font-feature-settings: "liga";
+  font-feature-settings: "liga";
+}
+
+.brand::before {
+  content: "support_agent" / "";
+  color: var(--primary);
 }
 
 nav {
   display: flex;
+  flex-direction: column;
+  flex: 1;
+  gap: 4px;
+  padding: 8px;
+}
+
+nav a,
+nav button {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 20px;
+  width: 100%;
+  min-height: 48px;
+  padding: 8px 16px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text);
+  font-size: 0.875rem;
+  font-weight: 500;
+  letter-spacing: 0.01071em;
+  text-align: left;
+  text-decoration: none;
+  text-transform: none;
+  box-shadow: none;
+  cursor: pointer;
+  transition: background-color 150ms var(--ease);
+}
+
+nav a::before,
+nav button::before {
+  color: var(--icon);
+}
+
+nav a:hover,
+nav button:hover {
+  background: var(--hover);
+}
+
+nav a[aria-current="page"] {
+  background: var(--primary-tint);
+  color: var(--primary-dark);
+}
+
+nav a[aria-current="page"]::before {
+  color: var(--primary);
+}
+
+nav a[href="#/users"]::before {
+  content: "group" / "";
+}
+
+nav a[href="#/categories"]::before {
+  content: "category" / "";
+}
+
+nav a[href="#/product-types"]::before {
+  content: "label" / "";
+}
+
+nav a[href="#/products"]::before {
+  content: "inventory_2" / "";
+}
+
+nav a[href="#/tickets"]::before {
+  content: "confirmation_number" / "";
+}
+
+nav a[href="#/tickets/new"]::before {
+  content: "add_circle" / "";
+}
+
+nav a[href="#/account"]::before {
+  content: "account_circle" / "";
+}
+
+nav button {
+  margin-top: auto;
+}
+
+nav button::before {
+  content: "logout" / "";
+}
+
+.user-name {
+  padding: 16px 20px;
+  border-top: 1px solid var(--divider);
+  color: var(--text-secondary);
+  font-size: 0.875rem;
+}
+
+/* ---------- Shell: app bar (signed out, boot) ---------- */
+
+body:not(:has(#shell nav)) .shell {
+  background: var(--primary);
+  color: #ffffff;
+  box-shadow: var(--elevation-4);
+}
+
+body:not(:has(#shell nav)) .brand {
+  border-bottom: 0;
+}
+
+body:not(:has(#shell nav)) .brand::before {
+  color: #ffffff;
+}
+
+body:not(:has(#shell nav)) main {
+  max-width: 420px;
+  margin: 48px auto;
+}
+
+body:not(:has(#shell nav)) main button[type="submit"] {
+  width: 100%;
+}
+
+/* ---------- Content area ---------- */
+
+main {
+  grid-area: main;
+  width: 100%;
+  min-width: 0;
+  padding: 24px 32px 48px;
+}
+
+h1 {
+  margin: 0 0 24px;
+  font-size: 1.75rem;
+  font-weight: 400;
+  line-height: 1.235;
+  letter-spacing: 0.00735em;
+}
+
+h1[tabindex="-1"]:focus {
+  outline: none;
+}
+
+h2 {
+  margin: 0 0 16px;
+  font-size: 1.25rem;
+  font-weight: 500;
+  line-height: 1.6;
+  letter-spacing: 0.0075em;
+}
+
+/* Paper: every block of a screen sits on its own surface. */
+main > :not(h1):not(:empty),
+main section {
+  margin: 0 0 24px;
+  padding: 16px 24px;
+  background: var(--paper);
+  border-radius: var(--radius);
+  box-shadow: var(--elevation-1);
+}
+
+main > div:has(> section) {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 320px), 1fr));
+  gap: 24px;
+  align-items: start;
+  padding: 0;
+  background: none;
+  box-shadow: none;
+}
+
+main > div:has(> section) section {
+  margin: 0;
+}
+
+/* Page header: title on the left, primary action on the right. */
+main > .page-header:not(:empty) {
+  display: flex;
   flex-wrap: wrap;
-  gap: 0.5rem 1rem;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin: 0 0 24px;
+  padding: 0;
+  background: none;
+  box-shadow: none;
+}
+
+.page-header h1 {
+  margin: 0;
+}
+
+/* One surface per listing: toolbar, table and footer, at the full width of the content. */
+main > .surface:not(:empty) {
+  padding: 0;
+  overflow: hidden;
+}
+
+.toolbar {
+  padding: 16px 24px;
+  border-bottom: 1px solid var(--divider);
+}
+
+main p {
+  margin: 0 0 8px;
+}
+
+/* ---------- Alerts ---------- */
+
+.message {
+  margin: 0;
+  padding: 0;
+}
+
+#alert {
+  grid-area: alert;
+}
+
+#status {
+  grid-area: status;
+}
+
+.message:empty {
+  display: none;
+}
+
+.message:not(:empty),
+.message-error:not(:empty) {
+  display: block;
+  padding: 6px 16px;
+  border-radius: var(--radius);
+  font-size: 0.875rem;
+  line-height: 1.43;
+  letter-spacing: 0.01071em;
+}
+
+#alert:not(:empty),
+#status:not(:empty) {
+  margin: 24px 32px 0;
+  padding: 14px 16px;
+}
+
+.message-error:not(:empty) {
+  background: var(--error-bg);
+  color: var(--error-text);
+  font-weight: 500;
+}
+
+.message-status:not(:empty) {
+  background: var(--success-bg);
+  color: var(--success-text);
+}
+
+form .message-error:not(:empty) {
+  flex-basis: 100%;
+}
+
+.field-mark {
+  margin: 4px 14px 0;
+  color: var(--error);
+  font-size: 0.75rem;
+  line-height: 1.66;
+}
+
+.field-mark:empty {
+  margin: 0;
+}
+
+/* ---------- Forms ---------- */
+
+main form {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 16px;
 }
 
 .field {
-  margin: 0 0 0.75rem;
+  flex: 1 1 200px;
+  min-width: 0;
+  margin: 0;
 }
 
-.field label {
+.field label,
+form[role="search"] > label,
+fieldset > label {
   display: block;
+  margin-bottom: 6px;
+  color: var(--text-secondary);
+  font-size: 0.875rem;
 }
 
-.field input:not([type="checkbox"]),
-.field select,
-.field textarea {
+form[role="search"] > label {
+  flex-basis: 100%;
+  margin-bottom: -10px;
+}
+
+input:not([type="checkbox"]):not([type="radio"]),
+select,
+textarea {
+  width: 100%;
   max-width: 100%;
+  min-height: 44px;
+  padding: 10px 14px;
+  border: 1px solid var(--field-border);
+  border-radius: var(--radius);
+  background: var(--paper);
+  color: var(--text);
+  transition: border-color 150ms var(--ease);
+}
+
+form[role="search"] > input {
+  flex: 1 1 220px;
+  width: auto;
+}
+
+input:not([type="checkbox"]):not([type="radio"]):hover,
+select:hover,
+textarea:hover {
+  border-color: var(--text);
+}
+
+input:not([type="checkbox"]):not([type="radio"]):focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+  outline: none;
+  border-color: var(--primary);
+  box-shadow: inset 0 0 0 1px var(--primary);
+}
+
+[aria-invalid="true"] {
+  border-color: var(--error) !important;
+}
+
+input[type="checkbox"],
+input[type="radio"] {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--primary);
+}
+
+textarea {
+  resize: vertical;
+}
+
+fieldset {
+  flex-basis: 100%;
+  min-width: 0;
+  margin: 0;
+  padding: 8px 16px 16px;
+  border: 1px solid var(--divider);
+  border-radius: var(--radius);
+}
+
+legend {
+  padding: 0 4px;
+  color: var(--text-secondary);
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+
+.filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 16px;
+}
+
+.filters .field {
+  flex: 0 1 220px;
+}
+
+.filters form[role="search"] {
+  flex: 1 1 320px;
+  flex-wrap: nowrap;
+}
+
+/* ---------- Buttons ---------- */
+
+button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 40px;
+  padding: 5px 15px;
+  border: 1px solid var(--primary-outline);
+  border-radius: var(--radius);
+  background: transparent;
+  color: var(--primary-dark);
+  font-size: 0.875rem;
+  font-weight: 500;
+  line-height: 1.75;
+  letter-spacing: 0.02857em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: background-color 250ms var(--ease), box-shadow 250ms var(--ease), border-color 250ms var(--ease);
+}
+
+button:hover {
+  border-color: var(--primary);
+  background: var(--primary-hover);
+}
+
+button[type="submit"],
+.primary-action,
+.dialog-actions button:first-child {
+  padding: 6px 16px;
+  border: 0;
+  background: var(--primary);
+  color: #ffffff;
+  box-shadow: var(--elevation-2);
+}
+
+button[type="submit"]:hover,
+.primary-action:hover,
+.dialog-actions button:first-child:hover {
+  background: var(--primary-dark);
+  box-shadow: var(--elevation-4);
+}
+
+.row-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.row-actions button,
+.table-footer button {
+  min-height: 32px;
+  padding: 4px 8px;
+  border-color: transparent;
+  font-size: 0.8125rem;
+}
+
+.row-actions button:hover,
+.table-footer button:hover,
+.text-button:hover {
+  border-color: transparent;
+}
+
+.text-button {
+  border-color: transparent;
+}
+
+.ticket-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+/* ---------- Tables ---------- */
+
+.table-scroll {
+  overflow-x: auto;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.875rem;
+  line-height: 1.43;
+  letter-spacing: 0.01071em;
+  font-variant-numeric: tabular-nums;
+}
+
+th,
+td {
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--divider);
+  text-align: left;
+  vertical-align: middle;
+}
+
+th {
+  font-weight: 500;
+  line-height: 1.5rem;
+  white-space: nowrap;
+}
+
+tbody tr {
+  transition: background-color 150ms var(--ease);
+}
+
+tbody tr:hover {
+  background: var(--hover);
+}
+
+main a {
+  color: var(--primary-dark);
+  font-weight: 500;
+  text-decoration: none;
+  text-underline-offset: 3px;
+}
+
+main a:hover {
+  text-decoration: underline;
+}
+
+.table-footer {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px 16px;
+  padding: 8px 16px;
+  border-top: 1px solid var(--divider);
+  color: var(--text-secondary);
+  font-size: 0.875rem;
+}
+
+.page-size {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-right: auto;
+}
+
+.page-size select {
+  width: auto;
+  min-height: 32px;
+  padding: 4px 8px;
+}
+
+.page-range {
+  min-width: 7ch;
+  text-align: right;
+}
+
+.page-number {
+  min-width: 7ch;
+}
+
+.loading,
+.empty {
+  margin: 0;
+  padding: 16px 24px;
+  color: var(--text-secondary);
+}
+
+/* ---------- Lists and ticket detail ---------- */
+
+main ul {
+  margin: 0 0 16px;
+  padding: 0;
+  list-style: none;
+}
+
+main ul > li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-height: 48px;
+  padding: 6px 0;
+  border-bottom: 1px solid var(--divider);
+}
+
+main ul > li:last-child {
+  border-bottom: 0;
+}
+
+main ol {
+  margin: 0;
+  padding: 0 0 0 20px;
+  list-style: none;
+  border-left: 2px solid var(--divider);
+}
+
+main ol > li {
+  position: relative;
+  padding: 0 0 16px 4px;
+}
+
+main ol > li::before {
+  content: "";
+  position: absolute;
+  top: 7px;
+  left: -27px;
+  width: 12px;
+  height: 12px;
+  border: 2px solid var(--paper);
+  border-radius: 50%;
+  background: var(--primary);
+}
+
+main ol > li > p {
+  margin: 0;
+}
+
+main ol > li > p:last-child:not(:first-child) {
+  color: var(--text-secondary);
+  font-size: 0.8125rem;
+}
+
+.ticket-state {
+  display: inline-flex;
+  align-items: center;
+  height: 24px;
+  padding: 0 10px;
+  border-radius: 16px;
+  background: var(--chip-bg);
+  color: var(--chip-text);
+  font-size: 0.8125rem;
+  font-weight: 500;
+}
+
+/* ---------- Dialog ---------- */
+
+dialog {
+  width: min(444px, calc(100% - 32px));
+  padding: 24px;
+  border: 0;
+  border-radius: var(--radius);
+  background: var(--paper);
+  color: var(--text);
+  box-shadow: var(--elevation-24);
+}
+
+main > dialog[open] {
+  margin: auto;
+  padding: 24px;
+  background: var(--paper);
+  box-shadow: var(--elevation-24);
+}
+
+dialog.form-dialog {
+  width: min(480px, calc(100% - 32px));
+  max-height: calc(100% - 32px);
+  overflow-y: auto;
+}
+
+dialog::backdrop {
+  background: rgba(0, 0, 0, 0.5);
+}
+
+dialog p {
+  margin: 0 0 24px;
+}
+
+.dialog-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.dialog-form {
+  flex-direction: column;
+  flex-wrap: nowrap;
+  align-items: stretch;
+  gap: 16px;
+}
+
+.dialog-form h2 {
+  margin: 0;
+}
+
+.dialog-form .field {
+  flex: none;
+}
+
+.dialog-form p.message-error {
+  flex: none;
+  margin: 0;
+}
+
+.dialog-form .field-mark {
+  margin: 4px 14px 0;
+}
+
+.search-row {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+}
+
+.search-row .field {
+  flex: 1 1 auto;
+}
+
+.form-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+/* ---------- Focus and disabled states ---------- */
+
+:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+
+button:disabled,
+button:disabled:hover {
+  border-color: transparent;
+  background: var(--disabled-fill);
+  color: var(--disabled-text);
+  box-shadow: none;
+  cursor: not-allowed;
+  transition: none;
+}
+
+input:disabled,
+select:disabled,
+textarea:disabled {
+  border-color: var(--disabled-fill);
+  background: var(--canvas);
+  color: var(--disabled-text);
+  cursor: not-allowed;
+}
+
+a[aria-disabled="true"] {
+  color: var(--disabled-text);
+  cursor: not-allowed;
+}
+
+/* ---------- Mobile: the drawer becomes a top bar with scrolling tabs ---------- */
+
+@media (max-width: 899px) {
+  body:has(#shell nav) {
+    display: block;
+  }
+
+  body:has(#shell nav) .shell {
+    position: sticky;
+    z-index: 10;
+    flex-flow: row wrap;
+    align-items: center;
+    height: auto;
+    overflow: visible;
+    border-right: 0;
+    border-bottom: 1px solid var(--divider);
+    box-shadow: var(--elevation-2);
+  }
+
+  .brand {
+    flex: 1 1 auto;
+    min-height: 56px;
+    padding: 0 16px;
+    border-bottom: 0;
+    font-size: 1.125rem;
+  }
+
+  body:has(#shell nav) .user-name {
+    order: 1;
+    padding: 0 16px;
+    border-top: 0;
+  }
+
+  body:has(#shell nav) nav {
+    order: 2;
+    flex: 1 1 100%;
+    flex-direction: row;
+    gap: 0;
+    padding: 0 8px;
+    overflow-x: auto;
+    scrollbar-width: thin;
+  }
+
+  nav a,
+  nav button {
+    flex: 0 0 auto;
+    width: auto;
+    padding: 12px 16px;
+    border-radius: 0;
+    white-space: nowrap;
+  }
+
+  nav a::before,
+  nav button::before {
+    display: none;
+  }
+
+  nav a[aria-current="page"] {
+    background: transparent;
+    box-shadow: inset 0 -2px 0 var(--primary);
+  }
+
+  nav button {
+    margin-top: 0;
+  }
+
+  main {
+    padding: 16px 16px 32px;
+  }
+
+  main > :not(h1):not(:empty),
+  main section {
+    padding: 16px;
+  }
+
+  .toolbar {
+    padding: 16px;
+  }
+
+  #alert:not(:empty),
+  #status:not(:empty) {
+    margin: 16px 16px 0;
+  }
+
+  h1 {
+    font-size: 1.5rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    transition-duration: 1ms !important;
+  }
 }
