@@ -320,6 +320,41 @@ def test_search_by_representative_loads_everything_in_few_statements(
         assert len(statements) <= 6
 
 
+def test_search_with_text_and_window_loads_everything_in_few_statements(
+    app: Flask,
+    db_session: Session,
+    make_user: MakeUser,
+    make_category: MakeCategory,
+    make_product_type: MakeProductType,
+    make_product: MakeProduct,
+    make_ticket: MakeTicket,
+) -> None:
+    """SPEC-TKT-45 · TC-TKT-45g"""
+    ana = make_user("Client", name="Ana")
+    kinds = [
+        make_product_type(make_category("Hardware"), "Notebook"),
+        make_product_type(make_category("Software"), "Editor"),
+    ]
+    for index in range(3):
+        representative = make_user("Representative", name=f"Rep {index}")
+        products = [make_product(kind, f"{kind.name} {index}") for kind in kinds]
+        make_ticket(ana, representative, products)
+
+    with new_session(app) as session:
+        repository = SqlAlchemyTicketRepository(session)
+        with count_statements(session) as statements:
+            _walk_ticket_graph(repository.search(q="ana"))
+
+        assert len(statements) <= 6
+
+        with count_statements(session) as statements:
+            page = repository.search(window=PageRequest(1, 2))
+            assert isinstance(page, Page)
+            _walk_ticket_graph(list(page.items))
+
+        assert len(statements) <= 7
+
+
 def test_search_by_representative_orders_newest_first_with_id_descending_on_ties(
     db_session: Session, make_user: MakeUser, make_ticket: MakeTicket
 ) -> None:

@@ -540,7 +540,7 @@ def test_reopening_a_closed_ticket_leaves_it_in_progress(
     ana: Client,
     raul: Representative,
 ) -> None:
-    """SPEC-TKT-11 · TC-TKT-11d"""
+    """SPEC-TKT-11 · TC-TKT-11d, TC-TKT-11e"""
     ticket = make_ticket(ana, raul)
     close_ticket(db_session, ticket, ana)
     login_as(client, {"ana": ana, "raul": raul}[who])
