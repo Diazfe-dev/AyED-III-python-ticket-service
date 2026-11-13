@@ -4,6 +4,7 @@ from sqlalchemy.orm import Session
 
 from app.db import EXTENSION_KEY
 from app.domain.errors import DuplicateUserError
+from app.domain.paging import Page, PageRequest
 from app.domain.users import Admin, Client, Representative
 from app.repositories.user_repository import SqlAlchemyUserRepository
 
@@ -74,24 +75,78 @@ def one_user_per_role(db_session: Session) -> SqlAlchemyUserRepository:
     return repository
 
 
-def test_list_by_role_returns_only_clients(one_user_per_role: SqlAlchemyUserRepository) -> None:
-    """SPEC-USR-11 · TC-USR-11a"""
-    users = one_user_per_role.list_by_role("Client")
+def test_search_by_role_returns_only_clients(one_user_per_role: SqlAlchemyUserRepository) -> None:
+    """SPEC-USR-34 · TC-USR-34b"""
+    users = one_user_per_role.search(role="Client")
 
     assert [(type(user), user.email) for user in users] == [(Client, "client@x.com")]
 
 
-def test_list_by_role_returns_only_representatives(
+def test_search_by_role_returns_only_representatives(
     one_user_per_role: SqlAlchemyUserRepository, db_session: Session
 ) -> None:
     """SPEC-USR-12 · TC-USR-12a"""
     one_user_per_role.add(Representative(name="Other", email="rep2@x.com", password_hash="h"))
     db_session.commit()
 
-    users = one_user_per_role.list_by_role("Representative")
+    users = one_user_per_role.search(role="Representative")
 
-    assert [user.email for user in users] == ["rep@x.com", "rep2@x.com"]
+    assert [user.email for user in users] == ["rep2@x.com", "rep@x.com"]
     assert all(isinstance(user, Representative) for user in users)
+
+
+def test_search_without_filters_returns_every_user(
+    one_user_per_role: SqlAlchemyUserRepository, db_session: Session
+) -> None:
+    """SPEC-USR-31 · TC-USR-31b"""
+    one_user_per_role.add(
+        Client(name="Inactive", email="off@x.com", password_hash="h", is_active=False)
+    )
+    db_session.commit()
+
+    users = one_user_per_role.search()
+
+    assert {user.email for user in users} == {
+        "rep@x.com",
+        "admin@x.com",
+        "client@x.com",
+        "off@x.com",
+    }
+
+
+def add_users_named(
+    repository: SqlAlchemyUserRepository, db_session: Session, names: list[str]
+) -> list[Client]:
+    users = [
+        Client(name=name, email=f"user{index}@x.com", password_hash="h")
+        for index, name in enumerate(names)
+    ]
+    for user in users:
+        repository.add(user)
+    db_session.commit()
+    return users
+
+
+def test_search_orders_by_name_ignoring_case_then_by_id(db_session: Session) -> None:
+    """SPEC-USR-48 · TC-USR-48a"""
+    repository = SqlAlchemyUserRepository(db_session)
+    add_users_named(repository, db_session, ["beto", "Ana", "ana", "Carla"])
+
+    users = repository.search()
+
+    assert [user.name for user in users] == ["Ana", "ana", "beto", "Carla"]
+
+
+def test_search_with_a_window_returns_the_page_in_name_order(db_session: Session) -> None:
+    """SPEC-USR-47 · TC-USR-47f"""
+    repository = SqlAlchemyUserRepository(db_session)
+    add_users_named(repository, db_session, ["e", "D", "c", "B", "a"])
+
+    page = repository.search(window=PageRequest(2, 2))
+
+    assert isinstance(page, Page)
+    assert [user.name for user in page.items] == ["c", "D"]
+    assert page.total == 5
 
 
 def test_repository_has_no_way_to_delete_users() -> None:
