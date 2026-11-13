@@ -6,6 +6,7 @@ from sqlalchemy.orm import Load, Session, selectinload
 from app.db import fits_integer_column
 from app.domain.milestone import Milestone
 from app.domain.products import Product, ProductType
+from app.domain.state_change import StateChange
 from app.domain.ticket import Ticket
 from app.domain.users import User
 
@@ -17,6 +18,7 @@ WITH_PARTICIPANTS_AND_PRODUCTS = (
     .selectinload(ProductType.category),
 )
 WITH_MILESTONES = (selectinload(Ticket.milestones).selectinload(Milestone.author),)
+WITH_HISTORY = (selectinload(Ticket.state_history).selectinload(StateChange.user),)
 
 
 class SqlAlchemyTicketRepository:
@@ -48,6 +50,14 @@ class SqlAlchemyTicketRepository:
     def get_with_milestones(self, ticket_id: int) -> Ticket | None:
         """Like `get`, with the milestones and their authors loaded."""
         return self._find(ticket_id, None, WITH_MILESTONES)
+
+    def get_visible_with_history(self, ticket_id: int, actor: User) -> Ticket | None:
+        """Like `get_visible`, with the state changes (in order) and their users loaded."""
+        return self._find(ticket_id, actor, WITH_HISTORY)
+
+    def get_with_history(self, ticket_id: int) -> Ticket | None:
+        """Like `get`, with the state changes (in order) and their users loaded."""
+        return self._find(ticket_id, None, WITH_HISTORY)
 
     def _find(
         self, ticket_id: int, participant: User | None, extra_options: tuple[Load, ...]

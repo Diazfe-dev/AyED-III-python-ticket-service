@@ -136,6 +136,73 @@ def test_get_finds_any_ticket_without_a_participant_filter(
         assert repository.get_with_milestones(9999) is None
 
 
+def test_get_visible_with_history_orders_changes_by_timestamp_then_id(
+    db_session: Session, make_user: MakeUser, make_ticket: MakeTicket
+) -> None:
+    """SPEC-TKT-35 · TC-TKT-35b"""
+    ana = make_user("Client", name="Ana")
+    raul = make_user("Representative", name="Raul")
+    ticket = make_ticket(ana, raul)
+    later = DEFAULT_TICKET_TIME + timedelta(hours=1)
+    ticket.start_progress(raul, later)
+    ticket.close(ana, later)
+    db_session.commit()
+    db_session.expire_all()
+
+    found = SqlAlchemyTicketRepository(db_session).get_visible_with_history(ticket.id, ana)
+
+    assert found is not None
+    assert [c.state_name for c in found.state_history] == ["New", "InProgress", "Closed"]
+    assert [c.timestamp for c in found.state_history] == [DEFAULT_TICKET_TIME, later, later]
+    ids = [c.id for c in found.state_history]
+    assert ids == sorted(ids)
+
+
+def test_get_with_history_loads_the_change_users_without_n_plus_one(
+    app: Flask, db_session: Session, make_user: MakeUser, make_ticket: MakeTicket
+) -> None:
+    """SPEC-TKT-35 · TC-TKT-35c"""
+    ana = make_user("Client", name="Ana")
+    raul = make_user("Representative", name="Raul")
+    ticket = make_ticket(ana, raul)
+    for hours, (user, move) in enumerate(
+        [
+            (raul, Ticket.start_progress),
+            (ana, Ticket.close),
+            (ana, Ticket.reopen),
+            (raul, Ticket.close),
+        ],
+        start=1,
+    ):
+        move(ticket, user, DEFAULT_TICKET_TIME + timedelta(hours=hours))
+    db_session.commit()
+    ticket_id = ticket.id
+
+    with new_session(app) as session:
+        with count_statements(session) as statements:
+            found = SqlAlchemyTicketRepository(session).get_with_history(ticket_id)
+            assert found is not None
+            assert len(found.state_history) == 5
+            assert {c.user.name for c in found.state_history} == {"Ana", "Raul"}
+
+        assert len(statements) <= 8
+
+
+def test_history_reads_return_none_for_non_participants_and_out_of_range_ids(
+    db_session: Session, make_user: MakeUser, make_ticket: MakeTicket
+) -> None:
+    """SPEC-TKT-37 · TC-TKT-37b"""
+    ana = make_user("Client", name="Ana")
+    beto = make_user("Client", name="Beto")
+    raul = make_user("Representative", name="Raul")
+    ticket = make_ticket(ana, raul)
+    repository = SqlAlchemyTicketRepository(db_session)
+
+    assert repository.get_visible_with_history(ticket.id, beto) is None
+    assert repository.get_visible_with_history(2**63, ana) is None
+    assert repository.get_with_history(2**63) is None
+
+
 def test_added_ticket_gets_its_id_on_flush_without_committing(
     db_session: Session, make_user: MakeUser
 ) -> None:
