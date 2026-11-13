@@ -1,9 +1,10 @@
 # Diagrama de clases
 
-Versión en Mermaid del diagrama de clases. Se divide en dos vistas para que sea legible:
+Versión en Mermaid del diagrama de clases. Se divide en tres vistas para que sea legible:
 
 1. **Modelo de dominio**: entidades, relaciones y los patrones State y Strategy.
 2. **Capas de aplicación**: controllers, services y repositories (Controller → Service → Repository).
+3. **Interfaz web (`07-ui`)**: el blueprint `ui` y el front de `app/static/js`.
 
 Los nombres siguen la convención de Python (`snake_case` para atributos y métodos), igual que los [diagramas de secuencia](sequences/).
 
@@ -512,3 +513,170 @@ classDiagram
 - **Paginación y búsqueda (`00-platform`)**: `PageRequest` (`page`, `page_size`, propiedades `offset` y `limit`) y `Page[T]` (`items`, `page`, `page_size`, `total`) son dataclasses inmutables de la capa de dominio (`app/domain/paging.py`) que comparten services y repositories. En services, `app/services/listing.py` tiene `page_request(page, page_size)` (devuelve `None` si no llegó ningún parámetro y lanza `ValidationError` si alguno es inválido) y `search_text(q)` (devuelve `None` si `q` falta o es solo espacios). En repositories, `app/repositories/paging.py` tiene `fetch(session, statement, window)`, que devuelve la lista completa o un `Page` con el total. En controllers, `app/controllers/listing.py` tiene `listing_json(result, item_json)`, que serializa una lista como arreglo y un `Page` como objeto paginado.
 - No hay `MilestoneService`: los hitos forman parte del agregado `Ticket` y se gestionan desde `TicketService`.
 - **Productos (`03-products`)**: `Product.activate()` es el espejo de `deactivate()` (`is_active = True`); `ProductService.activate_product` lo llama sin error si el producto ya estaba activo (SPEC-PRD-23) y responde `404` si no existe (SPEC-PRD-24). `POST /products/{id}/activate` usa `admin_required` (SPEC-PRD-25). `list_products(category_id, product_type_id, q, is_active, page, page_size)` recibe todo como texto de la query, valida los ids, `is_active` (`bool_query_error`, `parse_bool_query`) y la paginación juntos (`400`), después comprueba que existan la categoría y el tipo (`404`) y llama a `ProductRepository.list_matching(category_id, product_type_id, is_active, q, window)`, que combina los filtros con AND y filtra `q` como subcadena literal de `name_key` (SPEC-PRD-26 a 29). `list_available_products(q, page, page_size)` fija `is_active=True` y no admite otros filtros (SPEC-PRD-30). En el controller, `_listing_args(*names)` toma de `request.args` solo los parámetros nombrados, así `GET /products/available` ignora el resto, y `listing_json` serializa la lista o el `Page`.
+
+## 3. Interfaz web (`07-ui`)
+
+```mermaid
+classDiagram
+    direction LR
+
+    class ui {
+        <<blueprint>>
+        +index() Response
+    }
+    class FlaskStatic {
+        <<regla static de Flask>>
+        +static(filename)
+    }
+    class UiApi {
+        <<API de 00 a 05>>
+    }
+
+    namespace Front {
+        class app {
+            <<app.js>>
+            -state
+            -requests
+            -dispatch(event)
+            -screenRequest(method, path, body, key)
+            -showScreen(name, params)
+        }
+        class session {
+            <<core>>
+            +initialState()
+            +transition(state, event) result
+            +canSend(state) bool
+            +isInert(state) bool
+            +currentUser(state) user
+        }
+        class routes {
+            <<core>>
+            +classify(hash, role) route
+            +homeOf(role) hash
+            +navItems(role) list
+            +isValidTicketId(text) bool
+        }
+        class requests {
+            <<core>>
+            +initialRequests()
+            +openScreen(state)
+            +issue(state, method, key) tag
+            +verdict(state, tag, status) deliver_or_ignore
+        }
+        class query {
+            <<core>>
+            +listState(filters, page)
+            +applyFilter(state, changes)
+            +reloadQuery(path, state)
+            +nextPage(state)
+            +previousPage(state)
+            +lastValidPage(total)
+        }
+        class messages {
+            <<core>>
+            +translateError(response, context)
+            +OWN_MESSAGES
+        }
+        class labels {
+            <<core>>
+            +stateLabel(code)
+            +roleLabel(code)
+            +activeLabel(isActive)
+        }
+        class dates {
+            <<core>>
+            +formatDateTime(isoUtc, timeZone)
+        }
+        class ticket_actions {
+            <<core>>
+            +ticketActions(role, state) list
+        }
+        class forms {
+            <<core>>
+            +confirmationMismatch(value, confirmation) bool
+        }
+        class api_client {
+            <<net>>
+            +createApiClient(fetchFn, options) client
+            +request(method, path, body) response
+        }
+        class render {
+            <<dom>>
+            +el(tag, attrs, children)
+            +clear(node)
+            +setTitle(title)
+            +showError(message)
+            +showStatus(message)
+        }
+        class shell {
+            <<dom>>
+            +renderShell(container, user, onLogout)
+        }
+        class inert {
+            <<dom>>
+            +setInert(containers, inert)
+        }
+        class listing {
+            <<dom>>
+            +createListing(options) listing
+            +searchField(options)
+            +selectField(options)
+        }
+        class paginator {
+            <<dom>>
+            +renderPaginator(options)
+        }
+        class confirm {
+            <<dom>>
+            +confirmAction(parent, message) Promise
+        }
+        class screens_index {
+            <<screens>>
+            +screens
+        }
+        class Screen {
+            <<screens>>
+            +title(params) str
+            +mount(context)
+        }
+    }
+
+
+    ui ..> FlaskStatic : sirve index.html, el resto lo sirve static
+    app --> session : transition
+    app --> requests : issue, verdict, openScreen
+    app --> api_client : createApiClient(window.fetch)
+    app --> inert
+    app --> shell
+    app --> render
+    app --> screens_index
+    screens_index --> Screen
+    session --> routes : classify
+    session --> messages
+    Screen --> render
+    Screen --> listing
+    Screen --> confirm
+    Screen --> messages
+    Screen --> labels
+    Screen --> dates
+    Screen --> ticket_actions
+    Screen --> forms
+    listing --> paginator
+    listing --> query
+    listing --> messages
+    listing --> render
+    paginator --> query
+    paginator --> render
+    shell --> routes
+    shell --> render
+    confirm --> render
+    api_client ..> UiApi : fetch inyectado, rutas relativas
+```
+
+### Notas de la interfaz
+
+- `Screen` representa a cada módulo de `screens/`: `boot`, `login`, `not-found`, `account`, `tickets-list`, `ticket-detail`, `ticket-new`, `users`, `categories`, `product-types` y `products`.
+- `ui` es el único código de Python de esta área: `GET /` devuelve `index.html` con `send_static_file` (público, sin `login_required`); `/static/<path:filename>` lo registra `Flask(__name__)`.
+- `core/` es puro: no nombra `fetch`, `document` ni `window` y solo importa de `core/` (`session` → `routes`, `messages`). `net/api-client.js` recibe `fetch` por parámetro; solo `app.js` liga `window.fetch` y los eventos globales.
+- Dirección de las dependencias: `app.js` → todos; `screens` → `dom`, `core`; `dom` → `core`, `dom`; `core` → `core`. Ningún módulo de `core/`, `dom/` ni `screens/` importa `net/`: las pantallas reciben `request` en el contexto que arma `app.js`.
+- `session.transition` es un reductor puro (patrón State como tabla por estado: `mePending`, `meError`, `anonymous`, `open`, `closing`) que devuelve efectos (`render`, `replaceHash`, `request`, `showError`, `setInert`) que `app.js` ejecuta. `requests` descarta con la sesión abierta las respuestas reemplazadas o de otra instancia de pantalla (SPEC-UI-135 y 136).

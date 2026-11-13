@@ -49,6 +49,8 @@ Mantener el stack **lo más simple posible**. No agregar dependencias sin acorda
 | Tests | `pytest` + `pytest-cov` |
 | Lint y formato | `ruff` (`ruff check` + `ruff format`) |
 | Dependencias | `venv` + `requirements.txt` / `requirements-dev.txt` |
+| Interfaz web | HTML, CSS y JavaScript (módulos ES) estáticos en `app/static/`, servidos por Flask, sin paso de compilación ni dependencias de ejecución |
+| Pruebas de la interfaz | Node 22 (`node --test`) y Playwright (`@playwright/test` con Chromium), **solo de desarrollo y CI**: `package.json` no declara `dependencies` |
 | CI | GitHub Actions |
 
 Puesta en marcha:
@@ -60,6 +62,8 @@ flask --app app init-db
 flask --app app run --debug
 ```
 
+Para las pruebas de la interfaz (solo desarrollo): `npm ci`, `npm run test:js`, `npx playwright install chromium` y `npm run test:e2e`.
+
 ## Estructura del proyecto
 
 ```
@@ -70,6 +74,7 @@ app/
   wiring.py            # get_catalog_service, get_product_service y get_ticket_service (con el NotificationService) y notification_strategies: arman los services del request sin que los controllers toquen la Session
   auth.py              # get_user_service, current_user y decoradores login_required (401) y admin_required (403)
   cli.py               # comando create-admin
+  static/              # Interfaz web de una sola página: index.html, css/app.css y js/ (core/ módulos puros, dom/, net/ y screens/)
   domain/              # Entidades mapeadas con SQLAlchemy; sin Flask ni HTTP
     base.py            # Base(DeclarativeBase)
     errors.py          # DomainError y subclases (ValidationError, DuplicateUserError, CategoryInUseError, ProductTypeInUseError, ...)
@@ -110,10 +115,12 @@ app/
     errors.py          # tabla DomainError → status y código JSON
     serializers.py     # lectura del cuerpo JSON y representación de usuarios, categorías, tipos y productos
     listing.py         # listing_json: serializa un listado como arreglo o como página
+    ui.py              # GET / (sirve app/static/index.html); los archivos salen de /static/...
 tests/
   conftest.py          # fixtures: app con base en memoria, client, usuarios de prueba
   unit/                # dominio y servicios, sin Flask ni disco (fakes.py: dobles compartidos, como CommitSpy)
   integration/         # repositorios contra SQLite en memoria y endpoints con test client
+  ui/                  # interfaz: test_ui_routes.py y test_traceability.py (pytest), js/ (node --test) y e2e/ (Playwright, con server.py)
 specs/
   README.md            # Sintaxis EARS, convenciones e índice de áreas
   01-users/            # Una carpeta por área (USR, PTY, PRD, TKT, MLS, NTF)
@@ -121,13 +128,16 @@ specs/
     plan.md            # CÓMO: plan de implementación
     tasks.md           # PASOS: tareas ordenadas y su estado
     test-plan.md       # VERIFICACIÓN: matriz spec → casos de prueba
-  02-product-types/ … 06-notifications/
+  02-product-types/ … 07-ui/
 diagrams/              # UML en Mermaid (no borrar, mantener sincronizado con specs y código)
   classes.md           # Diagrama de clases: modelo de dominio y capas
   sequences/           # Diagramas de secuencia, un archivo por área (NN-<área>.md)
 docs/
   constitution.md      # Principios innegociables (máxima precedencia)
   openapi.json         # Contrato OpenAPI 3.1 de la API (contract-first)
+package.json           # Solo devDependencies (@playwright/test); scripts test:js y test:e2e
+playwright.config.js   # Playwright: Chromium y servidor de Flask de tests/ui/e2e/server.py
+.github/workflows/ci.yml # CI: jobs python, js y e2e
 MEMORY.md              # Estado, cambios con su motivación y próximos pasos (decisiones y errores en Engram)
 ```
 
@@ -190,12 +200,15 @@ Cada RNF tiene una regla concreta en el código y al menos un test que la proteg
 | RNF | Regla de implementación | Test obligatorio |
 |-----|-------------------------|------------------|
 | 1. TDD estricto | No se escribe código de producción sin un test que falle antes. Ciclo red → green → refactor. | El historial de commits muestra el test antes o junto con la implementación. |
-| 2. Autenticación robusta | Contraseñas hasheadas con `generate_password_hash` y comparadas con `check_password_hash`. Todas las rutas salvo `/login`, `/health`, `/openapi.json` y `/docs` requieren `login_required`. `SECRET_KEY` desde el entorno; la cookie de sesión es `HttpOnly` y `SameSite=Lax`. El mensaje de error del login es genérico (no revela si el email existe). | Login correcto, contraseña incorrecta, usuario inexistente, ruta protegida sin sesión → 401 en JSON. |
+| 2. Autenticación robusta | Contraseñas hasheadas con `generate_password_hash` y comparadas con `check_password_hash`. Todas las rutas salvo `/login`, `/health`, `/openapi.json`, `/docs`, `/` y `/static/...` (la interfaz, sin datos) requieren `login_required`. `SECRET_KEY` desde el entorno; la cookie de sesión es `HttpOnly` y `SameSite=Lax`. El mensaje de error del login es genérico (no revela si el email existe). | Login correcto, contraseña incorrecta, usuario inexistente, ruta protegida sin sesión → 401 en JSON. |
 | 3. Usuarios únicos | Email normalizado (`strip().lower()`) antes de guardar. `mapped_column(unique=True)` en `User.email` **y** chequeo previo en el service. Si igual ocurre un `IntegrityError`, el repositorio lo traduce a `DuplicateUserError`. | Alta duplicada (incluso con distinto uso de mayúsculas) es rechazada. |
 | 4. Privacidad de tickets | El filtro por dueño se aplica en el service, no en el template. Un cliente que pide un ticket ajeno recibe **404** (no 403, para no confirmar que existe). | Cliente A no puede ver, listar, responder ni cerrar tickets del cliente B. |
 | 5. Hitos inmutables | No existen métodos, rutas ni repositorios que actualicen o borren hitos. Tres barreras: (a) listeners `before_update` y `before_delete` de SQLAlchemy sobre `Milestone` que lanzan `ImmutableRecordError`; (b) triggers de SQLite que hacen `RAISE(ABORT)` ante `UPDATE` o `DELETE` sobre `milestones`, registrados con `event.listen(table, "after_create", DDL(...))`; (c) la relación `Ticket.milestones` sin `delete-orphan`. Lo mismo aplica a `StateChange`. | Modificar o borrar un hito falla en el ORM y también con SQL directo. |
 | 6. Auditoría de estado | Toda transición crea un `StateChange(user, state, timestamp)` con timestamp UTC del reloj inyectado. No hay forma de cambiar el estado sin pasar por el objeto `State`. | Cada transición deja un registro con el usuario y el instante correctos. |
-| 7. API documentada | `docs/openapi.json` se escribe antes que el endpoint y la app lo sirve tal cual en `/openapi.json`. Swagger UI en `/docs`, desde CDN con versión fija. Sin librerías de generación. | Las rutas de `app.url_map` y los `paths` del contrato coinciden en los dos sentidos. |
+| 7. API documentada | `docs/openapi.json` se escribe antes que el endpoint y la app lo sirve tal cual en `/openapi.json`. Swagger UI en `/docs`, desde CDN con versión fija. Sin librerías de generación. | Las rutas de `app.url_map` y los `paths` del contrato coinciden en los dos sentidos (salvo `GET /` y `GET /static/...`, la interfaz). |
+| 8. Interfaz web servida por la app | La interfaz son archivos estáticos HTML, JavaScript y CSS en `app/static/`, servidos por la misma API (`GET /` en `controllers/ui.py` y `/static/...`), sin paso de compilación, sin dependencias de ejecución y sin recursos de orígenes externos; usa la misma cookie de sesión. | `tests/ui/test_ui_routes.py` y los escaneos estáticos de `tests/ui/js/`. |
+| 9. Pruebas de la interfaz | La lógica sin DOM va en módulos ES puros probados con `node --test`; lo que solo se ve en el DOM se prueba con Playwright en un navegador real. `package.json` solo declara `devDependencies`. Cada prueba cita su `SPEC-UI-NN` en el título. | `npm run test:js`, `npm run test:e2e` y `tests/ui/test_traceability.py`, todos en el CI. |
+| 10. Paginación opcional | Los listados que pueden crecer aceptan `page` y `page_size` de forma opcional y compatible hacia atrás; la interfaz pide `page_size` 20. | Las pruebas de paginación de `tests/` (áreas 00 a 04) y de la interfaz (`tests/ui/`). |
 
 Reglas funcionales que suelen romperse, a tener en cuenta:
 
@@ -250,6 +263,7 @@ Reglas funcionales que suelen romperse, a tener en cuenta:
    ```bash
    ruff check . && ruff format --check . && pytest
    ```
+   Si el cambio toca la interfaz, sumar `npm run test:js && npm run test:e2e`.
 7. Marcar la task como `[x]` en `tasks.md`.
 8. Commits chicos, una unidad de trabajo cada uno, con el test y la implementación juntos.
 9. Abrir el PR, esperar el CI en verde y al menos una revisión antes del merge.
@@ -263,16 +277,16 @@ Reglas funcionales que suelen romperse, a tener en cuenta:
 - El tiempo se controla con un reloj falso; ningún test depende de la hora real ni de `sleep`.
 - Las notificaciones nunca se envían de verdad en los tests: se usa una estrategia falsa que registra los envíos para poder verificarlos.
 - Cobertura mínima: **90 %** sobre `app/`, con `pytest --cov=app --cov-fail-under=90`.
+- **JavaScript** (`tests/ui/js/`): `node --test` sobre los módulos puros de `app/static/js/`, sin navegador. **E2E** (`tests/ui/e2e/`): Playwright con Chromium contra un servidor de Flask de prueba (`server.py`) con una API simulada donde hace falta. El título de cada prueba cita su `SPEC-UI-NN`.
 - Cada RNF tiene al menos un test explícito (ver tabla de RNF).
 
-CI con GitHub Actions (`.github/workflows/ci.yml`), en cada push y PR a `main`:
+CI con GitHub Actions (`.github/workflows/ci.yml`), en cada push y PR, con tres jobs en paralelo:
 
-1. Configurar Python 3.12 e instalar dependencias.
-2. `ruff check .`
-3. `ruff format --check .`
-4. `pytest --cov=app --cov-fail-under=90`
+- **`python`**: configurar Python 3.12 e instalar dependencias, `ruff check .`, `ruff format --check .` y `pytest --cov=app --cov-fail-under=90`.
+- **`js`**: Node 22, `npm ci` y `npm run test:js`.
+- **`e2e`**: Python 3.12 y Node 22, `npm ci`, `npx playwright install --with-deps chromium` y `npm run test:e2e` (si falla, sube `playwright-report/` como artefacto).
 
-Si algún paso falla, el PR no se mergea. No hay despliegue continuo: el entregable se ejecuta localmente.
+Si algún job o paso falla, el PR no se mergea. No hay despliegue continuo: el entregable se ejecuta localmente.
 
 ## Estilo de commits y PRs
 

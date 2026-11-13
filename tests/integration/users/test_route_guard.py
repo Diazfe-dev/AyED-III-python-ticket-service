@@ -51,6 +51,8 @@ def test_every_non_public_route_requires_a_session(app: Flask, client: FlaskClie
         ("GET", "/health", 200, None),
         ("GET", "/docs", 200, None),
         ("GET", "/openapi.json", 200, None),
+        ("GET", "/", 200, None),
+        ("GET", "/static/css/app.css", 200, None),
     ],
 )
 def test_public_routes_answer_without_a_session(

@@ -2,7 +2,7 @@
 
 Aplicación web para centros de atención telefónica. Un representante registra la consulta de un cliente como un **ticket**, la sigue con un hilo cronológico de **hitos** inmutables, y el sistema **notifica** a cada parte cuando hay novedades. Es el trabajo práctico final de **Algoritmos y Programación III**.
 
-> **Estado**: especificación y diseño terminados. La implementación todavía no empezó.
+> **Estado**: la API y la interfaz web están implementadas.
 > El avance de cada área está en el [índice de specs](specs/README.md#índice).
 
 ## Qué hace
@@ -26,7 +26,9 @@ Requerimientos completos: [docs/REQUERIMIENTOS.md](docs/REQUERIMIENTOS.md).
 | Lenguaje | Python 3.12 |
 | Web | Flask (application factory + blueprints) |
 | Persistencia | SQLAlchemy 2.0 sobre SQLite |
+| Interfaz web | HTML, CSS y JavaScript estáticos servidos por Flask, sin compilación ni dependencias de ejecución |
 | Tests | pytest + pytest-cov (cobertura mínima del 90 %) |
+| Tests de la interfaz | Node 22 (`node --test`) y Playwright, solo de desarrollo y CI |
 | Lint y formato | ruff |
 | CI | GitHub Actions |
 
@@ -99,8 +101,11 @@ Los diagramas están en Mermaid y se ven directamente en GitHub.
 │   └── REQUERIMIENTOS.md # Requerimientos funcionales y no funcionales
 ├── specs/               # Una carpeta por área: spec, plan, tasks y test-plan
 ├── diagrams/            # Diagramas de clases y de secuencia (Mermaid)
-├── app/                 # Código (pendiente)
-└── tests/               # Tests unitarios y de integración (pendiente)
+├── app/                 # Código; la interfaz web está en app/static/
+├── tests/               # Tests unitarios, de integración y de la interfaz (tests/ui/)
+├── package.json         # Solo herramientas de prueba de la interfaz (Playwright)
+├── playwright.config.js
+└── .github/workflows/ci.yml
 ```
 
 ## Documentación del proyecto
@@ -114,8 +119,6 @@ Leer en este orden:
 
 ## Puesta en marcha
 
-> Disponible cuando esté implementado el esqueleto de la aplicación.
-
 ```bash
 python -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt -r requirements-dev.txt
@@ -124,7 +127,18 @@ flask --app app create-admin
 flask --app app run --debug
 ```
 
-Validaciones locales (las mismas que corre el CI):
+La interfaz web se sirve en `http://127.0.0.1:5000/` con la misma aplicación (no requiere compilar ni instalar nada para usarla).
+
+Pruebas de la interfaz (requieren Node 22; solo de desarrollo):
+
+```bash
+npm ci
+npm run test:js                  # pruebas unitarias de los módulos JavaScript puros
+npx playwright install chromium  # una sola vez
+npm run test:e2e                 # pruebas en un navegador real
+```
+
+Validaciones locales (las mismas que corre el CI, que además ejecuta `npm run test:js` y `npm run test:e2e` en jobs aparte):
 
 ```bash
 ruff check . && ruff format --check . && pytest --cov=app --cov-fail-under=90
