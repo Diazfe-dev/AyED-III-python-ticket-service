@@ -28,6 +28,12 @@ class FakeTicketRepository:
     def get_visible_with_milestones(self, ticket_id: int, actor: User) -> Ticket | None:
         return self.get_visible(ticket_id, actor)
 
+    def get_visible_with_history(self, ticket_id: int, actor: User) -> Ticket | None:
+        return self.get_visible(ticket_id, actor)
+
+    def get_with_history(self, ticket_id: int) -> Ticket | None:
+        return self.get(ticket_id)
+
     def get(self, ticket_id: int) -> Ticket | None:
         return next((t for t in self.tickets if t.id == ticket_id), None)
 

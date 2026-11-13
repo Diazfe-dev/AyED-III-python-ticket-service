@@ -15,6 +15,7 @@ from app.domain.errors import (
 from app.domain.milestone import Milestone
 from app.domain.paging import Page, PageRequest
 from app.domain.products import Product
+from app.domain.state_change import StateChange
 from app.domain.states import STATES
 from app.domain.ticket import Ticket
 from app.domain.users import Admin, Client, Representative, User
@@ -40,7 +41,11 @@ class TicketRepository(Protocol):
 
     def get_visible_with_milestones(self, ticket_id: int, actor: User) -> Ticket | None: ...
 
+    def get_visible_with_history(self, ticket_id: int, actor: User) -> Ticket | None: ...
+
     def get(self, ticket_id: int) -> Ticket | None: ...
+
+    def get_with_history(self, ticket_id: int) -> Ticket | None: ...
 
     def get_with_milestones(self, ticket_id: int) -> Ticket | None: ...
 
@@ -168,6 +173,18 @@ class TicketService:
         if ticket is None:
             raise TicketNotFoundError()
         return ticket
+
+    def list_state_changes(self, ticket_id: int, actor: User) -> list[StateChange]:
+        """The state history of a ticket the actor may see (same rule as `get_ticket`)."""
+        lookup = {
+            "Admin": lambda: self._tickets.get_with_history(ticket_id),
+            "Client": lambda: self._tickets.get_visible_with_history(ticket_id, actor),
+            "Representative": lambda: self._tickets.get_visible_with_history(ticket_id, actor),
+        }[actor.role]
+        ticket = lookup()
+        if ticket is None:
+            raise TicketNotFoundError()
+        return list(ticket.state_history)
 
     def close_ticket(self, ticket_id: int, actor: User) -> Ticket:
         """Close the ticket on behalf of its client or its assigned representative."""

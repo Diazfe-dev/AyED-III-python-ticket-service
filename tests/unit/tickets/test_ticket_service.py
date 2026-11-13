@@ -944,3 +944,41 @@ def test_list_tickets_checks_the_format_before_the_forbidden_filters(listing):
 
     assert state.value.fields == {"state": "invalid"}
     assert page.value.fields == {"page": "invalid"}
+
+
+def test_list_state_changes_returns_the_history_in_order_to_both_participants(setup):
+    """SPEC-TKT-35 · TC-TKT-35a"""
+    ticket = setup.add_ticket(setup.ana, setup.raul)
+    setup.clock.advance(60)
+    ticket.close(setup.raul, setup.clock.now())
+    setup.clock.advance(60)
+    ticket.reopen(setup.ana, setup.clock.now())
+
+    for actor in (setup.ana, setup.raul):
+        changes = setup.service.list_state_changes(ticket.id, actor)
+
+        assert [(c.state_name, c.user) for c in changes] == [
+            ("New", setup.raul),
+            ("Closed", setup.raul),
+            ("InProgress", setup.ana),
+        ]
+
+
+def test_admin_lists_the_state_changes_without_being_a_participant(setup):
+    """SPEC-TKT-35 · TC-TKT-35e"""
+    ticket = setup.add_ticket(setup.ana, setup.raul)
+
+    changes = setup.service.list_state_changes(ticket.id, setup.root)
+
+    assert [c.state_name for c in changes] == ["New"]
+
+
+def test_list_state_changes_hides_the_ticket_from_outsiders_and_missing_ids(setup):
+    """SPEC-TKT-37 · TC-TKT-37a"""
+    ticket = setup.add_ticket(setup.ana, setup.raul)
+    beto = Client(name="Beto", email="beto@example.com", is_active=True)
+    setup.users.add(beto)
+
+    for ticket_id, actor in ((ticket.id, beto), (ticket.id, setup.rosa), (9999, setup.ana)):
+        with pytest.raises(TicketNotFoundError):
+            setup.service.list_state_changes(ticket_id, actor)
