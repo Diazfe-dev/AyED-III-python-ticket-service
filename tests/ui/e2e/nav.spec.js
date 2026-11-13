@@ -2,12 +2,15 @@ import { expect, test } from "@playwright/test";
 import { installFakeApi, loginAs } from "./support/fake-api.js";
 
 const navLabels = (page) => page.getByRole("navigation").getByRole("link").allInnerTexts();
+const navEntries = (page) => page.getByRole("navigation").locator("a, button").allInnerTexts();
+const LOGOUT_LABEL = "Cerrar sesión";
 
 async function expectNavigation(page, role, links) {
   const api = await installFakeApi(page);
   await loginAs(page, api, role);
   await expect(page.getByRole("navigation")).toBeVisible();
   expect(await navLabels(page)).toEqual(links);
+  expect(await navEntries(page)).toEqual([...links, LOGOUT_LABEL]);
 }
 
 test("SPEC-UI-16 shows the representative navigation (TC-UI-16a)", async ({ page }) => {

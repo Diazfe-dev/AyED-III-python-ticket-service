@@ -1,6 +1,7 @@
 import { initialRequests, issue, openScreen, verdict } from "./core/requests.js";
 import { canSend, currentUser, initialState, transition } from "./core/session.js";
-import { clear, clearMessages, setTitle, showError, showStatus } from "./dom/render.js";
+import { setInert } from "./dom/inert.js";
+import { clear,clearMessages, setTitle, showError, showStatus } from "./dom/render.js";
 import { renderShell } from "./dom/shell.js";
 import { createApiClient } from "./net/api-client.js";
 import { screens } from "./screens/index.js";
@@ -58,7 +59,7 @@ function showScreen(name, params) {
   const screen = screens[name];
   clearMessages();
   clear(root);
-  renderShell(header, currentUser(state));
+  renderShell(header, currentUser(state), () => dispatch({ type: "logoutClicked" }));
   setTitle(screen.title(params));
   screen.mount(screenContext(params));
 }
@@ -80,6 +81,7 @@ const EFFECTS = {
   replaceHash: (effect) => window.history.replaceState(null, "", effect.hash),
   request: runRequest,
   showError: (effect) => showError(effect.message),
+  setInert: (effect) => setInert([header, root], effect.inert),
 };
 
 function dispatch(event) {
