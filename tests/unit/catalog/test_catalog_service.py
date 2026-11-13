@@ -13,7 +13,7 @@ from app.domain.errors import (
     ValidationError,
 )
 from app.domain.products import Category, Product, ProductType
-from app.services.catalog_service import CatalogService
+from app.services.catalog_service import CatalogService, CategoryGroup
 from tests.unit.catalog.fakes import FakeCategoryRepository, FakeProductTypeRepository
 from tests.unit.fakes import CommitSpy
 
@@ -447,14 +447,14 @@ def test_delete_product_type_with_an_inactive_product_is_rejected(
     assert sut.commit.calls == 0
 
 
-def group_names(groups: list[Category]) -> list[tuple[str, list[str]]]:
-    return [(group.name, [t.name for t in group.product_types]) for group in groups]
+def group_names(groups: list[CategoryGroup]) -> list[tuple[str, list[str]]]:
+    return [(g.category.name, [t.name for t in g.product_types]) for g in groups]
 
 
 def test_list_product_types_groups_them_by_category_including_empty_ones(
     sut: ServiceUnderTest,
 ) -> None:
-    """SPEC-PTY-09 · TC-PTY-09a"""
+    """SPEC-PTY-22 · TC-PTY-22a"""
     redes, audio, hardware = (Category(name=n) for n in ["Redes", "audio", "Hardware"])
     for category in (redes, audio, hardware):
         sut.categories.add(category)
@@ -498,3 +498,72 @@ def test_list_product_types_with_malformed_category_id_is_rejected(
         sut.service.list_product_types(category_id=category_id)
 
     assert raised.value.fields == {"category_id": "invalid"}
+
+
+@pytest.fixture
+def reference_data(sut: ServiceUnderTest) -> Category:
+    redes, audio, hardware, electronica = (
+        Category(name=n) for n in ["Redes", "audio", "Hardware", "Electrónica"]
+    )
+    for category in (redes, audio, hardware, electronica):
+        sut.categories.add(category)
+    add_type(sut, "Router", redes)
+    add_type(sut, "Access point", redes)
+    add_type(sut, "Notebook", hardware)
+    add_type(sut, "Ruteador USB", hardware)
+    return hardware
+
+
+def test_list_categories_with_q_keeps_only_names_containing_it(
+    sut: ServiceUnderTest, reference_data: Category
+) -> None:
+    """SPEC-PTY-21 · TC-PTY-21a"""
+    found = [c.name for c in sut.service.list_categories(q="RED")]
+    none = sut.service.list_categories(q="zzz")
+
+    assert found == ["Redes"]
+    assert none == []
+
+
+@pytest.mark.parametrize("q", ["", "   "])
+def test_list_product_types_with_blank_q_ignores_it(
+    sut: ServiceUnderTest, reference_data: Category, q: str
+) -> None:
+    """SPEC-PTY-22 · TC-PTY-22e"""
+    groups = sut.service.list_product_types(q=q)
+
+    assert group_names(groups) == group_names(sut.service.list_product_types())
+    assert ("audio", []) in group_names(groups)
+
+
+def test_list_product_types_with_q_groups_matches_and_omits_empty_categories(
+    sut: ServiceUnderTest, reference_data: Category
+) -> None:
+    """SPEC-PTY-23 · TC-PTY-23a"""
+    groups = sut.service.list_product_types(q="R")
+
+    assert group_names(groups) == [("Hardware", ["Ruteador USB"]), ("Redes", ["Router"])]
+
+
+def test_list_product_types_with_q_and_category_filters_inside_it(
+    sut: ServiceUnderTest, reference_data: Category
+) -> None:
+    """SPEC-PTY-23 · TC-PTY-23d"""
+    hardware = reference_data
+
+    assert group_names(sut.service.list_product_types(category_id=hardware.id, q="note")) == [
+        ("Hardware", ["Notebook"])
+    ]
+    assert sut.service.list_product_types(category_id=hardware.id, q="zzz") == []
+    with pytest.raises(CategoryNotFoundError):
+        sut.service.list_product_types(category_id=9999, q="a")
+    with pytest.raises(ValidationError) as raised:
+        sut.service.list_product_types(category_id="abc", q="a")
+    assert raised.value.fields == {"category_id": "invalid"}
+
+
+def test_list_product_types_q_does_not_match_category_names(
+    sut: ServiceUnderTest, reference_data: Category
+) -> None:
+    """SPEC-PTY-23 · TC-PTY-23e"""
+    assert sut.service.list_product_types(q="redes") == []

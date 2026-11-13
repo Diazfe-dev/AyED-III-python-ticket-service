@@ -22,7 +22,8 @@ PRODUCT_KEYS = ("name", "product_type_id")
 @bp.get("/categories")
 @login_required
 def list_categories() -> ResponseReturnValue:
-    return [category_json(category) for category in get_catalog_service().list_categories()]
+    categories = get_catalog_service().list_categories(q=request.args.get("q"))
+    return [category_json(category) for category in categories]
 
 
 @bp.post("/categories")
@@ -75,8 +76,10 @@ def delete_product_type(product_type_id: int) -> ResponseReturnValue:
 @bp.get("/product-types")
 @login_required
 def list_product_types() -> ResponseReturnValue:
-    groups = get_catalog_service().list_product_types(request.args.get("category_id"))
-    return [category_group_json(category) for category in groups]
+    groups = get_catalog_service().list_product_types(
+        request.args.get("category_id"), q=request.args.get("q")
+    )
+    return [category_group_json(group) for group in groups]
 
 
 @bp.post("/products")

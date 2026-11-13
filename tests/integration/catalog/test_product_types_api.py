@@ -232,7 +232,7 @@ def test_any_user_lists_product_types_grouped_by_category(
     make_category: MakeCategory,
     make_product_type: MakeProductType,
 ) -> None:
-    """SPEC-PTY-09 · TC-PTY-09d"""
+    """SPEC-PTY-22 · TC-PTY-22d"""
     redes, audio, hardware = (make_category(n) for n in ["Redes", "audio", "Hardware"])
     router = make_product_type(redes, "Router")
     access_point = make_product_type(redes, "Access point")
@@ -313,3 +313,104 @@ def test_listing_product_types_with_malformed_category_id_is_rejected(
         "error": "validation_error",
         "fields": {"category_id": "invalid"},
     }
+
+
+@pytest.fixture
+def reference_types(
+    make_category: MakeCategory, make_product_type: MakeProductType
+) -> dict[str, Category]:
+    categories = {n: make_category(n) for n in ["Redes", "audio", "Hardware", "Electrónica"]}
+    for category, names in [
+        ("Redes", ["Router", "Access point"]),
+        ("Hardware", ["Notebook", "Ruteador USB"]),
+        ("Electrónica", ["Cámara"]),
+    ]:
+        for name in names:
+            make_product_type(categories[category], name)
+    return categories
+
+
+def group_names(response: Any) -> list[tuple[str, list[str]]]:
+    return [
+        (group["name"], [item["name"] for item in group["product_types"]])
+        for group in response.get_json()
+    ]
+
+
+def test_listing_product_types_filters_by_q(
+    client: FlaskClient,
+    login_as: LoginAs,
+    make_user: MakeUser,
+    reference_types: dict[str, Category],
+) -> None:
+    """SPEC-PTY-23 · TC-PTY-23f"""
+    login_as(client, make_user(role="Representative"))
+
+    everywhere = client.get("/product-types?q=UTE")
+    in_redes = client.get(f"/product-types?category_id={reference_types['Redes'].id}&q=UTE")
+
+    assert everywhere.status_code == 200
+    assert group_names(everywhere) == [("Hardware", ["Ruteador USB"]), ("Redes", ["Router"])]
+    assert in_redes.status_code == 200
+    assert group_names(in_redes) == [("Redes", ["Router"])]
+
+
+def test_listing_product_types_with_empty_q_equals_no_q(
+    client: FlaskClient,
+    login_as: LoginAs,
+    make_user: MakeUser,
+    reference_types: dict[str, Category],
+) -> None:
+    """SPEC-PTY-23 · TC-PTY-23g"""
+    login_as(client, make_user(role="Representative"))
+
+    response = client.get("/product-types?q=")
+
+    assert response.status_code == 200
+    assert response.get_json() == client.get("/product-types").get_json()
+    assert "audio" in [name for name, _ in group_names(response)]
+
+
+def test_listing_product_types_with_malformed_category_id_and_q_is_rejected(
+    admin_client: FlaskClient,
+) -> None:
+    """SPEC-PTY-23 · TC-PTY-23g"""
+    response = admin_client.get("/product-types?category_id=abc&q=UTE")
+
+    assert response.status_code == 400
+    assert response.get_json() == {
+        "error": "validation_error",
+        "fields": {"category_id": "invalid"},
+    }
+
+
+@pytest.mark.parametrize("query", ["page=abc", "page=1&page_size=1"])
+def test_listing_product_types_ignores_page_and_page_size(
+    client: FlaskClient,
+    login_as: LoginAs,
+    make_user: MakeUser,
+    reference_types: dict[str, Category],
+    query: str,
+) -> None:
+    """SPEC-PTY-24 · TC-PTY-24b"""
+    login_as(client, make_user(role="Representative"))
+
+    response = client.get(f"/product-types?{query}")
+
+    assert response.status_code == 200
+    assert response.get_json() == client.get("/product-types").get_json()
+
+
+def test_listing_product_types_keeps_q_when_page_is_sent(
+    client: FlaskClient,
+    login_as: LoginAs,
+    make_user: MakeUser,
+    reference_types: dict[str, Category],
+) -> None:
+    """SPEC-PTY-24 · TC-PTY-24b"""
+    login_as(client, make_user(role="Representative"))
+
+    response = client.get("/product-types?q=UTE&page=2")
+
+    assert response.status_code == 200
+    assert group_names(response) == [("Hardware", ["Ruteador USB"]), ("Redes", ["Router"])]

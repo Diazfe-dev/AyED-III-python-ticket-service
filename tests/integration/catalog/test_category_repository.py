@@ -69,6 +69,18 @@ def test_list_all_orders_categories_by_name_ignoring_case(db_session: Session) -
     assert [category.name for category in repository.list_all()] == ["Audio", "hardware", "redes"]
 
 
+def test_list_all_with_q_matches_by_contained_text_ignoring_case(db_session: Session) -> None:
+    """SPEC-PTY-21 · TC-PTY-21b"""
+    repository = SqlAlchemyCategoryRepository(db_session)
+    for name in ["Redes", "Electrónica", "50% off"]:
+        repository.add(Category(name=name))
+    db_session.commit()
+
+    assert [c.name for c in repository.list_all(q="ÓNICA")] == ["Electrónica"]
+    assert [c.name for c in repository.list_all(q="e")] == ["Electrónica", "Redes"]
+    assert [c.name for c in repository.list_all(q="%")] == ["50% off"]
+
+
 def new_session(app: Flask) -> Session:
     return app.extensions[EXTENSION_KEY]["session_factory"]()
 
@@ -149,7 +161,7 @@ def names_by_group(categories: list[Category]) -> list[tuple[str, list[str]]]:
 
 @pytest.mark.usefixtures("grouped_catalog")
 def test_list_with_product_types_orders_groups_and_types_by_name(db_session: Session) -> None:
-    """SPEC-PTY-09 · TC-PTY-09b"""
+    """SPEC-PTY-22 · TC-PTY-22b"""
     db_session.expire_all()
 
     categories = SqlAlchemyCategoryRepository(db_session).list_with_product_types()
@@ -164,7 +176,7 @@ def test_list_with_product_types_orders_groups_and_types_by_name(db_session: Ses
 def test_list_with_product_types_loads_everything_in_two_queries(
     db_session: Session, make_category: MakeCategory, make_product_type: MakeProductType
 ) -> None:
-    """SPEC-PTY-09 · TC-PTY-09c"""
+    """SPEC-PTY-22 · TC-PTY-22c"""
     for _ in range(3):
         category = make_category()
         make_product_type(category)
