@@ -318,6 +318,7 @@ Casos deterministas de `POST /logout` y de `GET /me` (sin `sleep`): la prueba cr
 | UI-64 | TC-UI-64c | e2e | Alta de usuario y restablecimiento, con éxito y con error | Los campos de contraseña quedan vacíos | `e2e/users.spec.js` |
 | UI-65 | TC-UI-65a | unit | Escaneo de `index.html` y de `app/static/js/**` | Sin atributos `on*=`, `style=`, URLs `javascript:` ni `<script>` sin `src` | `js/static-scan.test.js` |
 | UI-65 | TC-UI-65b | e2e | `/` servido con `Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self'; object-src 'none'; base-uri 'none'` (con `route.fetch` + `route.fulfill`); login y recorrido de pantallas | Cero eventos `securitypolicyviolation` y ningún mensaje de consola de CSP | `e2e/security.spec.js` |
+| UI-65 | TC-UI-65c | unit | `el` con un `document` simulado mínimo; atributos `onclick`, `onerror`, `style`, `srcdoc` y `aria-label`, `class` | Los no permitidos lanzan `Attribute not allowed`; `aria-*` y `class` se aceptan | `js/render.test.js` |
 
 ### Accesibilidad y diseño adaptable
 
@@ -386,7 +387,7 @@ Casos deterministas de `POST /logout` y de `GET /me` (sin `sleep`): la prueba cr
 | RNF | Casos |
 |-----|-------|
 | RNF 1 (TDD) | Cada task escribe primero su prueba de `pytest`, `node --test` o Playwright y la ve fallar (o registra por qué no tiene fase roja propia) |
-| RNF 2 (autenticación robusta) | TC-UI-60a, 60b (solo la cookie), 61a (sin secretos), 62a, 62b (sin identidad en el navegador), 63a, 63b (texto como texto), 64a a 64c (contraseñas vaciadas), 65a, 65b (CSP estricta), 12c (sesión vencida), 19b (rol sin permiso), 10b (mensaje genérico) |
+| RNF 2 (autenticación robusta) | TC-UI-60a, 60b (solo la cookie), 61a (sin secretos), 62a, 62b (sin identidad en el navegador), 63a, 63b (texto como texto), 64a a 64c (contraseñas vaciadas), 65a, 65b (CSP estricta), 65c (lista de atributos de `el`), 12c (sesión vencida), 19b (rol sin permiso), 10b (mensaje genérico) |
 | RNF 7 (API documentada) | TC-PLT-23a a 23d: las rutas de la UI existen y quedan fuera del contrato |
 | RNF 8 (interfaz servida por la API) | TC-UI-01a a 03c, 05a, 05b, 06a, 06b, 74a, 65b |
 | RNF 9 (pruebas de la interfaz) | TC-UI-73a, 73b, 74a, 75a, 75b, 76a, 76b, 98a, 99a, 99b, 121a, 121b y el CI de T-UI-17 |
@@ -462,7 +463,7 @@ Mecanismos: **P** = `pytest`, **N** = `node --test`, **W** = Playwright (con API
 | UI-62 | 62a, 62b | W, N | T-UI-33, 14 |
 | UI-63 | 63a, 63b | W, N | T-UI-32, 14 |
 | UI-64 | 64a, 64b, 64c | W | T-UI-21, 19, 26 |
-| UI-65 | 65a, 65b | N, W | T-UI-14, 33 |
+| UI-65 | 65a, 65b, 65c | N, W, N | T-UI-14, 33 |
 | UI-66 | 66a | W | T-UI-15 |
 | UI-67 | 67a | W | T-UI-34 |
 | UI-68 | 68a | W | T-UI-34 |
