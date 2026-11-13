@@ -478,3 +478,47 @@ def test_search_pages_concatenate_to_the_full_listing_without_overlaps(
     assert [page.total for page in pages] == [6, 6, 6, 6]
     assert [i for page in pages for i in ids(page.items)] == everything
     assert len(everything) == 6
+
+
+def test_search_text_matches_the_client_name_or_the_first_message_ignoring_case(
+    db_session: Session, listing_data: ListingData
+) -> None:
+    """SPEC-TKT-41 · TC-TKT-41b"""
+    d = listing_data
+    repository = SqlAlchemyTicketRepository(db_session)
+
+    assert ids(repository.search(q="ÁNGELA")) == ids([d.t4])
+    assert ids(repository.search(q="router")) == ids([d.t4, d.t1])
+
+
+def test_search_text_treats_percent_and_underscore_literally(
+    db_session: Session, listing_data: ListingData
+) -> None:
+    """SPEC-TKT-41 · TC-TKT-41c"""
+    d = listing_data
+    repository = SqlAlchemyTicketRepository(db_session)
+
+    assert ids(repository.search(q="%")) == ids([d.t2])
+    assert repository.search(q="_") == []
+
+
+def test_search_text_looks_only_at_the_first_message(
+    db_session: Session, listing_data: ListingData
+) -> None:
+    """SPEC-TKT-41 · TC-TKT-41d"""
+    result = SqlAlchemyTicketRepository(db_session).search(q="nuevo")
+
+    assert result == []
+
+
+def test_search_text_combines_with_the_other_filters_with_and(
+    db_session: Session, listing_data: ListingData
+) -> None:
+    """SPEC-TKT-44 · TC-TKT-44b"""
+    d = listing_data
+
+    result = SqlAlchemyTicketRepository(db_session).search(
+        representative_id=d.raul.id, q="router", state="New"
+    )
+
+    assert ids(result) == ids([d.t1])

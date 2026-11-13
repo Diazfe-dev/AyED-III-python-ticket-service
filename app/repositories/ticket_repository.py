@@ -1,7 +1,7 @@
 """Persistence of tickets on top of the SQLAlchemy session."""
 
-from sqlalchemy import ColumnElement, Select, or_, select
-from sqlalchemy.orm import Load, Session, selectinload
+from sqlalchemy import ColumnElement, Select, func, or_, select
+from sqlalchemy.orm import Load, Session, aliased, selectinload
 
 from app.db import fits_integer_column
 from app.domain.milestone import Milestone
@@ -103,12 +103,14 @@ class SqlAlchemyTicketRepository:
         client_id: int | None = None,
         representative_id: int | None = None,
         state: str | None = None,
+        q: str | None = None,
         ascending: bool = False,
         window: PageRequest | None = None,
     ) -> list[Ticket] | Page[Ticket]:
         """Tickets matching every given filter, by `(created_at, id)`, newest first by default.
 
-        An id SQLite cannot store matches nothing, so the query is not even run.
+        `q` matches the client's name or the first message as a substring, ignoring case; `%` and
+        `_` in it are literal. An id SQLite cannot store matches nothing, so the query is not run.
         """
         ids = {Ticket.client_id: client_id, Ticket.representative_id: representative_id}
         if not all(fits_integer_column(value) for value in ids.values() if value is not None):
@@ -119,6 +121,10 @@ class SqlAlchemyTicketRepository:
                 statement = statement.where(column == value)
         if state is not None:
             statement = statement.where(Ticket.state_name == state)
+        if q is not None:
+            statement = statement.join(_CLIENT, Ticket.client_id == _CLIENT.id).where(
+                _text_match(q.casefold())
+            )
         order = (
             (Ticket.created_at.asc(), Ticket.id.asc())
             if ascending
@@ -126,6 +132,24 @@ class SqlAlchemyTicketRepository:
         )
         statement = statement.order_by(*order)
         return fetch(self._session, statement, window)
+
+
+_CLIENT = aliased(User)
+
+
+def _text_match(text: str) -> ColumnElement[bool]:
+    first_message = (
+        select(Milestone.content)
+        .where(Milestone.ticket_id == Ticket.id)
+        .order_by(Milestone.created_at, Milestone.id)
+        .limit(1)
+        .correlate(Ticket)
+        .scalar_subquery()
+    )
+    return or_(
+        func.casefold(_CLIENT.name).contains(text, autoescape=True),
+        func.casefold(first_message).contains(text, autoescape=True),
+    )
 
 
 def _nothing(window: PageRequest | None) -> list[Ticket] | Page[Ticket]:
