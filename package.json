@@ -1,0 +1,16 @@
+{
+  "name": "tp-final-ui",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "test:js": "node --test \"tests/ui/js/**/*.test.js\"",
+    "test:e2e": "playwright test",
+    "test": "npm run test:js && npm run test:e2e"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.65.0"
+  }
+}
