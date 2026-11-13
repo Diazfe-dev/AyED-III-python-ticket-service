@@ -149,6 +149,58 @@ def test_search_with_a_window_returns_the_page_in_name_order(db_session: Session
     assert page.total == 5
 
 
+@pytest.fixture
+def reference_users(db_session: Session) -> SqlAlchemyUserRepository:
+    repository = SqlAlchemyUserRepository(db_session)
+    for name, email, active in [
+        ("ana", "ana@x.com", True),
+        ("Beto", "beto@x.com", False),
+        ("Ana", "otra@x.com", True),
+        ("Raúl", "raul@mail.com", True),
+    ]:
+        repository.add(Client(name=name, email=email, password_hash="h", is_active=active))
+    db_session.commit()
+    return repository
+
+
+def test_search_by_text_ignores_case_even_outside_ascii(
+    reference_users: SqlAlchemyUserRepository,
+) -> None:
+    """SPEC-USR-43 · TC-USR-43b"""
+    assert [user.name for user in reference_users.search(q="RAÚL")] == ["Raúl"]
+    assert [user.name for user in reference_users.search(q="ana")] == ["ana", "Ana"]
+    assert [user.email for user in reference_users.search(q="OTRA@")] == ["otra@x.com"]
+
+
+def test_search_by_text_treats_wildcards_literally(db_session: Session) -> None:
+    """SPEC-USR-43 · TC-USR-43d"""
+    repository = SqlAlchemyUserRepository(db_session)
+    add_users_named(repository, db_session, ["50% off", "5000", "a_b", "axb"])
+
+    assert [user.name for user in repository.search(q="%")] == ["50% off"]
+    assert [user.name for user in repository.search(q="a_b")] == ["a_b"]
+
+
+def test_search_filters_by_active_state(reference_users: SqlAlchemyUserRepository) -> None:
+    """SPEC-USR-44 · TC-USR-44b"""
+    assert [user.name for user in reference_users.search(is_active=False)] == ["Beto"]
+    assert [user.name for user in reference_users.search(is_active=True)] == [
+        "ana",
+        "Ana",
+        "Raúl",
+    ]
+    assert len(reference_users.search(is_active=None)) == 4
+
+
+def test_search_can_leave_the_email_out_of_the_text_match(
+    reference_users: SqlAlchemyUserRepository,
+) -> None:
+    """SPEC-USR-46 · TC-USR-46c"""
+    assert reference_users.search(role="Client", q="otra", search_email=False) == []
+    found = reference_users.search(role="Client", q="otra", search_email=True)
+    assert [user.name for user in found] == ["Ana"]
+
+
 def test_repository_has_no_way_to_delete_users() -> None:
     """SPEC-USR-10 · TC-USR-10b"""
     public_names = {name for name in dir(SqlAlchemyUserRepository) if not name.startswith("_")}

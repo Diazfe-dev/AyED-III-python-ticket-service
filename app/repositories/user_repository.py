@@ -1,6 +1,6 @@
 """Persistence of users on top of the SQLAlchemy session."""
 
-from sqlalchemy import func, select
+from sqlalchemy import ColumnElement, func, or_, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
@@ -35,15 +35,32 @@ class SqlAlchemyUserRepository:
         statement = select(User).where(User.email == normalize_email(email))
         return self._session.scalars(statement).one_or_none()
 
-    def list_by_role(self, role: str) -> list[User]:
-        """Users of one role, active or not, ordered by id."""
-        role_class = ROLE_CLASSES[role]
-        return list(self._session.scalars(select(role_class).order_by(role_class.id)))
-
     def search(
-        self, *, role: str | None = None, window: PageRequest | None = None
+        self,
+        *,
+        role: str | None = None,
+        is_active: bool | None = None,
+        q: str | None = None,
+        search_email: bool = True,
+        window: PageRequest | None = None,
     ) -> list[User] | Page[User]:
-        """Users, active or not, optionally of one role, by name ignoring case and then id."""
+        """Users optionally filtered by role, state and text, by name ignoring case and then id.
+
+        `q` matches a name (and an email, unless `search_email` is off) as a substring, ignoring
+        case; `%` and `_` in it are literal.
+        """
         entity = ROLE_CLASSES[role] if role is not None else User
-        statement = select(entity).order_by(func.casefold(entity.name), entity.id)
+        statement = select(entity)
+        if is_active is not None:
+            statement = statement.where(entity.is_active == is_active)
+        if q is not None:
+            statement = statement.where(_text_match(entity, q.casefold(), search_email))
+        statement = statement.order_by(func.casefold(entity.name), entity.id)
         return fetch(self._session, statement, window)
+
+
+def _text_match(entity: type[User], text: str, search_email: bool) -> ColumnElement[bool]:
+    by_name = func.casefold(entity.name).contains(text, autoescape=True)
+    if not search_email:
+        return by_name
+    return or_(by_name, entity.email.contains(text, autoescape=True))
