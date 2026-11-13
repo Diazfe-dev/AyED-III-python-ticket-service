@@ -219,8 +219,12 @@ class TicketService:
 
     def list_milestones(self, ticket_id: int, actor: User) -> list[Milestone]:
         """The ticket's milestones in chronological order, whatever its state."""
-        self._reject_admin(actor)
-        ticket = self._tickets.get_visible_with_milestones(ticket_id, actor)
+        lookup = {
+            "Admin": lambda: self._tickets.get_with_milestones(ticket_id),
+            "Client": lambda: self._tickets.get_visible_with_milestones(ticket_id, actor),
+            "Representative": lambda: self._tickets.get_visible_with_milestones(ticket_id, actor),
+        }[actor.role]
+        ticket = lookup()
         if ticket is None:
             raise TicketNotFoundError()
         return list(ticket.milestones)

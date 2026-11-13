@@ -149,7 +149,7 @@ def test_unseen_ticket_is_not_found_when_adding_a_milestone(setup, actor_name, t
 
 
 def test_admin_is_forbidden_to_add_milestones_before_the_ticket_lookup(setup):
-    """SPEC-TKT-27 · TC-TKT-27f"""
+    """SPEC-TKT-32 · TC-TKT-32h"""
     for ticket_id in (9999, setup.ticket.id):
         with pytest.raises(PermissionDeniedError):
             setup.service.add_milestone(ticket_id, "Hola", setup.root)
@@ -159,7 +159,7 @@ def test_admin_is_forbidden_to_add_milestones_before_the_ticket_lookup(setup):
 
 
 def test_admin_with_invalid_body_gets_the_validation_error_first(setup):
-    """SPEC-TKT-27 · TC-TKT-27g (dec. 9, G-21)"""
+    """SPEC-TKT-32 · TC-TKT-32i (dec. 9, G-21)"""
     with pytest.raises(ValidationError):
         setup.service.add_milestone(setup.ticket.id, "", setup.root)
     with pytest.raises(ValidationError):
@@ -301,11 +301,16 @@ def test_closed_ticket_milestones_can_be_listed(setup):
     assert listed == list(setup.ticket.milestones)
 
 
-def test_admin_is_forbidden_to_list_milestones_before_the_ticket_lookup(setup):
-    """SPEC-TKT-27 · TC-TKT-27f (list_milestones)"""
-    for ticket_id in (9999, setup.ticket.id):
-        with pytest.raises(PermissionDeniedError):
-            setup.service.list_milestones(ticket_id, setup.root)
+def test_admin_lists_the_milestones_of_any_ticket_without_the_participant_lookup(setup):
+    """SPEC-MLS-12 · TC-MLS-12a"""
+    setup.service.add_milestone(setup.ticket.id, "Revisando", setup.raul)
+    setup.service.add_milestone(setup.ticket.id, "Gracias", setup.ana)
+    setup.tickets.visible_lookups.clear()
 
+    listed = setup.service.list_milestones(setup.ticket.id, setup.root)
+    with pytest.raises(TicketNotFoundError):
+        setup.service.list_milestones(9999, setup.root)
+
+    assert listed == list(setup.ticket.milestones)
+    assert [m.content for m in listed] == ["Hola", "Revisando", "Gracias"]
     assert setup.tickets.visible_lookups == []
-    assert setup.commit.calls == 0
