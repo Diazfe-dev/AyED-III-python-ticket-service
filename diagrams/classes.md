@@ -23,6 +23,7 @@ classDiagram
         +str role
         +bool is_active
         +deactivate() None
+        +activate() None
     }
     class Admin
     class Representative {
@@ -200,13 +201,18 @@ classDiagram
     class AuthController {
         +login(email, password)
         +logout()
+        +me()
+        +change_own_password(current_password, new_password)
     }
     class UserController {
         +create_user(body)
         +update_user(user_id, body)
         +deactivate_user(user_id)
-        +list_clients()
-        +list_representatives()
+        +activate_user(user_id)
+        +reset_password(user_id, new_password)
+        +list_users(is_active, q, page, page_size)
+        +list_clients(is_active, q, page, page_size)
+        +list_representatives(is_active, q, page, page_size)
     }
     class auth {
         <<module>>
@@ -271,7 +277,11 @@ classDiagram
         +deactivate_user(user_id, actor) User
         +authenticate(email, password) User
         +find_active_user(user_id) User
-        +list_by_role(role) list
+        +activate_user(user_id) User
+        +change_own_password(actor, current_password, new_password) None
+        +reset_password(user_id, new_password) None
+        +list_users(role, is_active, q, page, page_size) list or Page
+        +list_clients(actor, is_active, q, page, page_size) list or Page
     }
     class PasswordHasher {
         <<interface>>
@@ -353,7 +363,7 @@ classDiagram
     class UserRepository {
         +get(user_id) User
         +find_by_email(email) User
-        +list_by_role(role) list
+        +search(role, is_active, q, search_email, window) list or Page
         +add(user) None
     }
     class TicketRepository {
@@ -470,6 +480,7 @@ classDiagram
 - Los **controllers** solo traducen HTTP: validan la entrada, obtienen `current_user` de la sesión y convierten las excepciones de dominio en códigos HTTP.
 - Los **services** reciben sus dependencias por constructor (repositorios, un notificador, un `clock` inyectable y la función `commit`, que en producción es `session.commit`) y deciden cuándo confirmar la transacción. `UserService` recibe además un `PasswordHasher`.
 - `app/auth.py` arma `UserService` para cada request (o comando CLI) y expone `current_user()` y los decoradores `login_required` (`401`) y `admin_required` (`403`). `app/controllers/errors.py` traduce cada `DomainError` a su status y código JSON con una tabla, y con una segunda tabla (`HTTP_ERROR_RESPONSES`) responde en JSON las rutas inexistentes (`404` `not_found`), los métodos no admitidos (`405` `method_not_allowed`) y los errores no manejados (`500` `internal_error`, registrado sobre `InternalServerError` para que el teardown siga haciendo rollback). El comando `create-admin` (`app/cli.py`) reutiliza `create_user`.
+- **Usuarios (`01-users`)**: `User.activate()` es el espejo de `deactivate()` (`is_active = True`); `UserService.activate_user` lo llama sin error si el usuario ya estaba activo (SPEC-USR-29). `change_own_password(actor, current_password, new_password)` valida el formato de ambos campos (`required` si falta o es `null`, `invalid` si no es texto, `too_short` en la nueva), después compara la actual con `PasswordHasher.verify` y, si no coincide, lanza `InvalidCurrentPasswordError` (`400` `invalid_current_password`, no `401`, SPEC-USR-38); `reset_password(user_id, new_password)` busca primero al usuario (`UserNotFoundError`) y recién después valida la nueva. Ambas guardan solo el hash y llaman a `commit()`. `list_users(role, ...)` reemplaza a `list_by_role`: recibe los parámetros de la query como texto, valida `is_active` y la paginación juntos y llama a `UserRepository.search`. `list_clients(actor, ...)` rechaza al `Client` (`403`), después valida el formato (`400`), después rechaza al `Representative` que envía `is_active` (`403`, SPEC-USR-50), y busca con `is_active=True` y `search_email=False` para el representante (solo nombre) o con los filtros pedidos para el `Admin`. `SqlAlchemyUserRepository.search(role, is_active, q, search_email, window)` filtra por rol (con `ROLE_CLASSES`), estado y texto (nombre con `func.casefold` y email, con `%` y `_` literales), ordena por `(casefold(name), id)` y delega en `fetch`. En `app/controllers/auth.py`, `GET /me` y `POST /me/password` usan `login_required` (`204` sin contenido); en `app/controllers/users.py`, `GET /users`, `POST /users/{id}/activate` y `POST /users/{id}/password` usan `admin_required`, y `GET /clients` usa `login_required` y serializa con `user_json` para el `Admin` o `party_json` (`id` y `name`) para el `Representative`.
 - Los **repositories** encapsulan la `Session` de SQLAlchemy y nunca hacen commit. `UserRepository.add` hace `flush()` y traduce el `IntegrityError` del email único a `DuplicateUserError`, y `UserRepository.get` devuelve `None` para un id fuera del `INTEGER` de SQLite (`fits_integer_column`). `TicketRepository.get_visible` aplica el filtro de privacidad (RNF 4).
 - `app/wiring.py` arma `CatalogService` y `ProductService` para cada request con `get_session()` y sus repositorios, así los controllers nunca tocan la `Session`. `ProductService` recibe también `CategoryRepository` para responder `404` a un filtro por categoría inexistente (SPEC-PRD-16). `app/services/validation.py` reúne los validadores de campos que comparten `UserService`, `CatalogService` y `ProductService` (`text_error`, `id_error`, `parse_id`, `provided`, `raise_if_invalid`).
 - `CategoryRepository.add` y `ProductTypeRepository.add` hacen `flush()` y traducen el `IntegrityError` de los `UNIQUE` a `DuplicateCategoryError` y `DuplicateProductTypeError`. `CategoryRepository.delete` traduce el de la FK `RESTRICT` a `CategoryInUseError`. `list_with_product_types` carga las categorías con `selectinload(Category.product_types)` (2 consultas en total). Los dos `get` devuelven `None` para un id que no entra en el `INTEGER` de SQLite (`fits_integer_column` de `app/db.py`).

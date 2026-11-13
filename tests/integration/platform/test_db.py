@@ -71,6 +71,16 @@ def test_new_connection_enables_foreign_keys(app: Flask) -> None:
     assert foreign_keys == 1
 
 
+def test_new_connection_registers_the_casefold_function(app: Flask) -> None:
+    """SPEC-USR-43 · TC-USR-43f"""
+    with app.app_context(), get_engine().connect() as connection:
+        folded = connection.execute(text("SELECT casefold('RAÚL')")).scalar_one()
+        folded_null = connection.execute(text("SELECT casefold(NULL)")).scalar_one()
+
+    assert folded == "raúl"
+    assert folded_null is None
+
+
 def test_insert_with_missing_foreign_key_is_rejected(app: Flask, metadata: MetaData) -> None:
     """SPEC-PLT-05 · TC-PLT-05b"""
     with app.app_context(), get_engine().begin() as connection:

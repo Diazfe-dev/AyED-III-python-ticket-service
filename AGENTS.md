@@ -103,8 +103,8 @@ app/
   controllers/         # Blueprints de Flask: HTTP de entrada y salida, nada más
     health.py          # /health
     api_docs.py        # /openapi.json y /docs
-    auth.py            # POST /login y POST /logout
-    users.py           # gestión de usuarios (solo Admin)
+    auth.py            # POST /login, POST /logout, GET /me y POST /me/password
+    users.py           # gestión y listados de usuarios, contraseñas y reactivación
     catalog.py         # categorías, tipos de producto y productos (CatalogController)
     milestones.py      # POST y GET /tickets/{id}/milestones (MilestoneController)
     errors.py          # tabla DomainError → status y código JSON

@@ -5,10 +5,13 @@ import pytest
 from app.domain.errors import (
     DuplicateUserError,
     InvalidCredentialsError,
+    InvalidCurrentPasswordError,
+    PermissionDeniedError,
     SelfDeactivationError,
     UserNotFoundError,
     ValidationError,
 )
+from app.domain.paging import Page
 from app.domain.users import Representative, User
 from app.services.user_service import UserService
 from tests.unit.fakes import CommitSpy
@@ -291,18 +294,318 @@ def one_user_per_role(sut: ServiceUnderTest) -> dict[str, User]:
     }
 
 
-def test_list_by_role_returns_only_clients(
-    sut: ServiceUnderTest, one_user_per_role: dict[str, User]
-) -> None:
-    """SPEC-USR-11 · TC-USR-11b"""
-    assert sut.service.list_by_role("Client") == [one_user_per_role["Client"]]
-
-
-def test_list_by_role_returns_only_representatives(
+def test_list_users_returns_only_representatives(
     sut: ServiceUnderTest, one_user_per_role: dict[str, User]
 ) -> None:
     """SPEC-USR-12 · TC-USR-12b"""
-    assert sut.service.list_by_role("Representative") == [one_user_per_role["Representative"]]
+    assert sut.service.list_users(role="Representative") == [one_user_per_role["Representative"]]
+
+
+def test_list_users_without_filters_returns_every_user_of_every_role(
+    sut: ServiceUnderTest, one_user_per_role: dict[str, User]
+) -> None:
+    """SPEC-USR-31 · TC-USR-31a"""
+    inactive = sut.service.create_user("Off", "off@x.com", "Client", "password1")
+    inactive.deactivate()
+
+    users = sut.service.list_users()
+
+    assert {user.email for user in users} == {
+        "admin@x.com",
+        "representative@x.com",
+        "client@x.com",
+        "off@x.com",
+    }
+
+
+@pytest.fixture
+def reference_users(sut: ServiceUnderTest) -> dict[str, User]:
+    users = {}
+    for name, email, role in [
+        ("ana", "ana@x.com", "Client"),
+        ("Beto", "beto@x.com", "Client"),
+        ("Ana", "otra@x.com", "Client"),
+        ("Raúl", "raul@mail.com", "Client"),
+        ("Rosa", "rosa@x.com", "Representative"),
+        ("Admin", "admin@x.com", "Admin"),
+    ]:
+        users[name] = sut.service.create_user(name, email, role, "password1")
+    users["Beto"].deactivate()
+    return users
+
+
+def names(users: object) -> list[str]:
+    assert isinstance(users, list)
+    return [user.name for user in users]
+
+
+@pytest.mark.usefixtures("reference_users")
+def test_list_users_searches_the_name_and_the_email(sut: ServiceUnderTest) -> None:
+    """SPEC-USR-43 · TC-USR-43a"""
+    assert names(sut.service.list_users(q="ANA")) == ["ana", "Ana"]
+    assert names(sut.service.list_users(q="mail.com")) == ["Raúl"]
+
+
+@pytest.mark.usefixtures("reference_users")
+def test_list_users_filters_by_active_state_written_as_text(sut: ServiceUnderTest) -> None:
+    """SPEC-USR-44 · TC-USR-44a"""
+    assert names(sut.service.list_users(role="Client", is_active="false")) == ["Beto"]
+    assert names(sut.service.list_users(role="Client", is_active="true")) == [
+        "ana",
+        "Ana",
+        "Raúl",
+    ]
+
+
+def test_list_users_rejects_an_invalid_active_state_together_with_the_page(
+    sut: ServiceUnderTest,
+) -> None:
+    """SPEC-USR-45 · TC-USR-45b"""
+    with pytest.raises(ValidationError) as alone:
+        sut.service.list_users(is_active="yes")
+    with pytest.raises(ValidationError) as together:
+        sut.service.list_users(is_active="yes", page="0")
+
+    assert alone.value.fields == {"is_active": "invalid"}
+    assert together.value.fields == {"is_active": "invalid", "page": "invalid"}
+
+
+@pytest.mark.usefixtures("reference_users")
+def test_list_users_with_a_page_returns_a_page_of_the_matches(sut: ServiceUnderTest) -> None:
+    """SPEC-USR-47 · TC-USR-47a"""
+    result = sut.service.list_users(role="Client", page="1")
+
+    assert isinstance(result, Page)
+    assert (result.page, result.page_size, result.total) == (1, 20, 4)
+
+
+def test_list_users_orders_by_name_ignoring_case_then_id(sut: ServiceUnderTest) -> None:
+    """SPEC-USR-48 · TC-USR-48b"""
+    for index, name in enumerate(["beto", "Ana", "ana", "Carla"]):
+        sut.service.create_user(name, f"user{index}@x.com", "Client", "password1")
+
+    assert names(sut.service.list_users()) == ["Ana", "ana", "beto", "Carla"]
+
+
+def test_list_clients_for_a_representative_shows_only_active_clients(
+    sut: ServiceUnderTest, reference_users: dict[str, User]
+) -> None:
+    """SPEC-USR-32 · TC-USR-32a"""
+    clients = sut.service.list_clients(reference_users["Rosa"])
+
+    assert names(clients) == ["ana", "Ana", "Raúl"]
+
+
+def test_list_clients_for_an_admin_shows_every_client(
+    sut: ServiceUnderTest, reference_users: dict[str, User]
+) -> None:
+    """SPEC-USR-34 · TC-USR-34a"""
+    clients = sut.service.list_clients(reference_users["Admin"])
+
+    assert names(clients) == ["ana", "Ana", "Beto", "Raúl"]
+    assert {client.role for client in clients} == {"Client"}
+
+
+def test_list_clients_for_a_client_is_denied_before_looking_at_the_parameters(
+    sut: ServiceUnderTest, reference_users: dict[str, User]
+) -> None:
+    """SPEC-USR-35 · TC-USR-35a"""
+    ana = reference_users["ana"]
+
+    for parameters in [{}, {"q": "a"}, {"is_active": "yes"}, {"page": "x"}]:
+        with pytest.raises(PermissionDeniedError):
+            sut.service.list_clients(ana, **parameters)
+
+
+def test_list_clients_for_a_representative_searches_the_name_only(
+    sut: ServiceUnderTest, reference_users: dict[str, User]
+) -> None:
+    """SPEC-USR-46 · TC-USR-46a"""
+    rosa = reference_users["Rosa"]
+
+    assert names(sut.service.list_clients(rosa, q="ana")) == ["ana", "Ana"]
+    assert sut.service.list_clients(rosa, q="mail.com") == []
+
+
+def test_list_clients_rejects_the_active_filter_of_a_representative(
+    sut: ServiceUnderTest, reference_users: dict[str, User]
+) -> None:
+    """SPEC-USR-50 · TC-USR-50a"""
+    rosa = reference_users["Rosa"]
+
+    for value in ("true", "false"):
+        with pytest.raises(PermissionDeniedError):
+            sut.service.list_clients(rosa, is_active=value)
+    with pytest.raises(ValidationError) as raised:
+        sut.service.list_clients(rosa, is_active="yes")
+    assert raised.value.fields == {"is_active": "invalid"}
+
+
+def test_activate_user_reactivates_an_inactive_user(sut: ServiceUnderTest, ana: User) -> None:
+    """SPEC-USR-28 · TC-USR-28b"""
+    ana.deactivate()
+    commits_before = sut.commit.calls
+
+    activated = sut.service.activate_user(ana.id)
+
+    assert activated is ana
+    assert ana.is_active is True
+    assert sut.commit.calls == commits_before + 1
+
+
+def test_activate_user_on_an_active_user_changes_nothing(sut: ServiceUnderTest, ana: User) -> None:
+    """SPEC-USR-29 · TC-USR-29a"""
+    activated = sut.service.activate_user(ana.id)
+
+    assert activated.is_active is True
+
+
+def test_activate_user_with_unknown_id_raises_user_not_found(sut: ServiceUnderTest) -> None:
+    """SPEC-USR-30 · TC-USR-30a"""
+    with pytest.raises(UserNotFoundError):
+        sut.service.activate_user(9999)
+
+    assert sut.commit.calls == 0
+
+
+def test_change_own_password_stores_the_hash_of_the_new_one(
+    sut: ServiceUnderTest, ana: User
+) -> None:
+    """SPEC-USR-37 · TC-USR-37a"""
+    commits_before = sut.commit.calls
+
+    sut.service.change_own_password(ana, "password1", "newpassword")
+
+    assert ana.password_hash == "hashed:newpassword"
+    assert sut.commit.calls == commits_before + 1
+
+
+def test_change_own_password_with_a_wrong_current_one_is_rejected(
+    sut: ServiceUnderTest, ana: User
+) -> None:
+    """SPEC-USR-38 · TC-USR-38a"""
+    commits_before = sut.commit.calls
+
+    with pytest.raises(InvalidCurrentPasswordError):
+        sut.service.change_own_password(ana, "wrong-pass", "newpassword")
+
+    assert ana.password_hash == "hashed:password1"
+    assert sut.commit.calls == commits_before
+
+
+def test_change_own_password_rejects_a_new_one_of_seven_characters(
+    sut: ServiceUnderTest, ana: User
+) -> None:
+    """SPEC-USR-39 · TC-USR-39a"""
+    commits_before = sut.commit.calls
+
+    with pytest.raises(ValidationError) as raised:
+        sut.service.change_own_password(ana, "password1", "short12")
+
+    assert raised.value.fields == {"new_password": "too_short"}
+    assert sut.commit.calls == commits_before
+
+
+def test_change_own_password_accepts_a_new_one_of_exactly_eight_characters(
+    sut: ServiceUnderTest, ana: User
+) -> None:
+    """SPEC-USR-39 · TC-USR-39c"""
+    sut.service.change_own_password(ana, "password1", "12345678")
+
+    assert ana.password_hash == "hashed:12345678"
+
+
+@pytest.mark.parametrize(
+    ("current", "new", "expected"),
+    [
+        (None, "newpassword", {"current_password": "required"}),
+        ("password1", None, {"new_password": "required"}),
+        (123, "newpassword", {"current_password": "invalid"}),
+        ("password1", ["x"], {"new_password": "invalid"}),
+        (None, 5, {"current_password": "required", "new_password": "invalid"}),
+    ],
+    ids=["no-current", "no-new", "numeric-current", "list-new", "both"],
+)
+def test_change_own_password_reports_every_invalid_field(
+    sut: ServiceUnderTest, ana: User, current: object, new: object, expected: dict[str, str]
+) -> None:
+    """SPEC-USR-40 · TC-USR-40a"""
+    commits_before = sut.commit.calls
+
+    with pytest.raises(ValidationError) as raised:
+        sut.service.change_own_password(ana, current, new)
+
+    assert raised.value.fields == expected
+    assert sut.commit.calls == commits_before
+
+
+def test_change_own_password_checks_the_format_before_the_current_password(
+    sut: ServiceUnderTest, ana: User
+) -> None:
+    """SPEC-USR-40 · TC-USR-40d"""
+    with pytest.raises(ValidationError):
+        sut.service.change_own_password(ana, "wrong-pass", "short12")
+
+    assert sut.hasher.verify_calls == []
+
+
+def test_reset_password_stores_the_new_hash_without_asking_for_the_old_one(
+    sut: ServiceUnderTest, ana: User
+) -> None:
+    """SPEC-USR-41 · TC-USR-41a"""
+    commits_before = sut.commit.calls
+
+    sut.service.reset_password(ana.id, "newpassword")
+
+    assert ana.password_hash == "hashed:newpassword"
+    assert sut.commit.calls == commits_before + 1
+    assert sut.hasher.verify_calls == []
+
+
+def test_reset_password_rejects_a_new_one_of_seven_characters(
+    sut: ServiceUnderTest, ana: User
+) -> None:
+    """SPEC-USR-39 · TC-USR-39b"""
+    commits_before = sut.commit.calls
+
+    with pytest.raises(ValidationError) as raised:
+        sut.service.reset_password(ana.id, "short12")
+
+    assert raised.value.fields == {"new_password": "too_short"}
+    assert sut.commit.calls == commits_before
+
+
+def test_reset_password_accepts_a_new_one_of_exactly_eight_characters(
+    sut: ServiceUnderTest, ana: User
+) -> None:
+    """SPEC-USR-39 · TC-USR-39c"""
+    sut.service.reset_password(ana.id, "12345678")
+
+    assert ana.password_hash == "hashed:12345678"
+
+
+@pytest.mark.parametrize(
+    ("new", "reason"), [(None, "required"), (12345678, "invalid")], ids=["missing", "numeric"]
+)
+def test_reset_password_reports_a_missing_or_non_text_password(
+    sut: ServiceUnderTest, ana: User, new: object, reason: str
+) -> None:
+    """SPEC-USR-40 · TC-USR-40b"""
+    commits_before = sut.commit.calls
+
+    with pytest.raises(ValidationError) as raised:
+        sut.service.reset_password(ana.id, new)
+
+    assert raised.value.fields == {"new_password": reason}
+    assert sut.commit.calls == commits_before
+
+
+def test_reset_password_of_an_unknown_user_raises_user_not_found(sut: ServiceUnderTest) -> None:
+    """SPEC-USR-42 · TC-USR-42a"""
+    with pytest.raises(UserNotFoundError):
+        sut.service.reset_password(9999, "newpassword")
+
+    assert sut.commit.calls == 0
 
 
 def test_authenticate_returns_the_active_user_with_matching_credentials(

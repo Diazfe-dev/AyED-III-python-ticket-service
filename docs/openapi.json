@@ -157,7 +157,128 @@
         }
       }
     },
+    "/me": {
+      "get": {
+        "summary": "Get the identity of the session user",
+        "description": "Returns the id, name, email and role of the user who owns the session. The UI uses it to learn the role.",
+        "operationId": "getMe",
+        "tags": [
+          "auth"
+        ],
+        "responses": {
+          "200": {
+            "description": "The session user.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SessionUser"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/AuthenticationRequired"
+          }
+        }
+      }
+    },
+    "/me/password": {
+      "post": {
+        "summary": "Change the password of the session user",
+        "description": "Any authenticated user. The format of both fields is checked first (`validation_error`, with `required` for a missing or `null` field and `invalid` for a value that is not text; `new_password` also reports `too_short` under 8 characters), and then `current_password` must match the stored password (`invalid_current_password`, a `400` and never a `401`, so the session stays valid). The new password is stored hashed. The current session keeps working.",
+        "operationId": "changeOwnPassword",
+        "tags": [
+          "auth"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ChangePasswordRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": "Password changed."
+          },
+          "400": {
+            "description": "Some fields are missing or invalid (`validation_error`), or the current password is wrong (`invalid_current_password`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "oneOf": [
+                    {
+                      "$ref": "#/components/schemas/ValidationErrorResponse"
+                    },
+                    {
+                      "$ref": "#/components/schemas/Error"
+                    }
+                  ]
+                },
+                "examples": {
+                  "validation_error": {
+                    "value": {
+                      "error": "validation_error",
+                      "fields": {
+                        "new_password": "too_short"
+                      }
+                    }
+                  },
+                  "invalid_current_password": {
+                    "value": {
+                      "error": "invalid_current_password"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/AuthenticationRequired"
+          }
+        }
+      }
+    },
     "/users": {
+      "get": {
+        "summary": "List users",
+        "description": "Admin only. Users of every role, active or not, ordered by name without case and then by id. `q` keeps the users whose name or email contains the text, without case. `is_active` keeps active (`true`) or inactive (`false`) users. `page` and `page_size` are optional: without them the response is an array. The format of every query parameter is validated together (`400`).",
+        "operationId": "listUsers",
+        "tags": [
+          "users"
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/Q"
+          },
+          {
+            "$ref": "#/components/parameters/IsActive"
+          },
+          {
+            "$ref": "#/components/parameters/Page"
+          },
+          {
+            "$ref": "#/components/parameters/PageSize"
+          }
+        ],
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/UserList"
+          },
+          "400": {
+            "$ref": "#/components/responses/ValidationFailed"
+          },
+          "401": {
+            "$ref": "#/components/responses/AuthenticationRequired"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          }
+        }
+      },
       "post": {
         "summary": "Create a user",
         "description": "Admin only. Creates an active user with the given role. The email is stored without surrounding spaces and in lowercase, and must not belong to any other user, active or not.",
@@ -302,23 +423,154 @@
         }
       }
     },
-    "/clients": {
-      "get": {
-        "summary": "List clients",
-        "description": "Admin only. Every user with role `Client`, active or not, ordered by id.",
-        "operationId": "listClients",
+    "/users/{user_id}/activate": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/UserId"
+        }
+      ],
+      "post": {
+        "summary": "Activate a user",
+        "description": "Admin only. Reverts a logical deletion: the user is marked active and can log in again with its credentials. Activating a user that is already active is not an error.",
+        "operationId": "activateUser",
         "tags": [
           "users"
         ],
         "responses": {
           "200": {
-            "$ref": "#/components/responses/UserList"
+            "description": "User activated (`is_active` is `true`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/User"
+                }
+              }
+            }
           },
           "401": {
             "$ref": "#/components/responses/AuthenticationRequired"
           },
           "403": {
             "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/UserNotFound"
+          }
+        }
+      }
+    },
+    "/users/{user_id}/password": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/UserId"
+        }
+      ],
+      "post": {
+        "summary": "Reset the password of a user",
+        "description": "Admin only. Sets a new password for any user without asking for the previous one. A missing or `null` `new_password` is `required`, a value that is not text is `invalid` and one under 8 characters is `too_short`. The password is stored hashed.",
+        "operationId": "resetUserPassword",
+        "tags": [
+          "users"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ResetPasswordRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": "Password reset."
+          },
+          "400": {
+            "$ref": "#/components/responses/ValidationFailed"
+          },
+          "401": {
+            "$ref": "#/components/responses/AuthenticationRequired"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/UserNotFound"
+          }
+        }
+      }
+    },
+    "/clients": {
+      "get": {
+        "summary": "List clients",
+        "description": "Administrator or representative; a client gets `403` before any parameter is looked at. An administrator gets every client, active or not, as `User` objects. A representative gets only the active clients as `ClientSummary` objects (`id` and `name`), and `q` searches the name only; a representative sending `is_active` gets `403` (after the format check). Ordered by name without case and then by id. `page` and `page_size` are optional: without them the response is an array. The format of every query parameter is validated together (`400`).",
+        "operationId": "listClients",
+        "tags": [
+          "users"
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/Q"
+          },
+          {
+            "$ref": "#/components/parameters/IsActive"
+          },
+          {
+            "$ref": "#/components/parameters/Page"
+          },
+          {
+            "$ref": "#/components/parameters/PageSize"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Clients as the session user may see them: `User` objects for an administrator, `ClientSummary` objects for a representative; an array or a page object.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "oneOf": [
+                    {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/User"
+                      }
+                    },
+                    {
+                      "$ref": "#/components/schemas/UserPage"
+                    },
+                    {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/ClientSummary"
+                      }
+                    },
+                    {
+                      "$ref": "#/components/schemas/ClientSummaryPage"
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/ValidationFailed"
+          },
+          "401": {
+            "$ref": "#/components/responses/AuthenticationRequired"
+          },
+          "403": {
+            "description": "The session user is a client, or a representative sent `is_active` (`forbidden`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "error": "forbidden"
+                }
+              }
+            }
           }
         }
       }
@@ -326,7 +578,7 @@
     "/representatives": {
       "get": {
         "summary": "List representatives",
-        "description": "Admin only. Every user with role `Representative`, active or not, ordered by id.",
+        "description": "Admin only. Every user with role `Representative`, active or not, ordered by name without case and then by id. `q`, `is_active`, `page` and `page_size` work as in `GET /users`.",
         "operationId": "listRepresentatives",
         "tags": [
           "users"
@@ -335,13 +587,30 @@
           "200": {
             "$ref": "#/components/responses/UserList"
           },
+          "400": {
+            "$ref": "#/components/responses/ValidationFailed"
+          },
           "401": {
             "$ref": "#/components/responses/AuthenticationRequired"
           },
           "403": {
             "$ref": "#/components/responses/Forbidden"
           }
-        }
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/Q"
+          },
+          {
+            "$ref": "#/components/parameters/IsActive"
+          },
+          {
+            "$ref": "#/components/parameters/Page"
+          },
+          {
+            "$ref": "#/components/parameters/PageSize"
+          }
+        ]
       }
     },
     "/categories": {
@@ -1349,14 +1618,21 @@
         }
       },
       "UserList": {
-        "description": "Users of the requested role, each with its role and state.",
+        "description": "Users ordered by name without case, then by id, each with its role and state. A plain array, or a page object when `page` or `page_size` was sent.",
         "content": {
           "application/json": {
             "schema": {
-              "type": "array",
-              "items": {
-                "$ref": "#/components/schemas/User"
-              }
+              "oneOf": [
+                {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/User"
+                  }
+                },
+                {
+                  "$ref": "#/components/schemas/UserPage"
+                }
+              ]
             }
           }
         }
@@ -1604,6 +1880,19 @@
             },
             "example": {
               "error": "ticket_closed"
+            }
+          }
+        }
+      },
+      "InvalidCurrentPassword": {
+        "description": "The current password is wrong (`invalid_current_password`).",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            },
+            "example": {
+              "error": "invalid_current_password"
             }
           }
         }
@@ -2133,6 +2422,115 @@
             "description": "When true on a `New` ticket, moves it to `In Progress`. Optional, defaults to false."
           }
         }
+      },
+      "ClientSummary": {
+        "type": "object",
+        "description": "The minimal view of a client that a representative gets: no email, channel or state.",
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "name": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name"
+        ]
+      },
+      "UserPage": {
+        "type": "object",
+        "description": "A page of users.",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/User"
+            }
+          },
+          "page": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "page_size": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 100
+          },
+          "total": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "Matching records across all pages."
+          }
+        },
+        "required": [
+          "items",
+          "page",
+          "page_size",
+          "total"
+        ]
+      },
+      "ClientSummaryPage": {
+        "type": "object",
+        "description": "A page of client summaries.",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ClientSummary"
+            }
+          },
+          "page": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "page_size": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 100
+          },
+          "total": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "Matching records across all pages."
+          }
+        },
+        "required": [
+          "items",
+          "page",
+          "page_size",
+          "total"
+        ]
+      },
+      "ChangePasswordRequest": {
+        "type": "object",
+        "properties": {
+          "current_password": {
+            "type": "string",
+            "description": "The password the session user has now."
+          },
+          "new_password": {
+            "type": "string",
+            "description": "At least 8 characters."
+          }
+        },
+        "required": [
+          "current_password",
+          "new_password"
+        ]
+      },
+      "ResetPasswordRequest": {
+        "type": "object",
+        "properties": {
+          "new_password": {
+            "type": "string",
+            "description": "At least 8 characters."
+          }
+        },
+        "required": [
+          "new_password"
+        ]
       }
     },
     "parameters": {
@@ -2204,6 +2602,19 @@
         "description": "Search text. Empty or whitespace-only text behaves as if `q` was not sent.",
         "schema": {
           "type": "string"
+        }
+      },
+      "IsActive": {
+        "name": "is_active",
+        "in": "query",
+        "required": false,
+        "description": "Filter by state: `true` keeps active records, `false` keeps inactive ones. Any other value, including an empty one or a different case, is rejected with `400`.",
+        "schema": {
+          "type": "string",
+          "enum": [
+            "true",
+            "false"
+          ]
         }
       }
     }
