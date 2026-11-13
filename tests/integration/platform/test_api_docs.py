@@ -96,5 +96,9 @@ def test_ui_static_route_exists_and_is_outside_the_contract(
     assert ("/static/{filename}", "GET") not in contract_routes(client)
 
 
-# TC-PLT-23d (GET / exists and is outside the contract) is pending: the 07-ui task
-# that creates GET / writes it.
+def test_ui_root_route_exists_and_is_outside_the_contract(app: Flask, client: FlaskClient) -> None:
+    """SPEC-PLT-23 · TC-PLT-23d"""
+    rules = {(rule.rule, method) for rule in app.url_map.iter_rules() for method in rule.methods}
+
+    assert ("/", "GET") in rules
+    assert ("/", "GET") not in contract_routes(client)

@@ -1,0 +1,94 @@
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  line-height: 1.5;
+  color: #1f2933;
+  background: #f5f7fa;
+}
+
+main,
+.shell,
+.message {
+  max-width: 64rem;
+  margin: 0 auto;
+  padding: 1rem;
+}
+
+.shell {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  align-items: center;
+  border-bottom: 1px solid #cbd2d9;
+}
+
+.brand {
+  font-weight: 700;
+}
+
+.message:empty {
+  display: none;
+}
+
+.message-error {
+  color: #8a1c1c;
+  font-weight: 600;
+}
+
+.message-status {
+  color: #14532d;
+}
+
+.loading,
+.empty {
+  color: #3e4c59;
+}
+
+.table-scroll {
+  overflow-x: auto;
+}
+
+:focus-visible {
+  outline: 3px solid #1d4ed8;
+  outline-offset: 2px;
+}
+
+button:disabled,
+input:disabled,
+select:disabled,
+textarea:disabled {
+  color: #4b5563;
+  background: #e5e7eb;
+  cursor: not-allowed;
+}
+
+a[aria-disabled="true"] {
+  color: #4b5563;
+  cursor: not-allowed;
+}
+
+nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 1rem;
+}
+
+.field {
+  margin: 0 0 0.75rem;
+}
+
+.field label {
+  display: block;
+}
+
+.field input:not([type="checkbox"]),
+.field select,
+.field textarea {
+  max-width: 100%;
+}
