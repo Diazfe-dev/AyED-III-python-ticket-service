@@ -69,3 +69,32 @@ def test_static_path_traversal_answers_a_json_not_found(client: FlaskClient, pat
     assert response.status_code == 404
     assert response.get_json() == {"error": "not_found"}
     assert b"create_app" not in response.data
+
+
+@pytest.mark.usefixtures("schema")
+def test_application_script_is_served_as_javascript(client: FlaskClient) -> None:
+    """SPEC-UI-02 serves the application script as JavaScript without a session (TC-UI-02b)"""
+    response = client.get("/static/js/app.js")
+
+    assert response.status_code == 200
+    assert response.mimetype == "text/javascript"
+
+
+@pytest.mark.usefixtures("schema")
+@pytest.mark.parametrize(
+    "path",
+    [
+        "/static/js/core/routes.js",
+        "/static/js/core/session.js",
+        "/static/js/dom/render.js",
+        "/static/js/dom/shell.js",
+        "/static/js/screens/index.js",
+        "/static/js/screens/boot.js",
+    ],
+)
+def test_imported_modules_are_served_as_javascript(client: FlaskClient, path: str) -> None:
+    """SPEC-UI-02 serves every imported module as JavaScript without a session (TC-UI-02c)"""
+    response = client.get(path)
+
+    assert response.status_code == 200
+    assert response.mimetype == "text/javascript"
