@@ -4,6 +4,7 @@ from app.domain.paging import DEFAULT_PAGE_SIZE, MAX_PAGE_SIZE, PageRequest
 from app.services.validation import INVALID, raise_if_invalid
 
 MAX_PAGE = 10**18
+_BOOL_QUERY = {"true": True, "false": False}
 
 
 def page_request(page: str | None, page_size: str | None) -> PageRequest | None:
@@ -28,6 +29,16 @@ def search_text(q: str | None) -> str | None:
     if q is None or not q.strip():
         return None
     return q
+
+
+def bool_query_error(value: str | None) -> str | None:
+    """`invalid` unless the query value is absent or exactly `true` or `false` (SPEC-USR-45)."""
+    return None if value is None or value in _BOOL_QUERY else INVALID
+
+
+def parse_bool_query(value: str | None) -> bool | None:
+    """The boolean written as `true` or `false`, or `None` when the parameter was not given."""
+    return None if value is None else _BOOL_QUERY[value]
 
 
 def _positive(text: str) -> int | None:

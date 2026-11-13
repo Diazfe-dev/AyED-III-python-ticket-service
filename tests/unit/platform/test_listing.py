@@ -4,7 +4,13 @@ import pytest
 
 from app.domain.errors import ValidationError
 from app.domain.paging import MAX_PAGE_SIZE, PageRequest
-from app.services.listing import MAX_PAGE, page_request, search_text
+from app.services.listing import (
+    MAX_PAGE,
+    bool_query_error,
+    page_request,
+    parse_bool_query,
+    search_text,
+)
 
 INVALID_VALUES = ["0", "-1", "abc", "", "1.5", " 1", "+1", "١"]
 
@@ -88,3 +94,22 @@ def test_blank_search_text_is_treated_as_absent(value):
 def test_search_text_with_content_is_returned_unchanged(value):
     """SPEC-PLT-27 · TC-PLT-27a"""
     assert search_text(value) == value
+
+
+@pytest.mark.parametrize("value", [None, "true", "false"])
+def test_bool_query_accepts_absent_true_and_false(value):
+    """SPEC-USR-45 · TC-USR-45a"""
+    assert bool_query_error(value) is None
+
+
+@pytest.mark.parametrize("value", ["", "True", "1", "yes", "false "])
+def test_bool_query_rejects_any_other_text(value):
+    """SPEC-USR-45 · TC-USR-45a"""
+    assert bool_query_error(value) == "invalid"
+
+
+def test_parse_bool_query_reads_true_false_and_absent():
+    """SPEC-USR-45 · TC-USR-45a"""
+    assert parse_bool_query("true") is True
+    assert parse_bool_query("false") is False
+    assert parse_bool_query(None) is None
