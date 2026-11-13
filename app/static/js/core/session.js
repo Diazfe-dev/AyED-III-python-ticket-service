@@ -10,6 +10,8 @@ const replaceHash = (hash) => ({ type: "replaceHash", hash });
 const request = (kind, method, path, epoch) => ({ type: "request", kind, method, path, epoch });
 const meRequest = (epoch) => request("me", "GET", "/me", epoch);
 
+const setInert = (inert) => ({ type: "setInert", inert });
+
 const result = (state, effects = []) => ({ state, effects });
 
 function pendingState(origin, epoch) {
@@ -100,6 +102,32 @@ function onAnonymousHash(state, hash) {
   return result({ ...state, notice: false }, [replaceHash(LOGIN_HASH)]);
 }
 
+function onLogoutClicked(state) {
+  const epoch = state.epoch + 1;
+  return result({ name: "closing", route: state.route, epoch }, [
+    request("logout", "POST", "/logout", epoch),
+    setInert(true),
+  ]);
+}
+
+function onLogoutSettled(state) {
+  return result(anonymousState(state.epoch), [
+    render("login", { notice: false }),
+    replaceHash(LOGIN_HASH),
+    setInert(false),
+  ]);
+}
+
+function onOpenApiAnswered(state, event) {
+  if (event.response.status !== STATUS_UNAUTHENTICATED) {
+    return result(state);
+  }
+  return result(anonymousState(state.epoch + 1, { notice: true }), [
+    render("login", { notice: true }),
+    replaceHash(LOGIN_HASH),
+  ]);
+}
+
 const HANDLERS = {
   mePending: { meAnswered: onMeAnswered },
   meError: { retryClicked: onRetry },
@@ -113,9 +141,30 @@ const HANDLERS = {
     loginAnswered: (state, event) => onLoginAnswered(state, event.response),
     hashChanged: (state, event) => onAnonymousHash(state, event.hash),
   },
+  open: {
+    hashChanged: (state, event) => openAt(event.hash, state.user, state.epoch),
+    logoutClicked: onLogoutClicked,
+    apiAnswered: onOpenApiAnswered,
+  },
+  closing: { logoutSettled: onLogoutSettled },
 };
 
 export function transition(state, event) {
+  if (event.type === "apiAnswered" && event.epoch !== state.epoch) {
+    return result(state);
+  }
   const handler = HANDLERS[state.name]?.[event.type];
   return handler ? handler(state, event) : result(state);
+}
+
+export function canSend(state) {
+  return state.name !== "closing";
+}
+
+export function isInert(state) {
+  return state.name === "closing";
+}
+
+export function currentUser(state) {
+  return state.name === "open" ? state.user : null;
 }
