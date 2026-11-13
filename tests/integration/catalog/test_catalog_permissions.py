@@ -169,3 +169,29 @@ def test_client_cannot_change_products(
 
     assert response.status_code == 403
     assert product_rows(db_session) == before
+
+
+@pytest.mark.parametrize("role", ["Representative", "Client"])
+def test_only_an_admin_can_activate_a_product(
+    role: str,
+    client: FlaskClient,
+    db_session: Session,
+    make_user: MakeUser,
+    login_as: LoginAs,
+    make_category: MakeCategory,
+    make_product_type: MakeProductType,
+    make_product: MakeProduct,
+) -> None:
+    """SPEC-PRD-25 · TC-PRD-25a"""
+    optiplex = make_product(
+        make_product_type(make_category("Hardware"), "Desktop"), "Optiplex", is_active=False
+    )
+    before = product_rows(db_session)
+    login_as(client, make_user(role=role))
+
+    response = client.post(f"/products/{optiplex.id}/activate")
+
+    assert response.status_code == 403
+    assert response.get_json() == {"error": "forbidden"}
+    assert product_rows(db_session) == before
+    assert product_rows(db_session)[0][3] is False

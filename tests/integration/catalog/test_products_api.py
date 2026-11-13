@@ -480,3 +480,53 @@ def test_deactivate_an_inactive_product_succeeds(
 
     assert response.status_code == 200
     assert response.get_json()["is_active"] is False
+
+
+def test_admin_activates_an_inactive_product(
+    admin_client: FlaskClient, db_session: Session, catalog: dict[str, Any]
+) -> None:
+    """SPEC-PRD-22 · TC-PRD-22c"""
+    optiplex = catalog["products"][1]
+
+    response = admin_client.post(f"/products/{optiplex.id}/activate")
+
+    assert response.status_code == 200
+    assert response.get_json() == expected_json(optiplex) | {"is_active": True}
+    assert response.get_json()["is_active"] is True
+    assert ("Optiplex", optiplex.product_type_id, True) in stored_products(db_session)
+
+
+def test_an_activated_product_is_available_again(
+    client: FlaskClient,
+    admin_client: FlaskClient,
+    login_as: LoginAs,
+    make_user: MakeUser,
+    catalog: dict[str, Any],
+) -> None:
+    """SPEC-PRD-22 · TC-PRD-22d"""
+    admin_client.post(f"/products/{catalog['products'][1].id}/activate")
+
+    response = logged_in_as("Representative", client, make_user, login_as).get(
+        "/products/available"
+    )
+
+    assert "Optiplex" in listed_names(response)
+
+
+def test_activate_an_active_product_succeeds(
+    admin_client: FlaskClient, catalog: dict[str, Any]
+) -> None:
+    """SPEC-PRD-23 · TC-PRD-23b"""
+    response = admin_client.post(f"/products/{catalog['products'][2].id}/activate")
+
+    assert response.status_code == 200
+    assert response.get_json()["is_active"] is True
+
+
+@pytest.mark.parametrize("product_id", ["9999", "9223372036854775808"])
+def test_activate_unknown_product_is_not_found(admin_client: FlaskClient, product_id: str) -> None:
+    """SPEC-PRD-24 · TC-PRD-24b"""
+    response = admin_client.post(f"/products/{product_id}/activate")
+
+    assert response.status_code == 404
+    assert response.get_json() == {"error": "product_not_found"}

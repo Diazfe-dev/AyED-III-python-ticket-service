@@ -121,3 +121,9 @@ def update_product(product_id: int) -> ResponseReturnValue:
 @admin_required
 def deactivate_product(product_id: int) -> ResponseReturnValue:
     return product_json(get_product_service().deactivate_product(product_id))
+
+
+@bp.post("/products/<int:product_id>/activate")
+@admin_required
+def activate_product(product_id: int) -> ResponseReturnValue:
+    return product_json(get_product_service().activate_product(product_id))

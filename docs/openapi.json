@@ -1133,6 +1133,42 @@
         }
       }
     },
+    "/products/{product_id}/activate": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/ProductId"
+        }
+      ],
+      "post": {
+        "summary": "Activate a product",
+        "description": "Admin only. Reverts a logical deletion: the product is marked active and can be added to new tickets again. Activating a product that is already active is not an error.",
+        "operationId": "activateProduct",
+        "tags": [
+          "catalog"
+        ],
+        "responses": {
+          "200": {
+            "description": "Product activated (`is_active` is `true`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Product"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/AuthenticationRequired"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/ProductNotFound"
+          }
+        }
+      }
+    },
     "/tickets": {
       "get": {
         "summary": "List my tickets",
