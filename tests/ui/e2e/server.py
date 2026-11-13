@@ -41,15 +41,15 @@ def _seed() -> None:
     users = get_user_service()
     users.create_user("Marta Ruiz", ADMIN_EMAIL, "Admin", PASSWORD)
     rep = users.create_user("Raúl Pérez", REP_EMAIL, "Representative", PASSWORD)
-    users.create_user("Lucía Sosa", SECOND_REP_EMAIL, "Representative", PASSWORD)
+    second_rep = users.create_user("Lucía Sosa", SECOND_REP_EMAIL, "Representative", PASSWORD)
     client = users.create_user("Ana Gómez", CLIENT_EMAIL, "Client", PASSWORD)
     users.create_user("Diego Paz", SECOND_CLIENT_EMAIL, "Client", PASSWORD)
     product_ids = _seed_catalog()
     tickets = get_ticket_service()
     for index in range(EXTRA_TICKETS):
         tickets.create_ticket(client.id, [product_ids[0]], f"Consulta número {index + 1}", rep)
-    detailed = tickets.create_ticket(client.id, product_ids, "No enciende el equipo", rep)
-    tickets.add_milestone(detailed.id, "Revisamos el cargador", rep, start_progress=True)
+    detailed = tickets.create_ticket(client.id, product_ids, "No enciende el equipo", second_rep)
+    tickets.add_milestone(detailed.id, "Revisamos el cargador", second_rep, start_progress=True)
     tickets.add_milestone(detailed.id, "Sigue sin encender", client)
 
 
