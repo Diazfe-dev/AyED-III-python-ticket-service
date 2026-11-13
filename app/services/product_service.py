@@ -76,6 +76,13 @@ class ProductService:
         self._commit()
         return product
 
+    def activate_product(self, product_id: int) -> Product:
+        """Reactivate a product; activating an active one is not an error."""
+        product = self._get_product(product_id)
+        product.activate()
+        self._commit()
+        return product
+
     def list_products(self, category_id: Any = None, product_type_id: Any = None) -> list[Product]:
         """Products, active and inactive, matching every filter given.
 

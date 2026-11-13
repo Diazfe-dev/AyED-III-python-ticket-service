@@ -322,6 +322,35 @@ def test_deactivate_an_inactive_product_succeeds_without_changes(sut: ServiceUnd
     assert product.is_active is False
 
 
+def test_activate_product_reactivates_it_and_commits(sut: ServiceUnderTest) -> None:
+    """SPEC-PRD-22 · TC-PRD-22b"""
+    product = sut.add_product("Optiplex", sut.desktop, is_active=False)
+
+    activated = sut.service.activate_product(product.id)
+
+    assert activated is product
+    assert product.is_active is True
+    assert sut.commit.calls == 1
+
+
+def test_activate_an_active_product_is_idempotent(sut: ServiceUnderTest) -> None:
+    """SPEC-PRD-23 · TC-PRD-23a"""
+    product = sut.add_product("XPS 13", sut.notebook)
+
+    activated = sut.service.activate_product(product.id)
+
+    assert activated is product
+    assert product.is_active is True
+
+
+def test_activate_unknown_product_is_not_found(sut: ServiceUnderTest) -> None:
+    """SPEC-PRD-24 · TC-PRD-24a"""
+    with pytest.raises(ProductNotFoundError):
+        sut.service.activate_product(9999)
+
+    assert sut.commit.calls == 0
+
+
 @pytest.fixture
 def listed(sut: ServiceUnderTest) -> ServiceUnderTest:
     """`xps 13` (Notebook), inactive `Optiplex` (Desktop) and `LaserJet` (Impresora)."""
