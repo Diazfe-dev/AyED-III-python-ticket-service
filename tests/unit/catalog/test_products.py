@@ -66,6 +66,15 @@ def test_deactivated_product_is_inactive() -> None:
     assert product.is_active is False
 
 
+def test_activated_product_is_active() -> None:
+    """SPEC-PRD-22 · TC-PRD-22a"""
+    product = Product(name="XPS 13", product_type=notebook_type(), is_active=False)
+
+    product.activate()
+
+    assert product.is_active is True
+
+
 def test_product_name_is_trimmed_on_every_assignment() -> None:
     """SPEC-PRD-14 · TC-PRD-14a"""
     product = Product(name="  XPS  13 ", product_type=notebook_type())
