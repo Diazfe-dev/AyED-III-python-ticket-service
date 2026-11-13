@@ -616,10 +616,15 @@
     "/categories": {
       "get": {
         "summary": "List categories",
-        "description": "Any authenticated user. Every category, ordered by name without case.",
+        "description": "Any authenticated user. Every category, ordered by name without case. `q` keeps the categories whose name contains the text, without case. The list is not paginated: `page` and `page_size` are ignored.",
         "operationId": "listCategories",
         "tags": [
           "catalog"
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/Q"
+          }
         ],
         "responses": {
           "200": {
@@ -763,12 +768,15 @@
     "/product-types": {
       "get": {
         "summary": "List product types grouped by category",
-        "description": "Any authenticated user. Without `category_id`, every category (empty ones included) ordered by name, each with its product types ordered by name. With `category_id`, a list with only that category's group.",
+        "description": "Any authenticated user. Without `category_id`, every category (empty ones included) ordered by name, each with its product types ordered by name. With `category_id`, a list with only that category's group. `q` keeps the product types whose name contains the text, without case, and omits the categories left without matches. The list is not paginated: `page` and `page_size` are ignored.",
         "operationId": "listProductTypes",
         "tags": [
           "catalog"
         ],
         "parameters": [
+          {
+            "$ref": "#/components/parameters/Q"
+          },
           {
             "name": "category_id",
             "in": "query",
