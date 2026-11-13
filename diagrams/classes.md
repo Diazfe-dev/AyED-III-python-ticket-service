@@ -411,7 +411,7 @@ classDiagram
     }
     class listing {
         <<module services>>
-        +page_request(page, page_size) PageRequest
+        +page_request(page, page_size) PageRequest or None
         +search_text(q) str
     }
     class paging {
