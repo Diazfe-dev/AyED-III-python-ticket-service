@@ -1616,6 +1616,42 @@
           }
         }
       }
+    },
+    "/tickets/{ticket_id}/state-changes": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/TicketId"
+        }
+      ],
+      "get": {
+        "summary": "List the state changes of a ticket",
+        "description": "The client of the ticket, its assigned representative and admins. Every change of state of the ticket (the opening included) comes in chronological order (oldest first, ties in order of registration), each with the new state, the user who made it and the time. The response is always the plain array of all the changes: it is not paged and `page` and `page_size` are ignored. Any other user gets the same `404` as for a ticket that does not exist or whose id is out of range.",
+        "operationId": "listStateChanges",
+        "tags": [
+          "tickets"
+        ],
+        "responses": {
+          "200": {
+            "description": "The state changes of the ticket, oldest first.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/StateChange"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/AuthenticationRequired"
+          },
+          "404": {
+            "$ref": "#/components/responses/TicketNotFound"
+          }
+        }
+      }
     }
   },
   "components": {
@@ -2541,6 +2577,34 @@
             "$ref": "#/components/schemas/MilestoneAuthor"
           },
           "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "ISO 8601, UTC."
+          }
+        }
+      },
+      "StateChange": {
+        "type": "object",
+        "description": "Immutable record of one transition of a ticket.",
+        "required": [
+          "state",
+          "user",
+          "timestamp"
+        ],
+        "properties": {
+          "state": {
+            "type": "string",
+            "enum": [
+              "New",
+              "InProgress",
+              "Closed"
+            ],
+            "description": "The state the ticket moved to."
+          },
+          "user": {
+            "$ref": "#/components/schemas/MilestoneAuthor"
+          },
+          "timestamp": {
             "type": "string",
             "format": "date-time",
             "description": "ISO 8601, UTC."

@@ -56,6 +56,7 @@ READ_ENDPOINTS = [
     ("GET", "/tickets", None),
     ("GET", "/tickets/{ticket}", None),
     ("GET", "/tickets/{ticket}/milestones", None),
+    ("GET", "/tickets/{ticket}/state-changes", None),
 ]
 
 # The endpoints that work on one ticket, for the cases about its visibility.
@@ -67,6 +68,7 @@ TICKET_ENDPOINTS = [
     ("DELETE", "/tickets/{ticket}/products/{xps}", None),
     ("POST", "/tickets/{ticket}/milestones", {"content": "Hola"}),
     ("GET", "/tickets/{ticket}/milestones", None),
+    ("GET", "/tickets/{ticket}/state-changes", None),
 ]
 
 WRITE_ENDPOINT_IDS = [f"{method} {path}" for method, path, _ in WRITE_ENDPOINTS]
@@ -179,6 +181,27 @@ def test_another_client_gets_not_found_on_every_ticket_endpoint(
     assert response.status_code == 404
     assert response.get_json() == {"error": "ticket_not_found"}
     assert snapshot(db_session) == before
+
+
+def test_the_state_history_of_a_hidden_or_missing_ticket_is_not_found(
+    client: FlaskClient, login_as: LoginAs, world: SimpleNamespace
+) -> None:
+    """SPEC-TKT-37 · TC-TKT-37c"""
+    requests = [
+        (world.beto, world.ticket.id),
+        (world.rosa, world.ticket.id),
+        (world.ana, 9999),
+        (world.raul, 2**63),
+    ]
+    bodies = []
+    for user, ticket_id in requests:
+        login_as(client, user)
+
+        response = client.get(f"/tickets/{ticket_id}/state-changes")
+
+        assert response.status_code == 404
+        bodies.append(response.get_json())
+    assert bodies == [{"error": "ticket_not_found"}] * 4
 
 
 def test_a_foreign_ticket_answers_exactly_like_a_missing_one(
@@ -353,7 +376,7 @@ def test_the_endpoint_matrix_lists_every_ticket_route_of_the_app(app: Flask) -> 
     }
     listed = {(method, normalized(path)) for method, path, _ in WRITE_ENDPOINTS + READ_ENDPOINTS}
 
-    assert len(routes) == 9
+    assert len(routes) == 10
     assert routes == listed
 
 
@@ -370,7 +393,7 @@ def test_only_ticket_writes_and_the_listing_document_a_forbidden_with_ticket_for
     ticket_forbidden = contract["components"]["responses"]["TicketForbidden"]
     error_schema = ticket_forbidden["content"]["application/json"]
 
-    assert len(operations) == 9
+    assert len(operations) == 10
     for path, method, operation in operations:
         if method == "get" and path != "/tickets":
             assert "403" not in operation["responses"], (method, path)

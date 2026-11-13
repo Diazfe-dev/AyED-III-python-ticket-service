@@ -859,9 +859,118 @@ def test_there_is_no_way_to_delete_or_modify_tickets_or_their_history(app: Flask
 
     assert [name for name in public if name.startswith(forbidden_prefixes)] == []
     assert not {"DELETE", "PUT", "PATCH"} & ticket_rule.methods
-    assert [rule.rule for rule in rules if "state" in rule.rule] == []
+    state_rules = [rule for rule in rules if "state" in rule.rule]
+    assert [rule.rule for rule in state_rules] == ["/tickets/<int:ticket_id>/state-changes"]
+    assert state_rules[0].methods - {"HEAD", "OPTIONS"} == {"GET"}
     milestone_methods = {m for rule in rules if "milestone" in rule.rule for m in rule.methods}
     assert not {"DELETE", "PUT", "PATCH"} & milestone_methods
+
+
+@pytest.fixture
+def history_ticket(
+    db_session: Session, make_ticket: MakeTicket, ana: Client, raul: Representative
+) -> Ticket:
+    """A ticket of ana and raul that ana closed and raul reopened, one hour apart."""
+    ticket = make_ticket(ana, raul)
+    ticket.close(ana, DEFAULT_TICKET_TIME + timedelta(hours=1))
+    ticket.reopen(raul, DEFAULT_TICKET_TIME + timedelta(hours=2))
+    db_session.commit()
+    return ticket
+
+
+def expected_history(ana: Client, raul: Representative) -> list[tuple[str, int]]:
+    return [("New", raul.id), ("Closed", ana.id), ("InProgress", raul.id)]
+
+
+@pytest.mark.parametrize("who", ["ana", "raul"])
+def test_client_and_representative_read_the_state_history(
+    who: str,
+    client: FlaskClient,
+    login_as: LoginAs,
+    history_ticket: Ticket,
+    ana: Client,
+    raul: Representative,
+) -> None:
+    """SPEC-TKT-35 · TC-TKT-35d"""
+    login_as(client, {"ana": ana, "raul": raul}[who])
+
+    response = client.get(f"/tickets/{history_ticket.id}/state-changes")
+
+    assert response.status_code == 200
+    body = response.get_json()
+    assert [(c["state"], c["user"]["id"]) for c in body] == expected_history(ana, raul)
+
+
+def test_admin_reads_the_same_state_history(
+    client: FlaskClient,
+    admin_client: FlaskClient,
+    login_as: LoginAs,
+    history_ticket: Ticket,
+    ana: Client,
+    raul: Representative,
+) -> None:
+    """SPEC-TKT-35 · TC-TKT-35f"""
+    login_as(client, ana)
+    expected = client.get(f"/tickets/{history_ticket.id}/state-changes")
+
+    response = admin_client.get(f"/tickets/{history_ticket.id}/state-changes")
+
+    assert response.status_code == 200
+    assert response.get_json() == expected.get_json()
+    assert len(response.get_json()) == 3
+
+
+def test_a_state_change_exposes_state_user_and_timestamp(
+    client: FlaskClient,
+    login_as: LoginAs,
+    history_ticket: Ticket,
+    ana: Client,
+    raul: Representative,
+) -> None:
+    """SPEC-TKT-36 · TC-TKT-36a"""
+    login_as(client, ana)
+
+    body = client.get(f"/tickets/{history_ticket.id}/state-changes").get_json()
+
+    assert all(set(change) == {"state", "user", "timestamp"} for change in body)
+    assert all(set(change["user"]) == {"id", "name", "role"} for change in body)
+    assert body[1]["user"] == {"id": ana.id, "name": "Ana", "role": "Client"}
+    assert body[2]["user"] == {"id": raul.id, "name": "Raúl", "role": "Representative"}
+    expected = [DEFAULT_TICKET_TIME + timedelta(hours=h) for h in (0, 1, 2)]
+    for change, instant in zip(body, expected, strict=True):
+        assert change["timestamp"].endswith("+00:00")
+        assert datetime.fromisoformat(change["timestamp"]) == instant
+
+
+def test_the_state_change_schema_is_documented(client: FlaskClient) -> None:
+    """SPEC-TKT-36 · TC-TKT-36b"""
+    contract = client.get("/openapi.json").get_json()
+    schema = contract["components"]["schemas"]["StateChange"]
+    ok = contract["paths"]["/tickets/{ticket_id}/state-changes"]["get"]["responses"]["200"]
+
+    assert set(schema["properties"]) == {"state", "user", "timestamp"}
+    assert set(schema["required"]) == {"state", "user", "timestamp"}
+    assert schema["properties"]["state"]["enum"] == ["New", "InProgress", "Closed"]
+    assert schema["properties"]["user"] == {"$ref": "#/components/schemas/MilestoneAuthor"}
+    assert schema["properties"]["timestamp"]["format"] == "date-time"
+    assert ok["content"]["application/json"]["schema"] == {
+        "type": "array",
+        "items": {"$ref": "#/components/schemas/StateChange"},
+    }
+
+
+def test_the_state_history_is_not_paged(
+    client: FlaskClient, login_as: LoginAs, history_ticket: Ticket, ana: Client
+) -> None:
+    """SPEC-TKT-47 · TC-TKT-47a"""
+    login_as(client, ana)
+    base = f"/tickets/{history_ticket.id}/state-changes"
+
+    for query in ("?page=1&page_size=1", "?page=abc"):
+        response = client.get(base + query)
+
+        assert response.status_code == 200
+        assert len(response.get_json()) == 3
 
 
 @pytest.fixture

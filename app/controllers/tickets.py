@@ -5,7 +5,7 @@ from flask.typing import ResponseReturnValue
 
 from app.auth import authenticated_user, login_required
 from app.controllers.listing import listing_json
-from app.controllers.serializers import json_body, ticket_json
+from app.controllers.serializers import json_body, state_change_json, ticket_json
 from app.wiring import get_ticket_service
 
 bp = Blueprint("tickets", __name__)
@@ -39,6 +39,13 @@ def list_tickets() -> ResponseReturnValue:
 @login_required
 def get_ticket(ticket_id: int) -> ResponseReturnValue:
     return ticket_json(get_ticket_service().get_ticket(ticket_id, authenticated_user()))
+
+
+@bp.get("/tickets/<int:ticket_id>/state-changes")
+@login_required
+def list_state_changes(ticket_id: int) -> ResponseReturnValue:
+    changes = get_ticket_service().list_state_changes(ticket_id, authenticated_user())
+    return [state_change_json(change) for change in changes]
 
 
 @bp.post("/tickets/<int:ticket_id>/close")
