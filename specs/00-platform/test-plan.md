@@ -50,7 +50,7 @@ Re-sincronización del 2026-11-12: SPEC-PLT-14 está reemplazada por SPEC-PLT-23
 | PLT-23 | TC-PLT-23a | integration | Cada regla de `app.url_map` (sin `HEAD` ni `OPTIONS`, **sin** ignorar el endpoint `static` por nombre) convertida al formato OpenAPI (antes TC-PLT-14a) | Está en los `paths` del contrato con el mismo método o en el conjunto explícito de la UI `{("GET", "/"), ("GET", "/static/<path:filename>")}` | `tests/integration/platform/test_api_docs.py` |
 | PLT-23 | TC-PLT-23b | integration | Cada par ruta-método de los `paths` del contrato (antes TC-PLT-14b) | Existe en `app.url_map` | `tests/integration/platform/test_api_docs.py` |
 | PLT-23 | TC-PLT-23c | integration | `app.url_map` | Existe la regla `GET /static/<path:filename>` (la ruta de archivos de la UI, SPEC-UI-02) y no figura en los `paths` del contrato | `tests/integration/platform/test_api_docs.py` |
-| PLT-23 | TC-PLT-23d | integration | `app.url_map` (**pendiente de 07-ui**: se escribe en la task que crea `GET /`, como TC-PRD-06d quedó pendiente de 04) | Existe la regla `GET /` y no figura en los `paths` del contrato | `tests/integration/platform/test_api_docs.py` |
+| PLT-23 | TC-PLT-23d | integration | `app.url_map` (hecho en `07-ui`: se escribió en la task que creó `GET /`, como TC-PRD-06d en `04-tickets`) | Existe la regla `GET /` y no figura en los `paths` del contrato | `tests/integration/platform/test_api_docs.py` |
 
 ### Paginación opcional y `q` vacío (re-sincronización del 2026-11-12)
 
