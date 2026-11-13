@@ -76,7 +76,7 @@ def delete_product_type(product_type_id: int) -> ResponseReturnValue:
 @login_required
 def list_product_types() -> ResponseReturnValue:
     groups = get_catalog_service().list_product_types(request.args.get("category_id"))
-    return [category_group_json(category) for category in groups]
+    return [category_group_json(group) for group in groups]
 
 
 @bp.post("/products")

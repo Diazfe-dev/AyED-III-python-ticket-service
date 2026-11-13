@@ -1,6 +1,7 @@
 """Catalog use cases: categories and product types, their changes and listings."""
 
 from collections.abc import Callable
+from dataclasses import dataclass
 from typing import Any, Protocol
 
 from app.domain.errors import (
@@ -13,6 +14,14 @@ from app.domain.errors import (
 )
 from app.domain.products import Category, ProductType
 from app.services.validation import id_error, parse_id, provided, raise_if_invalid, text_error
+
+
+@dataclass(frozen=True)
+class CategoryGroup:
+    """A category with its product types, already ordered by name."""
+
+    category: Category
+    product_types: list[ProductType]
 
 
 class CategoryRepository(Protocol):
@@ -120,12 +129,14 @@ class CatalogService:
         self._product_types.delete(product_type)
         self._commit()
 
-    def list_product_types(self, category_id: Any = None) -> list[Category]:
+    def list_product_types(self, category_id: Any = None) -> list[CategoryGroup]:
         """Product types grouped by category: every category, or only the requested one."""
         if category_id is None:
-            return self._categories.list_with_product_types()
-        raise_if_invalid({"category_id": id_error(category_id)})
-        return [self._get_category(parse_id(category_id))]
+            categories = self._categories.list_with_product_types()
+        else:
+            raise_if_invalid({"category_id": id_error(category_id)})
+            categories = [self._get_category(parse_id(category_id))]
+        return [CategoryGroup(c, list(c.product_types)) for c in categories]
 
     def _get_product_type(self, product_type_id: int) -> ProductType:
         product_type = self._product_types.get(product_type_id)

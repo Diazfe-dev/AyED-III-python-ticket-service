@@ -13,7 +13,7 @@ from app.domain.errors import (
     ValidationError,
 )
 from app.domain.products import Category, Product, ProductType
-from app.services.catalog_service import CatalogService
+from app.services.catalog_service import CatalogService, CategoryGroup
 from tests.unit.catalog.fakes import FakeCategoryRepository, FakeProductTypeRepository
 from tests.unit.fakes import CommitSpy
 
@@ -447,8 +447,8 @@ def test_delete_product_type_with_an_inactive_product_is_rejected(
     assert sut.commit.calls == 0
 
 
-def group_names(groups: list[Category]) -> list[tuple[str, list[str]]]:
-    return [(group.name, [t.name for t in group.product_types]) for group in groups]
+def group_names(groups: list[CategoryGroup]) -> list[tuple[str, list[str]]]:
+    return [(g.category.name, [t.name for t in g.product_types]) for g in groups]
 
 
 def test_list_product_types_groups_them_by_category_including_empty_ones(
