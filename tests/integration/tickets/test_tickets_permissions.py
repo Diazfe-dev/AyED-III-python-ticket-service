@@ -1,5 +1,6 @@
 import json
 import re
+from datetime import timedelta
 from pathlib import Path
 from types import SimpleNamespace
 from typing import Any
@@ -15,6 +16,7 @@ from app.domain.state_change import StateChange
 from app.domain.ticket import Ticket, ticket_products
 from app.domain.users import User
 from tests.conftest import (
+    DEFAULT_TICKET_TIME,
     LoginAs,
     MakeCategory,
     MakeProduct,
@@ -373,3 +375,18 @@ def test_every_ticket_operation_documents_its_forbidden_with_ticket_forbidden() 
         assert operation["responses"]["403"] == {"$ref": "#/components/responses/TicketForbidden"}
     assert error_schema["schema"] == {"$ref": "#/components/schemas/Error"}
     assert error_schema["example"] == {"error": "forbidden"}
+
+
+def test_admin_lists_every_ticket_by_api(
+    admin_client: FlaskClient, world: SimpleNamespace, make_ticket: MakeTicket
+) -> None:
+    """SPEC-TKT-33 · TC-TKT-33c"""
+    later = make_ticket(
+        world.beto, world.rosa, now=DEFAULT_TICKET_TIME + timedelta(hours=1), first_message="Otro"
+    )
+
+    response = admin_client.get("/tickets")
+
+    assert response.status_code == 200
+    assert [ticket["id"] for ticket in response.get_json()] == [later.id, world.ticket.id]
+    assert [ticket["client"]["name"] for ticket in response.get_json()] == ["Beto", "Ana"]

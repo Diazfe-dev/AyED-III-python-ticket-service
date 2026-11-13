@@ -222,7 +222,7 @@ def test_added_ticket_gets_its_id_on_flush_without_committing(
     assert db_session.get(Ticket, ticket_id) is None
 
 
-def test_list_by_client_returns_only_the_tickets_of_that_client(
+def test_search_by_client_returns_only_the_tickets_of_that_client(
     db_session: Session, make_user: MakeUser, make_ticket: MakeTicket
 ) -> None:
     """SPEC-TKT-17 · TC-TKT-17b"""
@@ -234,11 +234,11 @@ def test_list_by_client_returns_only_the_tickets_of_that_client(
     make_ticket(beto, raul)
     repository = SqlAlchemyTicketRepository(db_session)
 
-    assert {ticket.id for ticket in repository.list_by_client(ana.id)} == {t.id for t in anas}
-    assert repository.list_by_client(carla.id) == []
+    assert {ticket.id for ticket in repository.search(client_id=ana.id)} == {t.id for t in anas}
+    assert repository.search(client_id=carla.id) == []
 
 
-def test_list_by_representative_returns_only_the_tickets_assigned_to_them(
+def test_search_by_representative_returns_only_the_tickets_assigned_to_them(
     db_session: Session, make_user: MakeUser, make_ticket: MakeTicket
 ) -> None:
     """SPEC-TKT-18 · TC-TKT-18b"""
@@ -249,7 +249,7 @@ def test_list_by_representative_returns_only_the_tickets_assigned_to_them(
     make_ticket(ana, rosa)
     repository = SqlAlchemyTicketRepository(db_session)
 
-    result = repository.list_by_representative(raul.id)
+    result = repository.search(representative_id=raul.id)
 
     assert {ticket.id for ticket in result} == {t.id for t in rauls}
 
@@ -262,7 +262,7 @@ def _walk_ticket_graph(tickets: list[Ticket]) -> None:
             assert product.product_type.category.name
 
 
-def test_list_by_client_loads_everything_in_few_statements(
+def test_search_by_client_loads_everything_in_few_statements(
     app: Flask,
     db_session: Session,
     make_user: MakeUser,
@@ -285,12 +285,12 @@ def test_list_by_client_loads_everything_in_few_statements(
 
     with new_session(app) as session:
         with count_statements(session) as statements:
-            _walk_ticket_graph(SqlAlchemyTicketRepository(session).list_by_client(ana_id))
+            _walk_ticket_graph(SqlAlchemyTicketRepository(session).search(client_id=ana_id))
 
         assert len(statements) <= 6
 
 
-def test_list_by_representative_loads_everything_in_few_statements(
+def test_search_by_representative_loads_everything_in_few_statements(
     app: Flask,
     db_session: Session,
     make_user: MakeUser,
@@ -313,12 +313,14 @@ def test_list_by_representative_loads_everything_in_few_statements(
 
     with new_session(app) as session:
         with count_statements(session) as statements:
-            _walk_ticket_graph(SqlAlchemyTicketRepository(session).list_by_representative(raul_id))
+            _walk_ticket_graph(
+                SqlAlchemyTicketRepository(session).search(representative_id=raul_id)
+            )
 
         assert len(statements) <= 6
 
 
-def test_list_by_representative_orders_newest_first_with_id_descending_on_ties(
+def test_search_by_representative_orders_newest_first_with_id_descending_on_ties(
     db_session: Session, make_user: MakeUser, make_ticket: MakeTicket
 ) -> None:
     """SPEC-TKT-29 · TC-TKT-29b"""
@@ -327,12 +329,12 @@ def test_list_by_representative_orders_newest_first_with_id_descending_on_ties(
     older = make_ticket(ana, raul, now=DEFAULT_TICKET_TIME - timedelta(hours=1))
     tied = [make_ticket(ana, raul) for _ in range(3)]
 
-    result = SqlAlchemyTicketRepository(db_session).list_by_representative(raul.id)
+    result = SqlAlchemyTicketRepository(db_session).search(representative_id=raul.id)
 
     assert [t.id for t in result] == [*sorted((t.id for t in tied), reverse=True), older.id]
 
 
-def test_list_by_client_orders_newest_first_with_id_descending_on_ties(
+def test_search_by_client_orders_newest_first_with_id_descending_on_ties(
     db_session: Session, make_user: MakeUser, make_ticket: MakeTicket
 ) -> None:
     """SPEC-TKT-29 · TC-TKT-29b"""
@@ -341,7 +343,7 @@ def test_list_by_client_orders_newest_first_with_id_descending_on_ties(
     older = make_ticket(ana, raul, now=DEFAULT_TICKET_TIME - timedelta(hours=1))
     tied = [make_ticket(ana, raul) for _ in range(3)]
 
-    result = SqlAlchemyTicketRepository(db_session).list_by_client(ana.id)
+    result = SqlAlchemyTicketRepository(db_session).search(client_id=ana.id)
 
     assert [t.id for t in result] == [*sorted((t.id for t in tied), reverse=True), older.id]
 

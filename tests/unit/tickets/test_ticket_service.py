@@ -11,6 +11,7 @@ from app.domain.errors import (
     TicketNotFoundError,
     ValidationError,
 )
+from app.domain.paging import Page
 from app.domain.products import Category, Product, ProductType
 from app.domain.ticket import Ticket
 from app.domain.users import Admin, Client, Representative
@@ -803,3 +804,143 @@ def test_utc_now_returns_a_timezone_aware_utc_datetime():
     now = utc_now()
 
     assert now.tzinfo is UTC
+
+
+@pytest.fixture
+def listing(setup: Setup) -> Setup:
+    """The reference data of the listing cases: T1 to T4 and a later milestone in T3."""
+    setup.beto = Client(name="Beto", email="beto@example.com", is_active=True)
+    setup.angela = Client(name="Ángela", email="angela@example.com", is_active=True)
+    for user in (setup.beto, setup.angela):
+        setup.users.add(user)
+    t0 = setup.clock.now()
+    hour = timedelta(hours=1)
+
+    def open_ticket(client, representative, message, now):
+        ticket = Ticket.open(client, representative, [], message, now)
+        setup.tickets.add(ticket)
+        return ticket
+
+    setup.t1 = open_ticket(setup.ana, setup.raul, "Hola, no anda el router", t0)
+    setup.t2 = open_ticket(setup.beto, setup.raul, "Pedido 50% off", t0 + hour)
+    setup.t3 = open_ticket(setup.ana, setup.rosa, "Factura", t0 + 2 * hour)
+    setup.t4 = open_ticket(setup.angela, setup.rosa, "Router roto", t0 + 2 * hour)
+    setup.t2.close(setup.beto, t0 + 3 * hour)
+    setup.t3.start_progress(setup.rosa, t0 + 3 * hour)
+    setup.t3.add_milestone("router nuevo", setup.rosa, t0 + 4 * hour)
+    return setup
+
+
+def test_admin_lists_every_ticket_newest_first_with_the_id_tie_break(listing):
+    """SPEC-TKT-33 · TC-TKT-33a"""
+    result = listing.service.list_tickets(listing.root)
+
+    assert result == [listing.t4, listing.t3, listing.t2, listing.t1]
+
+
+def test_list_tickets_filters_by_state(listing):
+    """SPEC-TKT-38 · TC-TKT-38a"""
+    assert listing.service.list_tickets(listing.root, state="New") == [listing.t4, listing.t1]
+    assert listing.service.list_tickets(listing.raul, state="Closed") == [listing.t2]
+    assert listing.service.list_tickets(listing.ana, state="InProgress") == [listing.t3]
+
+
+def test_list_tickets_filters_by_client_within_what_the_actor_may_see(listing):
+    """SPEC-TKT-39 · TC-TKT-39a"""
+    ana_id = str(listing.ana.id)
+
+    assert listing.service.list_tickets(listing.root, client_id=ana_id) == [listing.t3, listing.t1]
+    assert listing.service.list_tickets(listing.raul, client_id=ana_id) == [listing.t1]
+    assert listing.service.list_tickets(listing.raul, client_id="9999") == []
+
+
+def test_admin_filters_by_representative(listing):
+    """SPEC-TKT-40 · TC-TKT-40a"""
+    result = listing.service.list_tickets(listing.root, representative_id=str(listing.rosa.id))
+
+    assert result == [listing.t4, listing.t3]
+
+
+def test_list_tickets_searches_the_first_message_and_the_client_name(listing):
+    """SPEC-TKT-41 · TC-TKT-41a"""
+    assert listing.service.list_tickets(listing.root, q="ROUTER") == [listing.t4, listing.t1]
+    assert listing.service.list_tickets(listing.root, q="beto") == [listing.t2]
+
+
+def test_list_tickets_orders_ascending_or_descending(listing):
+    """SPEC-TKT-42 · TC-TKT-42a"""
+    ascending = listing.service.list_tickets(listing.root, order="asc")
+    descending = listing.service.list_tickets(listing.root, order="desc")
+
+    assert ascending == [listing.t1, listing.t2, listing.t3, listing.t4]
+    assert descending == [listing.t4, listing.t3, listing.t2, listing.t1]
+
+
+def _invalid_listing_arguments():
+    cases = [("state", value) for value in ("closed", "", "Open", "In Progress")]
+    for field in ("client_id", "representative_id"):
+        cases += [(field, value) for value in ("abc", "0", "-1", "")]
+    cases += [("order", value) for value in ("ASC", "", "up")]
+    return [pytest.param(field, value, id=f"{field}={value!r}") for field, value in cases]
+
+
+@pytest.mark.parametrize(("field", "value"), _invalid_listing_arguments())
+def test_list_tickets_rejects_a_malformed_filter(listing, field, value):
+    """SPEC-TKT-43 · TC-TKT-43a"""
+    with pytest.raises(ValidationError) as error:
+        listing.service.list_tickets(listing.root, **{field: value})
+
+    assert error.value.fields == {field: "invalid"}
+
+
+def test_list_tickets_reports_every_malformed_filter_together(listing):
+    """SPEC-TKT-43 · TC-TKT-43a"""
+    with pytest.raises(ValidationError) as error:
+        listing.service.list_tickets(listing.root, state="x", order="y", client_id="z")
+
+    assert error.value.fields == {"state": "invalid", "order": "invalid", "client_id": "invalid"}
+
+
+def test_list_tickets_never_widens_the_visibility(listing):
+    """SPEC-TKT-44 · TC-TKT-44a"""
+    other_clients = listing.service.list_tickets(
+        listing.raul, client_id=str(listing.ana.id), state="InProgress"
+    )
+
+    assert other_clients == []
+    assert listing.service.list_tickets(listing.ana, q="router") == [listing.t1]
+
+
+def test_list_tickets_returns_the_page_asked_for_with_the_total(listing):
+    """SPEC-TKT-45 · TC-TKT-45a"""
+    page = listing.service.list_tickets(listing.root, page="2", page_size="3")
+
+    assert page == Page(items=[listing.t1], page=2, page_size=3, total=4)
+
+
+def test_list_tickets_forbids_the_filters_the_role_may_not_use(listing):
+    """SPEC-TKT-46 · TC-TKT-46a"""
+    with pytest.raises(PermissionDeniedError):
+        listing.service.list_tickets(listing.ana, client_id=str(listing.ana.id))
+    with pytest.raises(PermissionDeniedError):
+        listing.service.list_tickets(listing.ana, representative_id=str(listing.raul.id))
+    with pytest.raises(PermissionDeniedError):
+        listing.service.list_tickets(listing.raul, representative_id=str(listing.raul.id))
+
+    listing.service.list_tickets(listing.raul, client_id=str(listing.ana.id))
+    listing.service.list_tickets(
+        listing.root, client_id=str(listing.ana.id), representative_id=str(listing.raul.id)
+    )
+
+
+def test_list_tickets_checks_the_format_before_the_forbidden_filters(listing):
+    """SPEC-TKT-48 · TC-TKT-48a"""
+    with pytest.raises(ValidationError) as state:
+        listing.service.list_tickets(
+            listing.raul, state="foo", representative_id=str(listing.raul.id)
+        )
+    with pytest.raises(ValidationError) as page:
+        listing.service.list_tickets(listing.ana, page="0", client_id=str(listing.ana.id))
+
+    assert state.value.fields == {"state": "invalid"}
+    assert page.value.fields == {"page": "invalid"}
