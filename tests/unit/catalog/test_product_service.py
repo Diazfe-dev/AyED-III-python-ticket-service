@@ -534,3 +534,37 @@ def test_list_products_reports_bad_pagination_together_with_the_filters(
     with pytest.raises(ValidationError) as raised:
         searchable.service.list_products(page_size="101")
     assert raised.value.fields == {"page_size": "invalid"}
+
+
+def test_available_products_are_searched_by_text(searchable: ServiceUnderTest) -> None:
+    """SPEC-PRD-26 · TC-PRD-26d"""
+    assert names(searchable.service.list_available_products(q="o")) == ["50% Toner"]
+
+
+def test_available_products_ignore_a_blank_search_text(searchable: ServiceUnderTest) -> None:
+    """SPEC-PRD-26 · TC-PRD-26d"""
+    everything = names(searchable.service.list_available_products())
+
+    assert names(searchable.service.list_available_products(q="  ")) == everything
+
+
+def test_available_products_are_paged(searchable: ServiceUnderTest) -> None:
+    """SPEC-PRD-29 · TC-PRD-29c"""
+    page = searchable.service.list_available_products(page_size="2")
+
+    assert isinstance(page, Page)
+    assert (page.page, page.page_size, page.total) == (1, 2, 5)
+    assert names(page.items) == ["50% Toner", "Cámara IP"]
+
+
+@pytest.mark.parametrize(
+    ("page", "page_size", "field"), [("0", None, "page"), (None, "101", "page_size")]
+)
+def test_available_products_with_bad_pagination_are_rejected(
+    searchable: ServiceUnderTest, page: str | None, page_size: str | None, field: str
+) -> None:
+    """SPEC-PRD-29 · TC-PRD-29c"""
+    with pytest.raises(ValidationError) as raised:
+        searchable.service.list_available_products(page=page, page_size=page_size)
+
+    assert raised.value.fields == {field: "invalid"}

@@ -120,9 +120,12 @@ class ProductService:
             **ids, is_active=parse_bool_query(is_active), q=search_text(q), window=window
         )
 
-    def list_available_products(self) -> list[Product]:
-        """Active products: the ones that can be added to a ticket."""
-        return self._products.list_matching(is_active=True)
+    def list_available_products(
+        self, q: str | None = None, page: str | None = None, page_size: str | None = None
+    ) -> list[Product] | Page[Product]:
+        """Active products matching `q`, the ones that can be added to a ticket; no other filter."""
+        window = page_request(page, page_size)
+        return self._products.list_matching(is_active=True, q=search_text(q), window=window)
 
     def _get_product(self, product_id: int) -> Product:
         product = self._products.get(product_id)
