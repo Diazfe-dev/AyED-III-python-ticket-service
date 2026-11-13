@@ -87,9 +87,39 @@ sequenceDiagram
     end
 ```
 
-## 3. Listados de productos
+## 3. Reactivación de producto
 
-Specs: SPEC-PRD-07, 08, 10, 15, 16, 20, 21
+Specs: SPEC-PRD-22, 23, 24, 25
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor Admin
+    participant PC as CatalogController
+    participant PS as ProductService
+    participant PR as ProductRepository
+
+    Admin->>PC: POST /products/{id}/activate
+    alt current_user no es Admin
+        PC-->>Admin: 403 forbidden (SPEC-PRD-25)
+    else current_user es Admin
+        PC->>PS: activate_product(product_id)
+        PS->>PR: get(product_id)
+        alt no existe o el id no entra en INTEGER
+            PS-->>PC: raise ProductNotFoundError
+            PC-->>Admin: 404 product_not_found (SPEC-PRD-24)
+        else existe
+            PS->>PS: product.activate() pone is_active en True (SPEC-PRD-22)
+            Note over PS: si ya estaba activo queda igual, la reactivación es idempotente (SPEC-PRD-23)
+            PS->>PS: commit()
+            PC-->>Admin: 200 Product con is_active true
+        end
+    end
+```
+
+## 4. Listados de productos
+
+Specs: SPEC-PRD-07, 08, 10, 15, 16, 20, 21, 26, 27, 28, 29, 30
 
 ```mermaid
 sequenceDiagram
@@ -102,11 +132,11 @@ sequenceDiagram
     participant PR as ProductRepository
 
     alt listado del catálogo
-        U->>PC: GET /products (category_id y product_type_id opcionales)
-        PC->>PS: list_products(category_id, product_type_id)
-        alt algún filtro no es un entero positivo, se informan juntos
+        U->>PC: GET /products (category_id, product_type_id, q, is_active, page y page_size opcionales)
+        PC->>PS: list_products(category_id, product_type_id, q, is_active, page, page_size)
+        alt algún id no es un entero positivo, is_active no es true ni false o la paginación es inválida, se informan juntos
             PS-->>PC: raise ValidationError(fields)
-            PC-->>U: 400 validation_error (SPEC-PRD-15)
+            PC-->>U: 400 validation_error (SPEC-PRD-15, 28)
         else filtros válidos
             opt con category_id
                 PS->>CR: get(category_id)
@@ -116,17 +146,23 @@ sequenceDiagram
                 PS->>TR: get(product_type_id)
                 Note over PS: si no existe lanza ProductTypeNotFoundError y responde 404 (SPEC-PRD-16)
             end
-            PS->>PR: list_matching(category_id, product_type_id)
-            Note over PR: join con el tipo para la categoría, orden por name_key e id (SPEC-PRD-21)<br/>y selectinload de tipo y categoría, 3 consultas como máximo
-            PR-->>PS: productos activos e inactivos que cumplen todos los filtros (SPEC-PRD-07, 08)
+            PS->>PR: list_matching(category_id, product_type_id, is_active, q, window)
+            Note over PS: q se normaliza con search_text: vacío o solo espacios equivale a no enviarlo<br/>y window es None si no llegó page ni page_size
+            Note over PR: join con el tipo para la categoría, is_active exacto y q como subcadena literal de name_key (SPEC-PRD-26, 27),<br/>orden por name_key e id (SPEC-PRD-21) y selectinload de tipo y categoría, 3 consultas como máximo
+            PR-->>PS: lista, o Page con total si hay window, de productos que cumplen todos los filtros (SPEC-PRD-07, 08, 29)
             Note over PS: un tipo que no pertenece a la categoría da una lista vacía (SPEC-PRD-20)
-            PC-->>U: 200 lista de Product
+            PC-->>U: 200 lista de Product, o Page con items, page, page_size y total
         end
     else productos para asociar a un ticket
-        U->>PC: GET /products/available
-        PC->>PS: list_available_products()
-        PS->>PR: list_matching(active_only=True)
-        PR-->>PS: solo productos activos, ordenados por nombre (SPEC-PRD-10, 21)
-        PC-->>U: 200 lista de Product
+        U->>PC: GET /products/available (q, page y page_size opcionales)
+        Note over PC: _listing_args toma solo q, page y page_size: cualquier otro parámetro se ignora (SPEC-PRD-30)
+        PC->>PS: list_available_products(q, page, page_size)
+        opt la paginación es inválida
+            PS-->>PC: raise ValidationError(fields)
+            PC-->>U: 400 validation_error (SPEC-PLT-17 a 22)
+        end
+        PS->>PR: list_matching(is_active=True, q, window)
+        PR-->>PS: solo productos activos que contienen q, ordenados por nombre (SPEC-PRD-10, 21, 26, 29)
+        PC-->>U: 200 lista de Product, o Page
     end
 ```

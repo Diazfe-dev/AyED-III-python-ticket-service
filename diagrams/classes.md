@@ -134,6 +134,7 @@ classDiagram
         +ProductType product_type
         +bool is_active
         +deactivate() None
+        +activate() None
     }
     Category "1" -- "*" ProductType : product_types y category
     ProductType "1" -- "*" Product : products y product_type
@@ -264,8 +265,10 @@ classDiagram
         +create_product(body)
         +update_product(product_id, body)
         +deactivate_product(product_id)
-        +list_products(category_id, product_type_id)
+        +activate_product(product_id)
+        +list_products()
         +list_available_products()
+        -_listing_args(names) dict
     }
 
     class UserService {
@@ -348,8 +351,9 @@ classDiagram
         +create_product(name, product_type_id) Product
         +update_product(product_id, name, product_type_id) Product
         +deactivate_product(product_id) Product
-        +list_products(category_id, product_type_id) list
-        +list_available_products() list
+        +activate_product(product_id) Product
+        +list_products(category_id, product_type_id, q, is_active, page, page_size) list or Page
+        +list_available_products(q, page, page_size) list or Page
     }
     class NotificationService {
         +dict strategies
@@ -408,7 +412,7 @@ classDiagram
         +add(product) None
         +get(product_id) Product
         +find_by_name_in_type(name, product_type_id) Product
-        +list_matching(category_id, product_type_id, active_only) list
+        +list_matching(category_id, product_type_id, is_active, q, window) list or Page
         +get_many(product_ids) list
     }
 
@@ -499,3 +503,4 @@ classDiagram
 - `SqlAlchemyTicketRepository` implementa `TicketRepository`: `add` hace `flush()`; `get_visible_with_milestones` comparte con él la guarda y el filtro (`_visible_statement`) y carga además `Ticket.milestones` y sus autores con `selectinload`; `get_visible` devuelve `None` si el ticket no existe, no es del actor o el id no entra en el `INTEGER` de SQLite (`fits_integer_column`), lo que el service traduce en `404`; los listados ordenan por `(created_at desc, id desc)` y cargan cliente, representante y productos con `selectinload`. `TicketService.list_tickets` rechaza al `Admin` (`403`) y elige el listado por `actor.role`. `ProductRepository.get_many(product_ids)` devuelve los productos hallados (activos o no) y el service compara cantidades.
 - **Paginación y búsqueda (`00-platform`)**: `PageRequest` (`page`, `page_size`, propiedades `offset` y `limit`) y `Page[T]` (`items`, `page`, `page_size`, `total`) son dataclasses inmutables de la capa de dominio (`app/domain/paging.py`) que comparten services y repositories. En services, `app/services/listing.py` tiene `page_request(page, page_size)` (devuelve `None` si no llegó ningún parámetro y lanza `ValidationError` si alguno es inválido) y `search_text(q)` (devuelve `None` si `q` falta o es solo espacios). En repositories, `app/repositories/paging.py` tiene `fetch(session, statement, window)`, que devuelve la lista completa o un `Page` con el total. En controllers, `app/controllers/listing.py` tiene `listing_json(result, item_json)`, que serializa una lista como arreglo y un `Page` como objeto paginado.
 - No hay `MilestoneService`: los hitos forman parte del agregado `Ticket` y se gestionan desde `TicketService`.
+- **Productos (`03-products`)**: `Product.activate()` es el espejo de `deactivate()` (`is_active = True`); `ProductService.activate_product` lo llama sin error si el producto ya estaba activo (SPEC-PRD-23) y responde `404` si no existe (SPEC-PRD-24). `POST /products/{id}/activate` usa `admin_required` (SPEC-PRD-25). `list_products(category_id, product_type_id, q, is_active, page, page_size)` recibe todo como texto de la query, valida los ids, `is_active` (`bool_query_error`, `parse_bool_query`) y la paginación juntos (`400`), después comprueba que existan la categoría y el tipo (`404`) y llama a `ProductRepository.list_matching(category_id, product_type_id, is_active, q, window)`, que combina los filtros con AND y filtra `q` como subcadena literal de `name_key` (SPEC-PRD-26 a 29). `list_available_products(q, page, page_size)` fija `is_active=True` y no admite otros filtros (SPEC-PRD-30). En el controller, `_listing_args(*names)` toma de `request.args` solo los parámetros nombrados, así `GET /products/available` ignora el resto, y `listing_json` serializa la lista o el `Page`.
