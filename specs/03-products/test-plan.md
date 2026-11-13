@@ -105,6 +105,46 @@ Datos de referencia de los casos: la categoría `"Hardware"` con los tipos `"Not
 
 Además, cada task de endpoint deja en verde TC-PLT-14a y 14b (sincronización entre las rutas y el contrato), y TC-USR-16d cubre los 5 endpoints nuevos sin sesión (`401`) sin modificar el test.
 
+TC-PRD-10b se reescribe en T-PRD-30 (rework de T-PRD-08): `list_matching(is_active=True)` en lugar de `list_matching(active_only=True)`, con el mismo resultado esperado.
+
+### Reactivación, búsqueda y paginación (re-sincronización del 2026-11-12)
+
+Datos de referencia: los de 07a (`"xps 13"` en `"Notebook"`, `"Optiplex"` inactivo en `"Desktop"`, `"LaserJet"` en `"Impresora"`) más `"XPS 15"` (activo, `"Notebook"`), `"Cámara IP"` (activo, `"Impresora"`) y `"50% Toner"` (activo, `"Impresora"`). `FakeProductRepository.list_matching` suma `is_active`, `q` (`q.casefold() in name_key`) y `window` (devuelve `Page`).
+
+| Spec | Caso | Nivel | Datos / preparación | Resultado esperado | Archivo |
+|------|------|-------|---------------------|--------------------|---------|
+| PRD-22 | TC-PRD-22a | unit | Producto con `is_active=False`; `product.activate()` | `is_active is True` | `tests/unit/catalog/test_products.py` |
+| PRD-22 | TC-PRD-22b | unit | Producto inactivo; `activate_product(id)` con fakes | Devuelve el producto activo y hay un `commit` | `tests/unit/catalog/test_product_service.py` |
+| PRD-22 | TC-PRD-22c | integration | `admin_client`; `POST /products/{id}/activate` de `"Optiplex"` | `200` con la representación de `Product` e `is_active: true`; la fila queda activa | `tests/integration/catalog/test_products_api.py` |
+| PRD-22 | TC-PRD-22d | integration | Después de 22c, sesión de un `Representative`; `GET /products/available` | `"Optiplex"` aparece entre los disponibles (puede asociarse a tickets nuevos) | `tests/integration/catalog/test_products_api.py` |
+| PRD-23 | TC-PRD-23a | unit | Producto activo; `activate_product(id)` | No lanza; sigue activo (idempotente) | `tests/unit/catalog/test_product_service.py` |
+| PRD-23 | TC-PRD-23b | integration | `POST /products/{id}/activate` de un producto activo | `200` con `is_active: true` | `tests/integration/catalog/test_products_api.py` |
+| PRD-24 | TC-PRD-24a | unit | `activate_product(9999)` | Lanza `ProductNotFoundError` y no hay `commit` | `tests/unit/catalog/test_product_service.py` |
+| PRD-24 | TC-PRD-24b | integration | Parametrizado: `POST /products/9999/activate` y `POST /products/9223372036854775808/activate` (`2**63`) | `404` `{"error": "product_not_found"}` en los dos (no `500`) | `tests/integration/catalog/test_products_api.py` |
+| PRD-25 | TC-PRD-25a | integration | Parametrizado por rol (`Representative`, `Client`); `POST /products/{id}/activate` sobre `"Optiplex"` | `403` `{"error": "forbidden"}`; el producto sigue inactivo | `tests/integration/catalog/test_catalog_permissions.py` |
+| PRD-26 | TC-PRD-26a | unit | Datos de referencia; `list_products(q="XPS")` y `list_products(q="xps", product_type_id=notebook.id, is_active="true")` | `"xps 13"` y `"XPS 15"` en orden; lo mismo con los filtros combinados (AND) | `tests/unit/catalog/test_product_service.py` |
+| PRD-26 | TC-PRD-26b | integration | Datos de referencia; `list_matching(q="CÁMARA")` y `list_matching(q="xps", category_id=hardware.id)` | `["Cámara IP"]` (mayúsculas fuera de ASCII contra `name_key`); `"xps 13"` y `"XPS 15"` | `tests/integration/catalog/test_product_repository.py` |
+| PRD-26 | TC-PRD-26c | integration | Datos de referencia; `list_matching(q="%")` y `list_matching(q="_")` | `["50% Toner"]` y `[]`: `%` y `_` literales (`autoescape`) | `tests/integration/catalog/test_product_repository.py` |
+| PRD-26 | TC-PRD-26d | unit | Datos de referencia; `list_available_products(q="o")` | Solo los activos que contienen `"o"` (`"50% Toner"`; `"Optiplex"` no, está inactivo) | `tests/unit/catalog/test_product_service.py` |
+| PRD-26 | TC-PRD-26e | integration | Sesión de un `Client`; `GET /products?q=XPS` y `GET /products?q=xps&category_id=<oficina>` | `200` con `"xps 13"` y `"XPS 15"`; `200` con `[]` (AND con la categoría) | `tests/integration/catalog/test_products_api.py` |
+| PRD-26 | TC-PRD-26f | integration | Sesión de un `Representative`; `GET /products/available?q=xps` | `200` con `"xps 13"` y `"XPS 15"` | `tests/integration/catalog/test_products_api.py` |
+| PRD-26 | TC-PRD-26g | integration | `GET /products?q=` y `GET /products/available?q=%20%20` (SPEC-PLT-27) | `200` igual que sin `q` en cada listado | `tests/integration/catalog/test_products_api.py` |
+| PRD-27 | TC-PRD-27a | unit | Datos de referencia; `list_products(is_active="false")`, `list_products(is_active="true", category_id=hardware.id)` | `["Optiplex"]`; `"xps 13"` y `"XPS 15"` | `tests/unit/catalog/test_product_service.py` |
+| PRD-27 | TC-PRD-27b | integration | Datos de referencia; `list_matching(is_active=False)`, `list_matching(is_active=True)` y `list_matching()` | Solo `"Optiplex"`; los activos; todos | `tests/integration/catalog/test_product_repository.py` |
+| PRD-27 | TC-PRD-27c | integration | `GET /products?is_active=false` y `GET /products?is_active=true&q=xps` | `200` con `["Optiplex"]` (con `is_active: false`) y con `"xps 13"` y `"XPS 15"` | `tests/integration/catalog/test_products_api.py` |
+| PRD-28 | TC-PRD-28a | unit | Parametrizado: `list_products(is_active=v)` con `v` en `""`, `"yes"`, `"True"` y `"0"`; y `list_products(is_active="yes", category_id="abc")` | `ValidationError` con `{"is_active": "invalid"}`; con los dos, `{"is_active": "invalid", "category_id": "invalid"}` (juntos, antes de consultar) | `tests/unit/catalog/test_product_service.py` |
+| PRD-28 | TC-PRD-28b | integration | `GET /products?is_active=yes` y `GET /products?is_active=` | `400` `{"error": "validation_error", "fields": {"is_active": "invalid"}}` en los dos | `tests/integration/catalog/test_products_api.py` |
+| PRD-29 | TC-PRD-29a | unit | Datos de referencia; `list_products(page="1", page_size="2")` | `Page` con los 2 primeros por nombre, `page == 1`, `page_size == 2` y `total == 6` | `tests/unit/catalog/test_product_service.py` |
+| PRD-29 | TC-PRD-29b | unit | `list_products(page="0", category_id="x")` y `list_products(page_size="101")` | `ValidationError` con `{"page": "invalid", "category_id": "invalid"}` y con `{"page_size": "invalid"}` | `tests/unit/catalog/test_product_service.py` |
+| PRD-29 | TC-PRD-29c | unit | Datos de referencia; `list_available_products(page_size="2")` | `Page` con `page == 1`, `page_size == 2` y `total` igual a la cantidad de activos (5) | `tests/unit/catalog/test_product_service.py` |
+| PRD-29 | TC-PRD-29d | integration | `GET /products?page=1&page_size=2` y `GET /products?page=2` | Objetos `{items, page, page_size, total}`: el primero con 2 ítems y `total` 6; el segundo con `page_size` 20 (por defecto), `items: []` y `total` 6 (los 6 productos entran en la página 1); sin `page` ni `page_size`, arreglo plano (TC-PRD-07d) | `tests/integration/catalog/test_products_api.py` |
+| PRD-29 | TC-PRD-29e | integration | Datos de referencia más `"XPS 13"` en `"Desktop"` (mismo `name_key` que `"xps 13"`); `list_matching(window=PageRequest(p, 2))` para `p` en 1 a 4 | La concatenación de las páginas es igual a `list_matching()`, sin solapes; el empate de nombre lo resuelve el `id` (SPEC-PLT-21) | `tests/integration/catalog/test_product_repository.py` |
+| PRD-29 | TC-PRD-29f | integration | `GET /products?page=50&page_size=10` | `200` con `items: []` y `total` 6 (SPEC-PLT-22) | `tests/integration/catalog/test_products_api.py` |
+| PRD-29 | TC-PRD-29g | integration | Sesión de un `Representative`; `GET /products/available?page=1&page_size=1` | `{"items": [<un producto activo>], "page": 1, "page_size": 1, "total": 5}` | `tests/integration/catalog/test_products_api.py` |
+| PRD-29 | TC-PRD-29h | integration | `GET /products?page=abc` y `GET /products/available?page_size=0` | `400` `validation_error` con `{"page": "invalid"}` y con `{"page_size": "invalid"}` | `tests/integration/catalog/test_products_api.py` |
+| PRD-30 | TC-PRD-30a | integration | `GET /products/available?is_active=false&category_id=abc&product_type_id=0&foo=1` | `200` con todos los productos activos, igual que sin parámetros: ni `400` ni filtro | `tests/integration/catalog/test_products_api.py` |
+| PRD-30 | TC-PRD-30b | integration | `GET /products/available?q=xps&category_id=<oficina>` | `200` con `"xps 13"` y `"XPS 15"`: `q` se aplica y `category_id` se ignora | `tests/integration/catalog/test_products_api.py` |
+
 ## SPEC-PTY-08 (de `02-product-types`, implementada en esta área)
 
 TC-PTY-08a, 08b y 08c están definidos en el [test-plan de 02](../02-product-types/test-plan.md#matriz-spec--casos) y se implementan con T-PRD-21, T-PRD-10 y T-PRD-27. TC-PTY-08b tiene que exigir `FOREIGN KEY` en `__cause__`, igual que TC-PTY-14c, para que el test falle si falta `passive_deletes="all"`. Esta área suma un caso:
@@ -134,11 +174,19 @@ TC-PTY-08a, 08b y 08c están definidos en el [test-plan de 02](../02-product-typ
 - Claves que `PATCH` no admite (`id`, `is_active`): TC-PRD-04g.
 - Consultas N+1 en el listado: TC-PRD-07c.
 - Baja de un tipo con productos (solo inactivos) y por un camino que no pasa por el service: TC-PTY-08a, 08b y 08d.
+- Reactivar un producto activo (idempotente), inexistente o fuera de rango: TC-PRD-23a, 23b, 24a y 24b.
+- Un producto reactivado vuelve a los disponibles: TC-PRD-22d.
+- `q` con mayúsculas fuera de ASCII, con `%` o `_`, vacío o solo espacios, combinado con los otros filtros: TC-PRD-26a a 26g.
+- `is_active` vacío, con mayúsculas o numérico, y junto a otro filtro inválido: TC-PRD-28a y 28b.
+- Nombres repetidos en tipos distintos al paginar: TC-PRD-29e.
+- Página más allá de la última, `page_size` por defecto y `page_size` 0: TC-PRD-29d, 29f y 29h.
+- Parámetros no admitidos en los disponibles (`is_active`, `category_id` inválido, desconocidos): TC-PRD-30a y 30b.
 
 ## RNF cubiertos
 
 | RNF | Casos |
 |-----|-------|
-| RNF 2 (autenticación y permisos) | TC-PRD-09a y 09b (`403` para no admins en los 3 endpoints de escritura), TC-USR-16d (`401` sin sesión en los 5 endpoints), y TC-PRD-07d, 08g y 10c (las lecturas solo piden sesión) |
+| RNF 2 (autenticación y permisos) | TC-PRD-09a y 09b (`403` para no admins en los 3 endpoints de escritura), TC-PRD-25a (`403` en la reactivación), TC-USR-16d (`401` sin sesión en los 5 endpoints; hoy TC-USR-49a, también el de reactivación), y TC-PRD-07d, 08g y 10c (las lecturas solo piden sesión) |
 | RNF 5 (conservación del historial, parcial) | TC-PRD-06a, 06b y 06c (TC-PRD-06d en `tests/integration/tickets/test_cross_area.py`, hecho en `04-tickets`) |
-| RNF 7 (documentación de la API) | TC-PLT-14a y 14b en cada task de endpoint (T-PRD-22 a 27) |
+| RNF 7 (documentación de la API) | TC-PLT-14a y 14b en cada task de endpoint (T-PRD-22 a 27); TC-PLT-23a y 23b en T-PRD-36 a 38 |
+| RNF 10 (listados paginables) | TC-PRD-29a a 29h |

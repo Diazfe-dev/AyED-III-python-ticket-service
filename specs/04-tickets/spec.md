@@ -1,6 +1,6 @@
 # 04 — Ciclo de vida del ticket
 
-Origen: RF 1.4 · Relacionados: RNF 4, RNF 5, RNF 6 · Diagramas: [secuencias](../../diagrams/sequences/04-tickets.md), [clases](../../diagrams/classes.md)
+Origen: RF 1.4 · Relacionados: RNF 4, RNF 5, RNF 6, RNF 10 · Diagramas: [secuencias](../../diagrams/sequences/04-tickets.md), [clases](../../diagrams/classes.md)
 
 Estados: `New` (Nuevo), `InProgress` (En Progreso), `Closed` (Cerrado).
 
@@ -25,7 +25,7 @@ Transiciones válidas:
 | SPEC-TKT-06 | No deseado | **Si** el cliente indicado no existe, no tiene rol `Client` o está inactivo, **entonces el sistema deberá** rechazar la creación. | RF 1.4.2, RF 1.1.1 |
 | SPEC-TKT-23 | No deseado | **Si** el primer mensaje de un ticket está vacío, tiene solo espacios o no es texto, **entonces el sistema deberá** rechazar la creación e indicar que el mensaje es inválido. | RF 1.4.1, RF 1.5.1 |
 | SPEC-TKT-24 | No deseado | **Si** el identificador del cliente no es un entero positivo, o la lista de productos no es una lista de enteros positivos, **entonces el sistema deberá** rechazar la solicitud e indicar qué campo es inválido (`400`). | RF 1.4.2, RF 1.4.6 |
-| SPEC-TKT-27 | No deseado | **Si** un usuario con rol `Admin` intenta operar sobre tickets, **entonces el sistema deberá** denegar la operación (`403`). | RF 1.1.5 |
+| SPEC-TKT-27 | No deseado | **Reemplazada por SPEC-TKT-32, SPEC-TKT-33 y SPEC-TKT-34.** **Si** un usuario con rol `Admin` intenta operar sobre tickets, **entonces el sistema deberá** denegar la operación (`403`). | RF 1.1.5 |
 
 ## Productos asociados
 
@@ -63,9 +63,41 @@ Transiciones válidas:
 | SPEC-TKT-29 | Ubicuo | **El sistema deberá** devolver los listados de tickets ordenados del más reciente al más antiguo. | RF 1.4.3 |
 | SPEC-TKT-30 | No deseado | **Si** el ticket solicitado no existe o su identificador excede el rango admitido, **entonces el sistema deberá** responder `404`. | RF 1.4, RNF 4 |
 
+## Acceso del Administrador (solo lectura)
+
+| ID | Tipo | Especificación | Origen |
+|----|------|----------------|--------|
+| SPEC-TKT-32 | No deseado | **Si** un usuario con rol `Admin` intenta crear un ticket, asociar o quitar productos, registrar un hito, cerrar o reabrir un ticket, **entonces el sistema deberá** denegar la operación (`403`, código `forbidden`). | RF 1.1.5, RF 1.4.8 |
+| SPEC-TKT-33 | Por evento | **Cuando** un administrador solicita el listado de tickets, **el sistema deberá** devolver todos los tickets, de cualquier cliente y representante. | RF 1.4.8 |
+| SPEC-TKT-34 | Por evento | **Cuando** un administrador solicita un ticket, **el sistema deberá** devolver su estado, su cliente, su representante y sus productos (como SPEC-TKT-28). | RF 1.4.8 |
+
+## Historial de cambios de estado
+
+| ID | Tipo | Especificación | Origen |
+|----|------|----------------|--------|
+| SPEC-TKT-35 | Por evento | **Cuando** el cliente dueño, el representante asignado o un administrador solicita los cambios de estado de un ticket (`GET /tickets/{id}/state-changes`), **el sistema deberá** devolverlos en orden cronológico ascendente por fecha, desempatando por orden de registro. | RF 1.4.10, RNF 6 |
+| SPEC-TKT-36 | Por evento | **Cuando** se devuelve un cambio de estado, **el sistema deberá** incluir el estado nuevo, el usuario que lo realizó (identificador, nombre y rol) y la fecha y hora en UTC. | RF 1.4.10, RNF 6 |
+| SPEC-TKT-37 | No deseado | **Si** un cliente que no es el dueño o un representante que no es el asignado solicita los cambios de estado de un ticket, o el ticket no existe, **entonces el sistema deberá** responder como si el ticket no existiera (`404`, `ticket_not_found`, SPEC-TKT-19, 20 y 30). | RNF 4 |
+
+## Filtros del listado y paginación
+
+| ID | Tipo | Especificación | Origen |
+|----|------|----------------|--------|
+| SPEC-TKT-38 | Por evento | **Cuando** el request al listado de tickets incluye `state` (`New`, `InProgress` o `Closed`), **el sistema deberá** devolver solo los tickets en ese estado. | RF 1.4.9 |
+| SPEC-TKT-39 | Por evento | **Cuando** un administrador o un representante envía `client_id` en el listado de tickets, **el sistema deberá** devolver solo los tickets de ese cliente que puede ver, y una lista vacía si no tiene ninguno. | RF 1.4.9 |
+| SPEC-TKT-40 | Por evento | **Cuando** un administrador envía `representative_id` en el listado de tickets, **el sistema deberá** devolver solo los tickets asignados a ese representante. | RF 1.4.9 |
+| SPEC-TKT-41 | Por evento | **Cuando** el request al listado de tickets incluye `q`, **el sistema deberá** devolver solo los tickets cuyo nombre de cliente o primer mensaje contiene ese texto, sin distinguir mayúsculas. | RF 1.4.9 |
+| SPEC-TKT-42 | Por evento | **Cuando** el request al listado de tickets incluye `order` (`asc` o `desc`), **el sistema deberá** ordenarlo por fecha de creación en ese sentido y, ante igualdad, por identificador en el mismo sentido; sin `order` rige `desc` (SPEC-TKT-29). | RF 1.4.9 |
+| SPEC-TKT-43 | No deseado | **Si** `state` no es un estado válido, `client_id` o `representative_id` no es un entero positivo, o `order` no es `asc` ni `desc`, **entonces el sistema deberá** rechazar el listado con `400` y el código `validation_error`, indicando el parámetro inválido. | RF 1.4.9 |
+| SPEC-TKT-44 | Ubicuo | **El sistema deberá** combinar los filtros del listado de tickets con AND y aplicarlos solo sobre los tickets que el usuario puede ver, sin ampliar nunca su visibilidad (SPEC-TKT-17, 18 y 33). | RF 1.4.9, RNF 4 |
+| SPEC-TKT-45 | Opcional | **Donde** se solicita el listado de tickets con `page` o `page_size`, **el sistema deberá** paginarlo según SPEC-PLT-17 a SPEC-PLT-22. | RNF 10 |
+| SPEC-TKT-46 | No deseado | **Si** un cliente envía `client_id` o `representative_id`, o un representante envía `representative_id`, en el listado de tickets, **entonces el sistema deberá** denegar la operación (`403`, código `forbidden`). | RF 1.4.9, RNF 4 |
+| SPEC-TKT-47 | Ubicuo | **El sistema deberá** responder `GET /tickets/{id}/state-changes` siempre con el arreglo plano de todos los cambios de estado, sin paginar e ignorando `page` y `page_size`. | RF 1.4.10, RNF 10 |
+| SPEC-TKT-48 | No deseado | **Si** el request al listado de tickets incluye a la vez un parámetro con formato inválido (SPEC-TKT-43) y un filtro que el rol no puede usar (SPEC-TKT-46), **entonces el sistema deberá** responder `400` `validation_error`, sin llegar al `403`. | RF 1.4.9, RNF 4 |
+
 ## Decisiones
 
-Resueltas el 2026-11-09 y registradas en [MEMORY.md](../../MEMORY.md):
+Resueltas el 2026-11-09 y registradas en Engram (`tp-final/decision/*`) y en [MEMORY.md](../../MEMORY.md) (Cambios y motivación):
 
 1. Un ticket reabierto vuelve a `InProgress`.
 2. La reapertura por parte del cliente es directa, sin aprobación del representante.
@@ -100,3 +132,20 @@ Aprobadas el 2026-11-12 (huecos G-23 y G-24 de [plan.md](plan.md#huecos-y-pregun
 
 20. **`product_ids` sin productos al crear (SPEC-TKT-01, G-23)**: en el alta (`POST /tickets`), `product_ids` ausente, `null` o `[]` significa "sin productos" y el ticket se crea igual. En `POST /tickets/{id}/products` sigue siendo obligatorio y una lista no vacía (decisión 13).
 21. **Código JSON de SPEC-TKT-26 (G-24)**: quitar un producto que no está asociado al ticket responde `404` con el código `product_not_in_ticket` (mismo estilo que `ticket_not_found` de SPEC-TKT-30).
+
+Aprobadas el 2026-11-12 (nueva área [07-ui](../07-ui/spec.md)). Las specs 32 a 46 son nuevas y no estaban implementadas; solo SPEC-TKT-27 cambia de comportamiento:
+
+22. **El Administrador lee todos los tickets (SPEC-TKT-27 reemplazada)**: SPEC-TKT-27 prohibía al `Admin` toda operación sobre tickets. Pasa a ser: toda **escritura** sigue respondiendo `403` (SPEC-TKT-32) y el `Admin` puede **leer**: el listado de todos los tickets (SPEC-TKT-33), el detalle (SPEC-TKT-34), los hitos (SPEC-MLS-12 en [05-milestones](../05-milestones/spec.md)) y el historial de estados (SPEC-TKT-35). El representante sigue viendo solo los asignados (SPEC-TKT-18 sin cambios) y el cliente solo los suyos (SPEC-TKT-17, 19; RNF 4). Las referencias a SPEC-TKT-27 en las decisiones 6, 11 y 19 se leen ahora como SPEC-TKT-32 (el `403` del `Admin` solo vale en escrituras); la precedencia del formato `400` sobre el `403` de las decisiones 11 y 19 no cambia. Un `Admin` que lee un ticket inexistente recibe `404` (SPEC-TKT-30), ya sin el `403` previo a la consulta de la decisión 11. **Impacto en lo implementado**: el servicio rechaza hoy al `Admin` en las lecturas y los tests de `403` del `Admin` en `GET` deben invertirse al implementar este cambio.
+23. **El historial de estados vive en esta área (SPEC-TKT-35 a 37)** y no en 05-milestones: los cambios de estado son un registro de `Ticket` (SPEC-TKT-14 a 16, RNF 6), no un hito. Tiene las mismas reglas de visibilidad que los hitos (cliente dueño, representante asignado y, ahora, `Admin`) y no tiene escrituras: el historial solo se genera por transiciones.
+24. **Filtros del listado (SPEC-TKT-38 a 46)**: `state`, `client_id`, `representative_id` (solo `Admin`), `q`, `order`, `page` y `page_size`. `q` busca en el nombre del cliente y en el primer mensaje del ticket (el hito inicial); es una definición de esta decisión, porque el ticket no tiene título. `order` ordena por `created_at` (la decisión 14 define el desempate). Un `client_id` o `representative_id` que no existe devuelve lista vacía y no `404`: es un filtro, no un recurso. `representative_id` para un no-`Admin` y `client_id` para un `Client` responden `403` (SPEC-TKT-46) en lugar de ignorarse, para que no parezcan filtrar. El cliente puede usar `state`, `q`, `order` y la paginación.
+
+Aprobadas el 2026-11-12 (validación de requerimientos de [07-ui](../07-ui/spec.md)):
+
+25. **Historial sin paginar (SPEC-TKT-47)**: `GET /tickets/{id}/state-changes` no se pagina (ver también SPEC-MLS-13 para los hitos): un ticket tiene pocas transiciones. Ignora `page` y `page_size`.
+26. **Precedencia en los filtros (SPEC-TKT-48)**: el formato (`400`) se valida antes que los filtros prohibidos para el rol (`403`, SPEC-TKT-46), con el mismo criterio que la decisión 19: un request con `state=foo` y `representative_id` de un representante responde `400`. El mismo orden rige para `is_active` en `GET /clients` (SPEC-USR-50).
+27. **`q` vacío**: en SPEC-TKT-41, un `q` vacío o con solo espacios equivale a no enviar `q` (SPEC-PLT-27).
+
+Aprobadas el 2026-11-12 (huecos G-25 y G-26 de [plan.md](plan.md#huecos-y-preguntas-abiertas)); el texto de las specs no cambia, estas decisiones fijan detalles que no definían:
+
+28. **JSON de un cambio de estado (SPEC-TKT-35 y 36, G-25)**: cada elemento de `GET /tickets/{id}/state-changes` es `{state, user: {id, name, role}, timestamp}`: `state` es el estado nuevo (`New`, `InProgress` o `Closed`), `user` es el usuario que realizó el cambio con el mismo objeto de autor que usan los hitos (`MilestoneAuthor`: `id`, `name` y `role`, sin email) y `timestamp` es la fecha y hora en UTC (ISO 8601). **Impacto en el contrato**: `docs/openapi.json` debe declarar el esquema del cambio de estado (`state` con el enum `New`, `InProgress`, `Closed`; `user` con `$ref` a `MilestoneAuthor`; `timestamp` de formato `date-time`) y que la respuesta es un arreglo plano (SPEC-TKT-47).
+29. **Valores del filtro `state` (SPEC-TKT-38 y 43, G-26)**: `state` acepta solo los valores exactos `New`, `InProgress` y `Closed` (distingue mayúsculas y minúsculas); cualquier otro valor (por ejemplo `closed`, `In Progress` o vacío) responde `400` con el código `validation_error` indicando `state`, y sigue precediendo al `403` de SPEC-TKT-46 (SPEC-TKT-48). **Impacto en el contrato**: el parámetro `state` de `GET /tickets` en `docs/openapi.json` declara el enum `New`, `InProgress`, `Closed`.

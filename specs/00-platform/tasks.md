@@ -2,21 +2,44 @@
 
 Estados: `[ ]` pendiente · `[~]` en curso · `[x]` hecha. Cada task es un ciclo TDD con los casos de [test-plan.md](test-plan.md). T-PLT-14 a 16 se agregaron el 2026-11-10 (SPEC-PLT-15 y 16) sin renumerar las demás.
 
-| Estado | ID | Task | Specs | Capa | Terminado cuando |
-|--------|----|------|-------|------|------------------|
-| [x] | T-PLT-01 | Carga de configuración desde el entorno y valores por defecto | PLT-01, 02 | App | TC-PLT-01a, 01b y 02a en verde |
-| [x] | T-PLT-02 | Validación de `SECRET_KEY` según el modo | PLT-03 | App | TC-PLT-03a y 03b en verde |
-| [x] | T-PLT-03 | `create_app` con base en memoria aislada en testing y fixtures `app`/`client` en `conftest.py` | PLT-04 | App / tests | TC-PLT-04a y 04b en verde |
-| [x] | T-PLT-04 | Engine con `PRAGMA foreign_keys = ON` | PLT-05 | Infra | TC-PLT-05a y 05b en verde |
-| [x] | T-PLT-05 | `get_session()`: una sesión por request | PLT-06 | Infra | TC-PLT-06a y 06b en verde |
-| [x] | T-PLT-06 | Teardown: rollback ante una excepción y cierre siempre | PLT-07, 08 | Infra | TC-PLT-07a y 08a en verde |
-| [x] | T-PLT-07 | `Base`, `create_schema` y comando `init-db` | PLT-09 | Dominio / Infra | TC-PLT-09a, 09b y 09c en verde |
-| [x] | T-PLT-08 | Atributos de la cookie de sesión | PLT-10 | App | TC-PLT-10a y 10b en verde |
-| [x] | T-PLT-09 | Blueprint `health` | PLT-11 | Controllers | TC-PLT-11a y 11b en verde |
-| [x] | T-PLT-11 | `docs/openapi.json` inicial y `GET /openapi.json` | PLT-12 | Contrato / Controllers | TC-PLT-12a y 12b en verde |
-| [x] | T-PLT-12 | `GET /docs` con Swagger UI | PLT-13 | Controllers | TC-PLT-13a y 13b en verde |
-| [x] | T-PLT-13 | Test de sincronización entre las rutas de Flask y el contrato | PLT-14 | Tests | TC-PLT-14a y 14b en verde |
-| [x] | T-PLT-14 | Respuestas JSON para rutas y métodos que la API no expone: tabla `HTTP_ERROR_RESPONSES` en `app/controllers/errors.py` | PLT-15 | Controllers | TC-PLT-15a, 15b y 15c en verde |
-| [x] | T-PLT-15 | `500` JSON genérico sobre `InternalServerError`, sin tragarse las `DomainError` ni las `HTTPException`, y rollback de PLT-08 con el manejador activo. Fixture `unpropagated_app` | PLT-08, 16 | Controllers / tests | TC-PLT-16a, 16b, 16c y 08b en verde, y TC-PLT-08a sigue en verde |
-| [x] | T-PLT-16 | Contrato (`info.description` con los errores comunes) y cierre: `ruff`, cobertura ≥ 90 % y `MEMORY.md` | PLT-15, 16 | Contrato | TC-PLT-14a y 14b siguen en verde; `ruff check`, `ruff format --check` y `pytest --cov=app --cov-fail-under=90` en verde |
-| [x] | T-PLT-10 | Cierre del área: `ruff`, cobertura ≥ 90 % y README de specs actualizado | Todas | — | `ruff check`, `ruff format --check` y `pytest --cov=app --cov-fail-under=90` en verde |
+**Re-sincronización del 2026-11-12** (nueva área [07-ui](../07-ui/spec.md)): se agregan T-PLT-17 a 24 para la paginación opcional (SPEC-PLT-17 a 22 y 24 a 26), el `q` vacío (SPEC-PLT-27) y el reemplazo de SPEC-PLT-14 por SPEC-PLT-23. T-PLT-13 queda `[x]`: su comportamiento lo reemplaza SPEC-PLT-23 y el cambio se hace en la task de rework T-PLT-22, sin reabrir la historia. Las columnas `Depende de` y `Archivos` se agregaron el mismo día sin renumerar; en las tasks ya hechas quedan en `—` porque no se vuelven a planificar.
+
+**Columnas para trabajar en paralelo**: `Depende de` lista las tasks que tienen que estar hechas antes de empezar esta (`—` si ninguna), incluidas las dependencias de archivo (si dos tasks editan el mismo archivo, la posterior depende de la anterior). `Archivos` lista todo archivo que la task crea o edita, de producción y de test. Dos tasks corren en paralelo solo si sus dependencias están hechas y no comparten ningún archivo. Las rutas son relativas a la raíz del repo. No se cuenta marcar el estado en este archivo ni la actualización rutinaria de `MEMORY.md` que hace el orquestador al terminar cada task.
+
+**Tasks de otras áreas que dependen de estas**: los listados de [01-users](../01-users/tasks.md), [02-product-types](../02-product-types/tasks.md), [03-products](../03-products/tasks.md) y [04-tickets](../04-tickets/tasks.md) usan `page_request`, `search_text`, `fetch` y `listing_json` (T-PLT-17 a 20) y los parámetros del contrato de T-PLT-21. Toda task de endpoint de esas áreas cita TC-PLT-23a y 23b en su criterio de terminado, así que depende de T-PLT-22.
+
+| Estado | ID | Task | Specs | Capa | Terminado cuando | Depende de | Archivos |
+|--------|----|------|-------|------|------------------|------------|----------|
+| [x] | T-PLT-01 | Carga de configuración desde el entorno y valores por defecto | PLT-01, 02 | App | TC-PLT-01a, 01b y 02a en verde | — | — |
+| [x] | T-PLT-02 | Validación de `SECRET_KEY` según el modo | PLT-03 | App | TC-PLT-03a y 03b en verde | — | — |
+| [x] | T-PLT-03 | `create_app` con base en memoria aislada en testing y fixtures `app`/`client` en `conftest.py` | PLT-04 | App / tests | TC-PLT-04a y 04b en verde | — | — |
+| [x] | T-PLT-04 | Engine con `PRAGMA foreign_keys = ON` | PLT-05 | Infra | TC-PLT-05a y 05b en verde | — | — |
+| [x] | T-PLT-05 | `get_session()`: una sesión por request | PLT-06 | Infra | TC-PLT-06a y 06b en verde | — | — |
+| [x] | T-PLT-06 | Teardown: rollback ante una excepción y cierre siempre | PLT-07, 08 | Infra | TC-PLT-07a y 08a en verde | — | — |
+| [x] | T-PLT-07 | `Base`, `create_schema` y comando `init-db` | PLT-09 | Dominio / Infra | TC-PLT-09a, 09b y 09c en verde | — | — |
+| [x] | T-PLT-08 | Atributos de la cookie de sesión | PLT-10 | App | TC-PLT-10a y 10b en verde | — | — |
+| [x] | T-PLT-09 | Blueprint `health` | PLT-11 | Controllers | TC-PLT-11a y 11b en verde | — | — |
+| [x] | T-PLT-11 | `docs/openapi.json` inicial y `GET /openapi.json` | PLT-12 | Contrato / Controllers | TC-PLT-12a y 12b en verde | — | — |
+| [x] | T-PLT-12 | `GET /docs` con Swagger UI | PLT-13 | Controllers | TC-PLT-13a y 13b en verde | — | — |
+| [x] | T-PLT-13 | Test de sincronización entre las rutas de Flask y el contrato. *Nota (2026-11-12): SPEC-PLT-14 está reemplazada por SPEC-PLT-23; el test se rehace en T-PLT-22, esta task no se reabre* | PLT-14 | Tests | TC-PLT-14a y 14b en verde | — | — |
+| [x] | T-PLT-14 | Respuestas JSON para rutas y métodos que la API no expone: tabla `HTTP_ERROR_RESPONSES` en `app/controllers/errors.py` | PLT-15 | Controllers | TC-PLT-15a, 15b y 15c en verde | — | — |
+| [x] | T-PLT-15 | `500` JSON genérico sobre `InternalServerError`, sin tragarse las `DomainError` ni las `HTTPException`, y rollback de PLT-08 con el manejador activo. Fixture `unpropagated_app` | PLT-08, 16 | Controllers / tests | TC-PLT-16a, 16b, 16c y 08b en verde, y TC-PLT-08a sigue en verde | — | — |
+| [x] | T-PLT-16 | Contrato (`info.description` con los errores comunes) y cierre: `ruff`, cobertura ≥ 90 % y `MEMORY.md` | PLT-15, 16 | Contrato | TC-PLT-14a y 14b siguen en verde; `ruff check`, `ruff format --check` y `pytest --cov=app --cov-fail-under=90` en verde | — | — |
+| [x] | T-PLT-10 | Cierre del área: `ruff`, cobertura ≥ 90 % y README de specs actualizado | Todas | — | `ruff check`, `ruff format --check` y `pytest --cov=app --cov-fail-under=90` en verde | — | — |
+| [ ] | T-PLT-17 | Valores de paginación: `PageRequest(page, page_size)` (con `offset` y `limit`) y `Page(items, page, page_size, total)` como dataclasses congeladas en `app/domain/paging.py`, con `DEFAULT_PAGE_SIZE = 20` y `MAX_PAGE_SIZE = 100`. `page_request(page, page_size) -> PageRequest \| None` en `app/services/listing.py`: `None` si no llega ninguno de los dos; el omitido toma su valor por defecto; un valor que no es texto de dígitos ASCII mayor que 0, o un `page_size` mayor que 100, lanza `ValidationError` con los dos campos juntos (`"invalid"`); un `page` demasiado largo para convertir se acota (ver plan) | PLT-17, 18, 19, 20, 24, 25, 26 | Dominio / Services | TC-PLT-17a, 18a, 19a, 20a, 20b, 20c, 24a, 25a y 26a en verde | — | `app/domain/paging.py` (nuevo), `app/services/listing.py` (nuevo), `tests/unit/platform/test_listing.py` (nuevo) |
+| [ ] | T-PLT-18 | `search_text(q) -> str \| None` en `app/services/listing.py`: `None` para ausente, vacío o solo espacios; cualquier otro texto se devuelve tal cual | PLT-27 | Services | TC-PLT-27a en verde | T-PLT-17 | `app/services/listing.py`, `tests/unit/platform/test_listing.py` |
+| [ ] | T-PLT-19 | `fetch(session, statement, window) -> list \| Page` en `app/repositories/paging.py`: sin ventana, `session.scalars(statement).all()`; con ventana, `total` con `select(func.count()).select_from(statement.order_by(None).subquery())` y los ítems con `limit`/`offset`; si el `offset` no entra en `INTEGER` (`fits_integer_column`), no consulta los ítems y devuelve `items` vacío con el `total` real | PLT-17, 18, 21, 22 | Repositories | TC-PLT-17c, 18b, 21a, 22a y 22b en verde | T-PLT-17 | `app/repositories/paging.py` (nuevo), `tests/integration/platform/test_paging.py` (nuevo) |
+| [ ] | T-PLT-20 | `listing_json(result, item_json)` en `app/controllers/listing.py`: una lista da el arreglo plano serializado; un `Page` da `{"items", "page", "page_size", "total"}` | PLT-17, 18 | Controllers | TC-PLT-17b y 18c en verde | T-PLT-17 | `app/controllers/listing.py` (nuevo), `tests/unit/platform/test_listing_response.py` (nuevo) |
+| [ ] | T-PLT-21 | Contrato, solo componentes: parámetros reutilizables `Page`, `PageSize` y `Q` (en `components.parameters`) y un párrafo en `info.description` con la convención (SPEC-PLT-17 a 22 y 24 a 27). Sin `paths` nuevos. El JSON se edita cargándolo y reescribiéndolo | PLT-17 a 22, 24 a 27, RNF 7 | Contrato | JSON válido, `$ref` resueltos y el test de paridad con el contrato sigue en verde (sin fase roja) | — | `docs/openapi.json` |
+| [ ] | T-PLT-22 | **Rework de T-PLT-13 (SPEC-PLT-14 reemplazada por SPEC-PLT-23).** El test de paridad compara `app.url_map` contra los `paths` del contrato más el conjunto explícito de rutas de la UI `{("GET", "/"), ("GET", "/static/<path:filename>")}`, sin ignorar el endpoint `static` por nombre; los docstrings pasan de TC-PLT-14a/14b a TC-PLT-23a/23b. TC-PLT-23d (`GET /` existe) queda pendiente de la task de `GET /` de 07-ui | PLT-23 | Tests | TC-PLT-23a, 23b y 23c en verde (rework sin fase roja propia: comprobar que 23a falla al registrar temporalmente una ruta fuera del contrato y de la UI); TC-PLT-23d registrado como pendiente de 07-ui | — | `tests/integration/platform/test_api_docs.py` |
+| [ ] | T-PLT-23 | Diagramas: `diagrams/classes.md` (capas) suma `PageRequest`, `Page`, `page_request`, `search_text`, `fetch` y `listing_json`, y en qué capa vive cada uno | PLT-17 a 22, 24 a 27 | — | El diagrama coincide con el código | T-PLT-17, T-PLT-18, T-PLT-19, T-PLT-20 | `diagrams/classes.md` |
+| [ ] | T-PLT-24 | Cierre de la re-sincronización: `ruff check`, `ruff format --check` y `pytest --cov=app --cov-fail-under=90` en verde; estructura de `AGENTS.md` (`app/domain/paging.py`, `app/services/listing.py`, `app/repositories/paging.py`, `app/controllers/listing.py`); `MEMORY.md` (SPEC-PLT-14 → 23 hecho, TC-PLT-23d pendiente de 07-ui) | Todas | — | Todo lo anterior en verde | T-PLT-17 a T-PLT-23 | `AGENTS.md`, `MEMORY.md` |
+
+Oportunidades de paralelismo (orientativas): T-PLT-17, 21 y 22 arrancan juntas; con T-PLT-17 hecha, T-PLT-18, 19 y 20 no comparten archivos (18 toca `app/services/listing.py`, que también es de 17, por eso depende de ella).
+
+Notas para la implementación:
+
+- **Los parámetros llegan como texto**: el controller pasa `request.args.get("page")` y `request.args.get("page_size")` sin convertir; la validación es del service (`page_request`), igual que `category_id` en `GET /products`.
+- **`page=` vacío cuenta como presente**: es inválido (`400`), no "sin paginar" (SPEC-PLT-17 dice "incluye `page`").
+- **Orden estable**: `fetch` no agrega orden; cada repositorio arma su `statement` con su orden propio y el `id` como último criterio (SPEC-PLT-21). TC-PLT-21a lo prueba con una tabla de prueba y empates en la clave.
+- **Tabla de prueba**: TC-PLT-17c, 18b, 21a y 22a usan una `MetaData` propia con `create_schema`, como TC-PLT-09a, para no depender de ninguna entidad de negocio.

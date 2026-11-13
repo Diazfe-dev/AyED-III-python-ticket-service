@@ -45,7 +45,7 @@ Depende de: SPEC-USR-06, SPEC-USR-23 ([01-users](../01-users/spec.md)) · SPEC-T
 
 ## Decisiones
 
-Resueltas el 2026-11-09 y registradas en [MEMORY.md](../../MEMORY.md):
+Resueltas el 2026-11-09 y registradas en Engram (`tp-final/decision/*`) y en [MEMORY.md](../../MEMORY.md) (Cambios y motivación):
 
 1. Cuando el cliente cierra un ticket, se notifica al representante (RF 1.6.3 ampliado).
 2. Las notificaciones se simulan: las estrategias `MailNotification` y `WhatsappNotification` solo registran el envío. El patrón Strategy permite conectar envíos reales más adelante sin cambiar los services.

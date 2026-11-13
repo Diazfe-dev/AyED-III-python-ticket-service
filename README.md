@@ -30,7 +30,7 @@ Requerimientos completos: [docs/REQUERIMIENTOS.md](docs/REQUERIMIENTOS.md).
 | Lint y formato | ruff |
 | CI | GitHub Actions |
 
-El stack es deliberadamente mínimo: cualquier dependencia nueva requiere una decisión registrada en [MEMORY.md](MEMORY.md).
+El stack es deliberadamente mínimo: cualquier dependencia nueva requiere una decisión registrada en Engram (`tp-final/decision/*`) y referenciada en [MEMORY.md](MEMORY.md).
 
 ## Metodología de desarrollo
 
@@ -93,7 +93,7 @@ Los diagramas están en Mermaid y se ven directamente en GitHub.
 ```
 ├── README.md
 ├── AGENTS.md            # Guía de trabajo para personas y agentes de IA
-├── MEMORY.md            # Estado del proyecto, decisiones y próximos pasos
+├── MEMORY.md            # Estado del proyecto, cambios con su motivación y próximos pasos
 ├── docs/
 │   ├── constitution.md  # Principios innegociables
 │   └── REQUERIMIENTOS.md # Requerimientos funcionales y no funcionales
@@ -109,7 +109,7 @@ Leer en este orden:
 
 1. [docs/constitution.md](docs/constitution.md): 6 principios innegociables (stack, spec y código, lógica e interfaz, tests, datos del usuario e idioma). Prevalecen sobre todo lo demás.
 2. [AGENTS.md](AGENTS.md): convenciones, patrones, prohibiciones, flujo de trabajo, testing y estilo de commits.
-3. [MEMORY.md](MEMORY.md): estado actual, decisiones con su justificación y errores a evitar.
+3. [MEMORY.md](MEMORY.md): estado actual, cambios con su motivación y próximos pasos. Las decisiones con su justificación y los errores a evitar están en Engram (proyecto `tp-final`).
 4. [specs/README.md](specs/README.md): sintaxis EARS e índice de áreas.
 
 ## Puesta en marcha
@@ -132,7 +132,7 @@ ruff check . && ruff format --check . && pytest --cov=app --cov-fail-under=90
 
 ## Cómo contribuir
 
-1. Leer `MEMORY.md` y elegir la próxima task pendiente de un área.
+1. Leer `MEMORY.md`, buscar el tema en Engram (`mem_search`) y elegir la próxima task pendiente de un área.
 2. Si el cambio no tiene spec, escribirla primero en `spec.md` y que el equipo la apruebe.
 3. Implementar con TDD, citando el ID de la spec en cada test.
 4. Abrir un PR chico (menos de 400 líneas) con las specs y tasks que cubre, y esperar el CI en verde.
