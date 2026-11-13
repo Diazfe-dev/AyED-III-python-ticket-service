@@ -8,9 +8,12 @@ from app.domain.errors import (
     DuplicateProductError,
     ProductNotFoundError,
     ProductTypeNotFoundError,
+    ValidationError,
 )
+from app.domain.paging import Page, PageRequest
 from app.domain.products import Category, Product, ProductType
 from app.services.catalog_service import CategoryRepository, ProductTypeRepository
+from app.services.listing import bool_query_error, page_request, parse_bool_query, search_text
 from app.services.validation import id_error, parse_id, provided, raise_if_invalid, text_error
 
 
@@ -26,7 +29,9 @@ class ProductRepository(Protocol):
         category_id: int | None = None,
         product_type_id: int | None = None,
         is_active: bool | None = None,
-    ) -> list[Product]: ...
+        q: str | None = None,
+        window: PageRequest | None = None,
+    ) -> list[Product] | Page[Product]: ...
 
 
 class ProductService:
@@ -83,19 +88,37 @@ class ProductService:
         self._commit()
         return product
 
-    def list_products(self, category_id: Any = None, product_type_id: Any = None) -> list[Product]:
-        """Products, active and inactive, matching every filter given.
+    def list_products(
+        self,
+        category_id: Any = None,
+        product_type_id: Any = None,
+        q: str | None = None,
+        is_active: str | None = None,
+        page: str | None = None,
+        page_size: str | None = None,
+    ) -> list[Product] | Page[Product]:
+        """Products, active and inactive, matching every filter given, by name.
 
-        Filters come as query string text: both are validated together, then each must exist.
+        Filters come as query string text: the two ids, `is_active` and the pagination are
+        validated together, then the category and the type must exist.
         """
         filters = provided(category_id=category_id, product_type_id=product_type_id)
-        raise_if_invalid({field: id_error(value) for field, value in filters.items()})
+        errors = {field: id_error(value) for field, value in filters.items()}
+        errors["is_active"] = bool_query_error(is_active)
+        window = None
+        try:
+            window = page_request(page, page_size)
+        except ValidationError as error:
+            errors.update(error.fields)
+        raise_if_invalid(errors)
         ids = {field: parse_id(value) for field, value in filters.items()}
         if "category_id" in ids:
             self._get_category(ids["category_id"])
         if "product_type_id" in ids:
             self._get_product_type(ids["product_type_id"])
-        return self._products.list_matching(**ids)
+        return self._products.list_matching(
+            **ids, is_active=parse_bool_query(is_active), q=search_text(q), window=window
+        )
 
     def list_available_products(self) -> list[Product]:
         """Active products: the ones that can be added to a ticket."""

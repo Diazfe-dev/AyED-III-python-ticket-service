@@ -10,6 +10,7 @@ from app.domain.errors import (
     ProductTypeNotFoundError,
     ValidationError,
 )
+from app.domain.paging import Page
 from app.domain.products import Category, Product, ProductType
 from app.services.product_service import ProductService
 from tests.unit.catalog.fakes import (
@@ -451,3 +452,85 @@ def test_list_products_of_unknown_product_type_is_not_found(listed: ServiceUnder
 def test_available_products_are_only_the_active_ones(listed: ServiceUnderTest) -> None:
     """SPEC-PRD-10 · TC-PRD-10a"""
     assert names(listed.service.list_available_products()) == ["LaserJet", "xps 13"]
+
+
+@pytest.fixture
+def searchable(listed: ServiceUnderTest) -> ServiceUnderTest:
+    """The `listed` data plus `XPS 15` (Notebook), `Cámara IP` and `50% Toner` (Impresora)."""
+    listed.add_product("XPS 15", listed.notebook)
+    listed.add_product("Cámara IP", listed.printer)
+    listed.add_product("50% Toner", listed.printer)
+    return listed
+
+
+def test_list_products_filters_by_search_text_alone_and_with_other_filters(
+    searchable: ServiceUnderTest,
+) -> None:
+    """SPEC-PRD-26 · TC-PRD-26a"""
+    service = searchable.service
+
+    assert names(service.list_products(q="XPS")) == ["xps 13", "XPS 15"]
+    combined = service.list_products(
+        q="xps", product_type_id=searchable.notebook.id, is_active="true"
+    )
+    assert names(combined) == ["xps 13", "XPS 15"]
+
+
+def test_list_products_ignores_a_blank_search_text(searchable: ServiceUnderTest) -> None:
+    """SPEC-PRD-26 · TC-PRD-26a"""
+    everything = names(searchable.service.list_products())
+
+    assert names(searchable.service.list_products(q="   ")) == everything
+    assert names(searchable.service.list_products(q="")) == everything
+
+
+def test_list_products_filters_by_state(searchable: ServiceUnderTest) -> None:
+    """SPEC-PRD-27 · TC-PRD-27a"""
+    service = searchable.service
+
+    assert names(service.list_products(is_active="false")) == ["Optiplex"]
+    active_hardware = service.list_products(is_active="true", category_id=searchable.hardware.id)
+    assert names(active_hardware) == ["xps 13", "XPS 15"]
+
+
+@pytest.mark.parametrize("value", ["", "yes", "True", "0"])
+def test_list_products_with_a_malformed_state_is_rejected(
+    searchable: ServiceUnderTest, value: str
+) -> None:
+    """SPEC-PRD-28 · TC-PRD-28a"""
+    with pytest.raises(ValidationError) as raised:
+        searchable.service.list_products(is_active=value)
+
+    assert raised.value.fields == {"is_active": "invalid"}
+
+
+def test_list_products_reports_a_malformed_state_with_a_malformed_filter(
+    searchable: ServiceUnderTest,
+) -> None:
+    """SPEC-PRD-28 · TC-PRD-28a"""
+    with pytest.raises(ValidationError) as raised:
+        searchable.service.list_products(is_active="yes", category_id="abc")
+
+    assert raised.value.fields == {"is_active": "invalid", "category_id": "invalid"}
+
+
+def test_list_products_returns_the_page_asked_for(searchable: ServiceUnderTest) -> None:
+    """SPEC-PRD-29 · TC-PRD-29a"""
+    page = searchable.service.list_products(page="1", page_size="2")
+
+    assert isinstance(page, Page)
+    assert names(page.items) == ["50% Toner", "Cámara IP"]
+    assert (page.page, page.page_size, page.total) == (1, 2, 6)
+
+
+def test_list_products_reports_bad_pagination_together_with_the_filters(
+    searchable: ServiceUnderTest,
+) -> None:
+    """SPEC-PRD-29 · TC-PRD-29b"""
+    with pytest.raises(ValidationError) as raised:
+        searchable.service.list_products(page="0", category_id="x")
+    assert raised.value.fields == {"page": "invalid", "category_id": "invalid"}
+
+    with pytest.raises(ValidationError) as raised:
+        searchable.service.list_products(page_size="101")
+    assert raised.value.fields == {"page_size": "invalid"}

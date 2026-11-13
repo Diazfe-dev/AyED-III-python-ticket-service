@@ -1,5 +1,6 @@
 """In-memory test doubles for the catalog service: no Flask, no database."""
 
+from app.domain.paging import Page, PageRequest
 from app.domain.products import Category, Product, ProductType, normalize_name
 
 
@@ -122,12 +123,20 @@ class FakeProductRepository:
         category_id: int | None = None,
         product_type_id: int | None = None,
         is_active: bool | None = None,
-    ) -> list[Product]:
+        q: str | None = None,
+        window: PageRequest | None = None,
+    ) -> list[Product] | Page[Product]:
+        wanted = "" if q is None else q.casefold()
         matching = [
             p
             for p in self.products.values()
             if category_id in (None, p.product_type.category.id)
             and product_type_id in (None, p.product_type.id)
             and is_active in (None, p.is_active)
+            and wanted in p.name_key
         ]
-        return sorted(matching, key=_by_name)
+        ordered = sorted(matching, key=_by_name)
+        if window is None:
+            return ordered
+        items = ordered[window.offset : window.offset + window.limit]
+        return Page(items=items, page=window.page, page_size=window.page_size, total=len(ordered))
