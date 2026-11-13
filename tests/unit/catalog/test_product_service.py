@@ -342,6 +342,7 @@ def test_activate_an_active_product_is_idempotent(sut: ServiceUnderTest) -> None
 
     assert activated is product
     assert product.is_active is True
+    assert sut.commit.calls == 1
 
 
 def test_activate_unknown_product_is_not_found(sut: ServiceUnderTest) -> None:
@@ -514,6 +515,16 @@ def test_list_products_reports_a_malformed_state_with_a_malformed_filter(
     assert raised.value.fields == {"is_active": "invalid", "category_id": "invalid"}
 
 
+def test_list_products_validates_the_query_before_looking_up_the_category(
+    searchable: ServiceUnderTest,
+) -> None:
+    """SPEC-PRD-28 · TC-PRD-28a"""
+    with pytest.raises(ValidationError) as raised:
+        searchable.service.list_products(category_id=9999, is_active="yes")
+
+    assert raised.value.fields == {"is_active": "invalid"}
+
+
 def test_list_products_returns_the_page_asked_for(searchable: ServiceUnderTest) -> None:
     """SPEC-PRD-29 · TC-PRD-29a"""
     page = searchable.service.list_products(page="1", page_size="2")
@@ -534,6 +545,10 @@ def test_list_products_reports_bad_pagination_together_with_the_filters(
     with pytest.raises(ValidationError) as raised:
         searchable.service.list_products(page_size="101")
     assert raised.value.fields == {"page_size": "invalid"}
+
+    with pytest.raises(ValidationError) as raised:
+        searchable.service.list_products(category_id=9999, page="0")
+    assert raised.value.fields == {"page": "invalid"}
 
 
 def test_available_products_are_searched_by_text(searchable: ServiceUnderTest) -> None:

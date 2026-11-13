@@ -268,17 +268,23 @@ def test_list_matching_pages_concatenate_to_the_whole_listing_without_overlaps(
     db_session: Session, catalog: dict[str, int], make_product: MakeProduct
 ) -> None:
     """SPEC-PRD-29 · TC-PRD-29e"""
-    make_product(db_session.get(ProductType, catalog["desktop"]), "XPS 13")
+    desktop = db_session.get(ProductType, catalog["desktop"])
+    make_product(desktop, "XPS 13")
+    printer = db_session.scalars(select(ProductType).where(ProductType.name == "Impresora")).one()
+    make_product(printer, "Xps 13")
     repository = SqlAlchemyProductRepository(db_session)
     whole = repository.list_matching()
 
-    pages = [repository.list_matching(window=PageRequest(page=p, page_size=2)) for p in range(1, 5)]
+    pages = [repository.list_matching(window=PageRequest(page=p, page_size=3)) for p in range(1, 4)]
 
     assert all(isinstance(page, Page) for page in pages)
     assert [product.id for page in pages for product in page.items] == [p.id for p in whole]
     assert {page.total for page in pages} == {len(whole)}
-    assert [page.page for page in pages] == [1, 2, 3, 4]
-    assert names(whole) == ["LaserJet", "Optiplex", "xps 13", "XPS 13"]
+    assert [page.page for page in pages] == [1, 2, 3]
+    assert names(whole) == ["LaserJet", "Optiplex", "xps 13", "XPS 13", "Xps 13"]
+    across_the_boundary = [pages[0].items[-1], pages[1].items[0]]
+    assert across_the_boundary[0].name_key == across_the_boundary[1].name_key
+    assert across_the_boundary[0].id < across_the_boundary[1].id
 
 
 def test_get_many_returns_active_and_inactive_products_ordered_by_id(
