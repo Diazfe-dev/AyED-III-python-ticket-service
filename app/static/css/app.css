@@ -58,3 +58,37 @@ main,
   outline: 3px solid #1d4ed8;
   outline-offset: 2px;
 }
+
+button:disabled,
+input:disabled,
+select:disabled,
+textarea:disabled {
+  color: #4b5563;
+  background: #e5e7eb;
+  cursor: not-allowed;
+}
+
+a[aria-disabled="true"] {
+  color: #4b5563;
+  cursor: not-allowed;
+}
+
+nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 1rem;
+}
+
+.field {
+  margin: 0 0 0.75rem;
+}
+
+.field label {
+  display: block;
+}
+
+.field input:not([type="checkbox"]),
+.field select,
+.field textarea {
+  max-width: 100%;
+}
