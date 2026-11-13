@@ -1,3 +1,4 @@
+import { initialRequests, issue, verdict } from "./core/requests.js";
 import { canSend, currentUser, initialState, transition } from "./core/session.js";
 import { clear, clearMessages, setTitle, showError, showStatus } from "./dom/render.js";
 import { renderShell } from "./dom/shell.js";
@@ -8,6 +9,7 @@ const root = document.getElementById("app");
 const header = document.getElementById("shell");
 
 let state = initialState();
+let requests = initialRequests();
 let pendingCredentials;
 
 const browserFetch = (path, init) => window.fetch(path, init);
@@ -23,11 +25,14 @@ const ANSWER_EVENTS = {
   logout: (response) => ({ type: "logoutSettled", response }),
 };
 
-function screenRequest(method, path, body) {
+function screenRequest(method, path, body, key) {
+  const issued = issue(requests, method, key);
+  requests = issued.state;
   return new Promise((resolve) => {
     client.request(method, path, body).then((response) => {
       dispatch({ type: "apiAnswered", epoch: response.epoch, response });
-      if (response.epoch === state.epoch && response.status !== 401) {
+      const current = response.epoch === state.epoch && response.status !== 401;
+      if (current && verdict(requests, issued.tag, response.status) === "deliver") {
         resolve(response);
       }
     });

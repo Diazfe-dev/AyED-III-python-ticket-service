@@ -56,9 +56,11 @@ test("SPEC-UI-97 shows not found for an invalid ticket id without API calls (TC-
   const api = await installFakeApi(page);
   await loginAs(page, api, "Client");
   await expect(heading(page, "Tickets")).toBeVisible();
+  await expect(page.getByText("No hay resultados")).toBeVisible();
+  const before = apiRequests(api).length;
   await goToHash(page, "#/tickets/007");
   await expect(heading(page, "Página no encontrada")).toBeVisible();
-  expect(apiRequests(api)).toEqual([]);
+  expect(apiRequests(api)).toHaveLength(before);
 });
 
 test("SPEC-UI-124 shows the role home for #/login and the empty hash (TC-UI-124b)", async ({

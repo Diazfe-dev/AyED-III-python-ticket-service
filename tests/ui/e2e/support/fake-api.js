@@ -1,5 +1,5 @@
 import { expect } from "@playwright/test";
-import { USERS } from "./fixtures.js";
+import { USERS, page as pageOf, ticket } from "./fixtures.js";
 
 const JSON_HEADERS = { "content-type": "application/json" };
 
@@ -34,6 +34,26 @@ function toResponse(reply) {
 
 export const ABORT = Symbol("abort");
 
+const EMPTY_PAGE = { items: [], page: 1, page_size: 20, total: 0 };
+
+function ticketIdOf(record) {
+  return Number(new URL(record.url).pathname.split("/")[2]);
+}
+
+function installReadDefaults(api) {
+  api.on("GET", /^\/categories(\?|$)/, { status: 200, body: [] });
+  api.on("GET", "/product-types", { status: 200, body: [] });
+  api.on("GET", "/products", { status: 200, body: pageOf([]) });
+  api.on("GET", "/products/available", { status: 200, body: pageOf([]) });
+  api.on("GET", "/users", { status: 200, body: pageOf([]) });
+  api.on("GET", /^\/tickets\/\d+$/, (record) => ({
+    status: 200,
+    body: ticket(ticketIdOf(record), "New", "2026-01-01T12:00:00+00:00"),
+  }));
+  api.on("GET", /^\/tickets\/\d+\/milestones$/, { status: 200, body: [] });
+  api.on("GET", /^\/tickets\/\d+\/state-changes$/, { status: 200, body: [] });
+}
+
 export async function installFakeApi(page) {
   const routes = [];
   const requests = [];
@@ -63,6 +83,11 @@ export async function installFakeApi(page) {
       };
     },
   };
+
+  api.on("GET", /^\/tickets\?/, { status: 200, body: EMPTY_PAGE });
+  api.on("GET", "/clients", { status: 200, body: [] });
+  api.on("GET", "/representatives", { status: 200, body: [] });
+  installReadDefaults(api);
 
   await page.route("**/*", async (route) => {
     const request = route.request();
