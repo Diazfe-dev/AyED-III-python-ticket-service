@@ -70,7 +70,7 @@ def _close_session(exc: BaseException | None) -> None:
 
 def _create_engine(url: str) -> Engine:
     engine = _build_engine(url)
-    event.listen(engine, "connect", _enable_foreign_keys)
+    event.listen(engine, "connect", _configure_connection)
     return engine
 
 
@@ -80,7 +80,13 @@ def _build_engine(url: str) -> Engine:
     return create_engine(url)
 
 
-def _enable_foreign_keys(dbapi_connection: Any, _connection_record: Any) -> None:
+def _configure_connection(dbapi_connection: Any, _connection_record: Any) -> None:
     cursor = dbapi_connection.cursor()
     cursor.execute("PRAGMA foreign_keys = ON")
     cursor.close()
+    dbapi_connection.create_function("casefold", 1, _casefold, deterministic=True)
+
+
+def _casefold(text: str | None) -> str | None:
+    """SQL `casefold(text)`: Unicode-aware, unlike SQLite's ASCII-only `lower()`."""
+    return None if text is None else text.casefold()
