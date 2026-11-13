@@ -180,6 +180,7 @@ def test_own_password_change_stores_a_hash_and_keeps_the_session(
     response = change_password(ana_client, "password1", NEW_PASSWORD)
 
     assert response.status_code == 204
+    assert response.get_data() == b""
     saved = stored_hash(db_session, ana)
     assert saved != NEW_PASSWORD
     assert check_password_hash(saved, NEW_PASSWORD)

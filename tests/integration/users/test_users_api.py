@@ -422,6 +422,19 @@ def test_user_listings_return_a_page_when_asked(admin_client: FlaskClient) -> No
     assert representatives["total"] == 2
 
 
+@pytest.mark.usefixtures("reference_users")
+def test_user_listing_beyond_the_last_page_is_empty_with_the_real_total(
+    admin_client: FlaskClient,
+) -> None:
+    """SPEC-USR-47 · TC-USR-47e"""
+    response = admin_client.get("/users?page=99&page_size=10")
+
+    assert response.status_code == 200
+    body = response.get_json()
+    assert body["items"] == []
+    assert body["total"] == 7
+
+
 @pytest.mark.parametrize(
     ("path", "fields"),
     [
@@ -691,6 +704,7 @@ def test_admin_resets_a_password_and_the_user_logs_in_with_it(
     response = reset_password(admin_client, ana.id, {"new_password": "newpassword"})
 
     assert response.status_code == 204
+    assert response.get_data() == b""
     new_login = app.test_client().post(
         "/login", json={"email": "ana@x.com", "password": "newpassword"}
     )
