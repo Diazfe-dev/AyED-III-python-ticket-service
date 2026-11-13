@@ -48,6 +48,11 @@ export function homeOf(role) {
   return HOMES[role];
 }
 
+export function routeOf(screen) {
+  const entry = Object.entries(ROUTES).find(([, route]) => route.screen === screen);
+  return entry ? entry[0] : null;
+}
+
 export function navItems(role) {
   return (NAV[role] ?? []).map((item) => ({ ...item }));
 }

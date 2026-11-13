@@ -330,6 +330,15 @@ Casos deterministas de `POST /logout` y de `GET /me` (sin `sleep`): la prueba cr
 | UI-68 | TC-UI-68a | e2e | Solo teclado (`Tab`, `Enter`, `Space`, flechas en `select`): login, ir a «Nuevo ticket», crear, abrir el detalle, cerrar el ticket, cerrar sesión | El recorrido termina sin usar el ratón | `e2e/a11y.spec.js` |
 | UI-113 | TC-UI-113a | e2e | Cada pantalla | No hay `[role=button]`, `[onclick]` ni `div`/`span` con `tabindex`; las acciones son `button`, `a[href]`, campos o `dialog` | `e2e/a11y.spec.js` |
 | UI-114 | TC-UI-114a | e2e | Enfoca con `Tab` cada control de una pantalla | `outline-style` distinto de `none` (o `box-shadow` distinto del estado sin foco) | `e2e/a11y.spec.js` |
+| UI-137 | TC-UI-137a | e2e | Sin sesión (`GET /me` → `401`), abre `/` | El foco está en el `h1` «Iniciar sesión» (`document.activeElement`) | `e2e/a11y.spec.js` |
+| UI-137 | TC-UI-137b | e2e | `GET /me` → `200` del `Admin`, abre `/` | El foco está en el `h1` «Usuarios» del inicio del rol | `e2e/a11y.spec.js` |
+| UI-137 | TC-UI-137c | e2e | Representante con sesión; pulsa «Nuevo ticket», «Mi cuenta» y «Tickets» en la navegación | Tras cada clic el foco está en el `h1` de la pantalla nueva | `e2e/a11y.spec.js` |
+| UI-137 | TC-UI-137d | e2e | Cliente con sesión; cambia el hash a una ruta inexistente | Se muestra la pantalla de ruta inexistente y el foco está en su `h1` | `e2e/a11y.spec.js` |
+| UI-137 | TC-UI-137e | e2e | `Admin` en el inicio del rol; lee el `outline-style` del `h1` enfocado y pulsa `Tab` | El `h1` no dibuja anillo (`outline-style: none`) y el siguiente control enfocado sí lo muestra (SPEC-UI-114 intacta) | `e2e/a11y.spec.js` |
+| UI-138 | TC-UI-138a | e2e | `Admin` en `#/users`; pulsa «Mi cuenta», «Tickets» y «Productos» | En cada pantalla exactamente un enlace de la navegación tiene `aria-current="page"`: el de la ruta mostrada | `e2e/a11y.spec.js` |
+| UI-138 | TC-UI-138b | e2e | Cliente en `#/tickets`; pulsa «Mi cuenta» | Solo «Mis tickets» y después solo «Mi cuenta» tienen `aria-current="page"` | `e2e/a11y.spec.js` |
+| UI-138 | TC-UI-138c | e2e | Representante; cambia el hash a `#/tickets/7` | Ningún enlace de la navegación tiene `aria-current` | `e2e/a11y.spec.js` |
+| UI-138 | TC-UI-138d | unit | `routeOf("tickets-list")`, `routeOf("ticket-new")`, `routeOf("account")`, `routeOf("users")`, `routeOf("ticket-detail")`, `routeOf("login")` y `routeOf("not-found")` | La ruta exacta de la tabla o `null` si la pantalla no es una ruta fija de la navegación | `js/routes.test.js` |
 | UI-69 | TC-UI-69a | e2e | Un error y una confirmación | El error está dentro de `role="alert"` y la confirmación dentro de `role="status"` (`aria-live`) | `e2e/a11y.spec.js` |
 | UI-70 | TC-UI-70a | e2e | Viewport de 360 × 740 en cada pantalla, con tablas de 8 columnas | `scrollWidth <= clientWidth` del documento; la tabla se desplaza dentro de su contenedor | `e2e/a11y.spec.js` |
 | UI-71 | TC-UI-71a | e2e | `GET /tickets` retenido | Indicador «Cargando…» visible mientras está retenido y oculto después | `e2e/tickets-list.spec.js` |
@@ -352,8 +361,8 @@ Casos deterministas de `POST /logout` y de `GET /me` (sin `sleep`): la prueba cr
 | UI-98 | TC-UI-98a | integration | Lee `playwright.config.js` y `tests/ui/e2e/` | El archivo existe, nombra `tests/ui/e2e` como `testDir` y hay al menos un `*.spec.js` | `test_traceability.py` |
 | UI-99 | TC-UI-99a | integration | Todas las pruebas de esta área (títulos y docstrings) | Cumplen `^SPEC-UI-\d+(, SPEC-UI-\d+)* [\x20-\x7E]+$` y los títulos son literales | `test_traceability.py` |
 | UI-99 | TC-UI-99b | integration | Textos de muestra con `test(...)`, `it(...)`, `describe(...)`, `test.describe(...)` y una plantilla con `${}` | El extractor toma solo los de prueba e informa la plantilla | `test_traceability.py` |
-| UI-121 | TC-UI-121a | integration | IDs de `spec.md` y citas de todo el repo | Cada uno de los 136 IDs tiene al menos una cita | `test_traceability.py` |
-| UI-121 | TC-UI-121b | integration | Lectura de `spec.md` | Lee 136 IDs, solo de las filas de las tablas (no de las decisiones) | `test_traceability.py` |
+| UI-121 | TC-UI-121a | integration | IDs de `spec.md` y citas de todo el repo | Cada uno de los 138 IDs tiene al menos una cita | `test_traceability.py` |
+| UI-121 | TC-UI-121b | integration | Lectura de `spec.md` | Lee 138 IDs, solo de las filas de las tablas (no de las decisiones) | `test_traceability.py` |
 
 ### Casos de otras áreas que esta área completa
 
@@ -535,7 +544,9 @@ Mecanismos: **P** = `pytest`, **N** = `node --test`, **W** = Playwright (con API
 | UI-134 | 134a, 134b | W, N | T-UI-30, 12 |
 | UI-135 | 135a, 135b, 135c, 135d, 135e, 135f, 135g, 135h | N, W | T-UI-39, 22, 31, 24 |
 | UI-136 | 136a, 136b, 136c, 136d, 136e, 136f, 136g | N, W | T-UI-39, 25, 31 |
+| UI-137 | 137a, 137b, 137c, 137d, 137e | W | T-UI-40 |
+| UI-138 | 138a, 138b, 138c, 138d | N, W | T-UI-41 |
 
 ## Resumen
 
-270 casos sobre 136 specs (todas con al menos un caso; las de la fila de Playwright de la tabla de verificación tienen al menos uno de Playwright, y las de la fila de `node --test`, al menos uno de `node --test`; SPEC-UI-135 y 136 están en las dos filas y tienen casos de los dos): **15** `pytest` (integration), **85** `node --test` (unit) y **170** Playwright (e2e: 166 con API simulada y 4 contra el servidor sembrado). Más 2 casos de otras áreas que se completan acá (TC-PLT-23d y TC-USR-49b). La re-sincronización del 2026-11-12 (G-01, opción A) sumó TC-UI-135a, 135b, 136a y 136b (`node --test`, T-UI-39) y TC-UI-135c y 136c (Playwright, T-UI-22 y T-UI-25). La re-sincronización con las decisiones 62 a 65 sumó TC-UI-135d, 135e y 136d (`node --test`, T-UI-39: escrituras nunca descartadas, recursos distintos sin reemplazo, nueva instancia de la misma ruta) y TC-UI-135f (T-UI-22), 135h (T-UI-24), 136e y 136f (T-UI-25), 135g y 136g (T-UI-31) en Playwright: obsoletos `400`, `500` y `route.abort` sin error, `401` obsoleto con «Tu sesión venció», vuelta a `#/tickets/new` sin navegar y los tres `GET` en paralelo dibujados.
+279 casos sobre 138 specs (todas con al menos un caso; las de la fila de Playwright de la tabla de verificación tienen al menos uno de Playwright, y las de la fila de `node --test`, al menos uno de `node --test`; SPEC-UI-135 y 136 están en las dos filas y tienen casos de los dos): **15** `pytest` (integration), **86** `node --test` (unit) y **178** Playwright (e2e: 174 con API simulada y 4 contra el servidor sembrado). Más 2 casos de otras áreas que se completan acá (TC-PLT-23d y TC-USR-49b). La re-sincronización del 2026-11-12 (G-01, opción A) sumó TC-UI-135a, 135b, 136a y 136b (`node --test`, T-UI-39) y TC-UI-135c y 136c (Playwright, T-UI-22 y T-UI-25). La re-sincronización con las decisiones 62 a 65 sumó TC-UI-135d, 135e y 136d (`node --test`, T-UI-39: escrituras nunca descartadas, recursos distintos sin reemplazo, nueva instancia de la misma ruta) y TC-UI-135f (T-UI-22), 135h (T-UI-24), 136e y 136f (T-UI-25), 135g y 136g (T-UI-31) en Playwright: obsoletos `400`, `500` y `route.abort` sin error, `401` obsoleto con «Tu sesión venció», vuelta a `#/tickets/new` sin navegar y los tres `GET` en paralelo dibujados. La ampliación de accesibilidad (SPEC-UI-137 y 138) sumó TC-UI-137a a 137e y 138a a 138c en Playwright (T-UI-40 y T-UI-41) y TC-UI-138d en `node --test` (`routeOf`).

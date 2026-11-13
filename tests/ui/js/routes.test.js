@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { classify, homeOf, isValidTicketId, navItems } from "../../../app/static/js/core/routes.js";
+import { classify, homeOf, isValidTicketId, navItems, routeOf } from "../../../app/static/js/core/routes.js";
 
 const ROLES = ["Representative", "Admin", "Client"];
 const MAX_ID = "9223372036854775807";
@@ -108,4 +108,14 @@ test("SPEC-UI-126 sends every hash to login without a session (TC-UI-126a)", () 
   for (const hash of ["", "#/users", "#/tickets/007", "#/tickets/new", "#/desconocido", "#/login"]) {
     assert.deepEqual(classify(hash, null), { kind: "login" }, hash);
   }
+});
+
+test("SPEC-UI-138 maps a screen to the exact route of its navigation link (TC-UI-138d)", () => {
+  assert.equal(routeOf("tickets-list"), "#/tickets");
+  assert.equal(routeOf("ticket-new"), "#/tickets/new");
+  assert.equal(routeOf("account"), "#/account");
+  assert.equal(routeOf("users"), "#/users");
+  assert.equal(routeOf("ticket-detail"), null);
+  assert.equal(routeOf("login"), null);
+  assert.equal(routeOf("not-found"), null);
 });

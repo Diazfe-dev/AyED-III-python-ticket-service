@@ -1,4 +1,5 @@
 import { initialRequests, issue, openScreen, verdict } from "./core/requests.js";
+import { routeOf } from "./core/routes.js";
 import { canSend, currentUser, initialState, transition } from "./core/session.js";
 import { setInert } from "./dom/inert.js";
 import { clear,clearMessages, setTitle, showError, showStatus } from "./dom/render.js";
@@ -55,13 +56,22 @@ function screenContext(params) {
   };
 }
 
+function focusHeading() {
+  const heading = root.querySelector("h1");
+  if (heading) {
+    heading.setAttribute("tabindex", "-1");
+    heading.focus();
+  }
+}
+
 function showScreen(name, params) {
   const screen = screens[name];
   clearMessages();
   clear(root);
-  renderShell(header, currentUser(state), () => dispatch({ type: "logoutClicked" }));
+  renderShell(header, currentUser(state), () => dispatch({ type: "logoutClicked" }), routeOf(name));
   setTitle(screen.title(params));
   screen.mount(screenContext(params));
+  focusHeading();
 }
 
 async function runRequest({ kind, method, path }) {
