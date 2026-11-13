@@ -7,9 +7,13 @@ from typing import Any, Protocol
 from app.domain.errors import (
     DuplicateUserError,
     InvalidCredentialsError,
+    InvalidCurrentPasswordError,
+    PermissionDeniedError,
     SelfDeactivationError,
     UserNotFoundError,
+    ValidationError,
 )
+from app.domain.paging import Page, PageRequest
 from app.domain.users import (
     DEFAULT_CHANNEL,
     NOTIFICATION_CHANNELS,
@@ -17,8 +21,9 @@ from app.domain.users import (
     User,
     normalize_email,
 )
+from app.services.listing import bool_query_error, page_request, parse_bool_query, search_text
 from app.services.passwords import PasswordHasher
-from app.services.validation import INVALID, provided, raise_if_invalid, text_error
+from app.services.validation import INVALID, REQUIRED, provided, raise_if_invalid, text_error
 
 EMAIL_PATTERN = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
 TOO_SHORT = "too_short"
@@ -32,7 +37,15 @@ class UserRepository(Protocol):
 
     def find_by_email(self, email: str) -> User | None: ...
 
-    def list_by_role(self, role: str) -> list[User]: ...
+    def search(
+        self,
+        *,
+        role: str | None = None,
+        is_active: bool | None = None,
+        q: str | None = None,
+        search_email: bool = True,
+        window: PageRequest | None = None,
+    ) -> list[User] | Page[User]: ...
 
 
 class UserService:
@@ -107,8 +120,71 @@ class UserService:
         self._commit()
         return user
 
-    def list_by_role(self, role: str) -> list[User]:
-        return self._repository.list_by_role(role)
+    def activate_user(self, user_id: int) -> User:
+        """Reactivate a user; activating an active one is not an error."""
+        user = self._get_existing(user_id)
+        user.activate()
+        self._commit()
+        return user
+
+    def change_own_password(self, actor: User, current_password: Any, new_password: Any) -> None:
+        """Replace the actor's password; the current one must match (checked after the format)."""
+        raise_if_invalid(
+            {
+                "current_password": _current_password_error(current_password),
+                "new_password": _password_error(new_password),
+            }
+        )
+        if not self._hasher.verify(actor.password_hash, current_password):
+            raise InvalidCurrentPasswordError()
+        actor.password_hash = self._hasher.hash(new_password)
+        self._commit()
+
+    def reset_password(self, user_id: int, new_password: Any) -> None:
+        """Set another user's password without asking for the previous one."""
+        user = self._get_existing(user_id)
+        raise_if_invalid({"new_password": _password_error(new_password)})
+        user.password_hash = self._hasher.hash(new_password)
+        self._commit()
+
+    def list_users(
+        self,
+        role: str | None = None,
+        is_active: str | None = None,
+        q: str | None = None,
+        page: str | None = None,
+        page_size: str | None = None,
+    ) -> list[User] | Page[User]:
+        """Users of every role or of one, by name; the query values come as text and are checked."""
+        window = _checked_listing(is_active, page, page_size)
+        return self._repository.search(
+            role=role, is_active=parse_bool_query(is_active), q=search_text(q), window=window
+        )
+
+    def list_clients(
+        self,
+        actor: User,
+        is_active: str | None = None,
+        q: str | None = None,
+        page: str | None = None,
+        page_size: str | None = None,
+    ) -> list[User] | Page[User]:
+        """Clients as the actor may see them: an admin sees all, a representative only active ones.
+
+        The role check goes first, then the format, then the representative's `is_active` ban.
+        """
+        if actor.role == "Client":
+            raise PermissionDeniedError()
+        window = _checked_listing(is_active, page, page_size)
+        if actor.role == "Representative":
+            if is_active is not None:
+                raise PermissionDeniedError()
+            return self._repository.search(
+                role="Client", is_active=True, q=search_text(q), search_email=False, window=window
+            )
+        return self._repository.search(
+            role="Client", is_active=parse_bool_query(is_active), q=search_text(q), window=window
+        )
 
     def authenticate(self, email: Any, password: Any) -> User:
         """Return the active user with these credentials; never tell which check failed."""
@@ -140,6 +216,20 @@ class UserService:
             raise DuplicateUserError()
 
 
+def _checked_listing(
+    is_active: str | None, page: str | None, page_size: str | None
+) -> PageRequest | None:
+    """The window asked for; `is_active` and the pagination are validated together."""
+    errors: dict[str, str | None] = {"is_active": bool_query_error(is_active)}
+    window = None
+    try:
+        window = page_request(page, page_size)
+    except ValidationError as error:
+        errors.update(error.fields)
+    raise_if_invalid(errors)
+    return window
+
+
 def _email_error(value: Any) -> str | None:
     error = text_error(value)
     if error is not None:
@@ -159,6 +249,13 @@ def _password_error(value: Any) -> str | None:
     if error is not None:
         return error
     return TOO_SHORT if len(value) < MIN_PASSWORD_LENGTH else None
+
+
+def _current_password_error(value: Any) -> str | None:
+    """Any text is a possible current password; only its presence and type are checked."""
+    if value is None:
+        return REQUIRED
+    return None if isinstance(value, str) else INVALID
 
 
 def _channel_error(value: Any) -> str | None:

@@ -46,6 +46,12 @@ class InvalidCredentialsError(DomainError):
     message = "Invalid credentials."
 
 
+class InvalidCurrentPasswordError(DomainError):
+    """The current password given to change one's own password does not match."""
+
+    message = "The current password is incorrect."
+
+
 class DuplicateCategoryError(DomainError):
     message = "A category with this name already exists."
 

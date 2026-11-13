@@ -53,4 +53,4 @@ def list_representatives() -> ResponseReturnValue:
 
 
 def _users_of_role(role: str) -> ResponseReturnValue:
-    return [user_json(user) for user in get_user_service().list_by_role(role)]
+    return [user_json(user) for user in get_user_service().list_users(role=role)]

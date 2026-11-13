@@ -1,6 +1,7 @@
 """In-memory test doubles for the user service: no Flask, no database."""
 
 from app.domain.errors import DuplicateUserError
+from app.domain.paging import Page, PageRequest
 from app.domain.users import User, normalize_email
 
 
@@ -27,8 +28,37 @@ class FakeUserRepository:
         wanted = normalize_email(email)
         return next((user for user in self.users.values() if user.email == wanted), None)
 
-    def list_by_role(self, role: str) -> list[User]:
-        return [user for _, user in sorted(self.users.items()) if user.role == role]
+    def search(
+        self,
+        *,
+        role: str | None = None,
+        is_active: bool | None = None,
+        q: str | None = None,
+        search_email: bool = True,
+        window: PageRequest | None = None,
+    ) -> list[User] | Page[User]:
+        """Same contract as the real repository: filters, then `(name.casefold(), id)` order."""
+        users = [
+            user
+            for user in self.users.values()
+            if (role is None or user.role == role)
+            and (is_active is None or user.is_active == is_active)
+            and (q is None or _matches(user, q.casefold(), search_email))
+        ]
+        users.sort(key=lambda user: (user.name.casefold(), user.id))
+        if window is None:
+            return users
+        start = window.offset
+        return Page(
+            items=users[start : start + window.limit],
+            page=window.page,
+            page_size=window.page_size,
+            total=len(users),
+        )
+
+
+def _matches(user: User, text: str, search_email: bool) -> bool:
+    return text in user.name.casefold() or (search_email and text in user.email.casefold())
 
 
 class FakePasswordHasher:
