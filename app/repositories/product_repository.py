@@ -60,10 +60,12 @@ class SqlAlchemyProductRepository:
         category_id: int | None = None,
         product_type_id: int | None = None,
         is_active: bool | None = None,
+        q: str | None = None,
     ) -> list[Product]:
         """Products matching every given filter, ordered by name without case.
 
         The category of a product is the one of its type, so that filter joins the type.
+        `q` matches as a literal substring of the name key, so it ignores case.
         """
         statement = select(Product).options(WITH_TYPE_AND_CATEGORY).order_by(*BY_NAME)
         if category_id is not None:
@@ -74,4 +76,6 @@ class SqlAlchemyProductRepository:
             statement = statement.where(Product.product_type_id == product_type_id)
         if is_active is not None:
             statement = statement.where(Product.is_active == is_active)
+        if q is not None:
+            statement = statement.where(Product.name_key.contains(q.casefold(), autoescape=True))
         return list(self._session.scalars(statement))

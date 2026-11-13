@@ -1,5 +1,6 @@
 import pytest
 from flask import Flask
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.db import EXTENSION_KEY
@@ -224,6 +225,42 @@ def test_list_matching_is_active_is_a_tri_state_filter(
     assert names(repository.list_matching(is_active=False)) == ["Optiplex"]
     assert names(repository.list_matching(is_active=True)) == ["LaserJet", "xps 13"]
     assert names(repository.list_matching()) == ["LaserJet", "Optiplex", "xps 13"]
+
+
+@pytest.fixture
+def searchable_catalog(
+    db_session: Session, catalog: dict[str, int], make_product: MakeProduct
+) -> dict[str, int]:
+    """The `catalog` plus `XPS 15` (Notebook), `Cámara IP` and `50% Toner` (Impresora)."""
+    notebook = db_session.get(ProductType, catalog["notebook"])
+    printer = db_session.scalars(select(ProductType).where(ProductType.name == "Impresora")).one()
+    make_product(notebook, "XPS 15")
+    make_product(printer, "Cámara IP")
+    make_product(printer, "50% Toner")
+    return catalog
+
+
+def test_list_matching_q_ignores_case_and_combines_with_other_filters(
+    db_session: Session, searchable_catalog: dict[str, int]
+) -> None:
+    """SPEC-PRD-26 · TC-PRD-26b"""
+    repository = SqlAlchemyProductRepository(db_session)
+
+    assert names(repository.list_matching(q="CÁMARA")) == ["Cámara IP"]
+    assert names(repository.list_matching(q="xps", category_id=searchable_catalog["hardware"])) == [
+        "xps 13",
+        "XPS 15",
+    ]
+
+
+def test_list_matching_q_treats_percent_and_underscore_literally(
+    db_session: Session, searchable_catalog: dict[str, int]
+) -> None:
+    """SPEC-PRD-26 · TC-PRD-26c"""
+    repository = SqlAlchemyProductRepository(db_session)
+
+    assert names(repository.list_matching(q="%")) == ["50% Toner"]
+    assert names(repository.list_matching(q="_")) == []
 
 
 def test_get_many_returns_active_and_inactive_products_ordered_by_id(
