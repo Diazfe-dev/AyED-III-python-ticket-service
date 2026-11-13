@@ -157,6 +157,31 @@
         }
       }
     },
+    "/me": {
+      "get": {
+        "summary": "Get the identity of the session user",
+        "description": "Returns the id, name, email and role of the user who owns the session. The UI uses it to learn the role.",
+        "operationId": "getMe",
+        "tags": [
+          "auth"
+        ],
+        "responses": {
+          "200": {
+            "description": "The session user.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SessionUser"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/AuthenticationRequired"
+          }
+        }
+      }
+    },
     "/users": {
       "post": {
         "summary": "Create a user",

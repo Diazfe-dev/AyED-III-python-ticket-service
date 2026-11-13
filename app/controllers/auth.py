@@ -1,9 +1,9 @@
-"""Login and logout endpoints."""
+"""Login, logout and session identity endpoints."""
 
 from flask import Blueprint, session
 from flask.typing import ResponseReturnValue
 
-from app.auth import USER_ID_KEY, get_user_service, login_required
+from app.auth import USER_ID_KEY, authenticated_user, get_user_service, login_required
 from app.controllers.serializers import json_body, session_user_json
 
 bp = Blueprint("auth", __name__)
@@ -23,3 +23,9 @@ def login() -> ResponseReturnValue:
 def logout() -> ResponseReturnValue:
     session.clear()
     return "", 204
+
+
+@bp.get("/me")
+@login_required
+def me() -> ResponseReturnValue:
+    return session_user_json(authenticated_user())

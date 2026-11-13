@@ -6,7 +6,7 @@ from flask.testing import FlaskClient
 
 from app.auth import USER_ID_KEY, login_required
 from app.domain.users import User
-from tests.conftest import MakeUser
+from tests.conftest import LoginAs, MakeUser
 
 INVALID_CREDENTIALS = {"error": "invalid_credentials"}
 
@@ -132,3 +132,22 @@ def test_logout_removes_the_user_from_the_session(client: FlaskClient, ana: User
     client.post("/logout")
 
     assert USER_ID_KEY not in session_data(client)
+
+
+@pytest.mark.parametrize("role", ["Admin", "Representative", "Client"])
+def test_me_returns_only_the_identity_of_the_session_user(
+    client: FlaskClient, make_user: MakeUser, login_as: LoginAs, role: str
+) -> None:
+    """SPEC-USR-27 · TC-USR-27a"""
+    user = make_user(role=role, email="me@x.com", name="Me")
+    login_as(client, user)
+
+    response = client.get("/me")
+
+    assert response.status_code == 200
+    assert response.get_json() == {
+        "id": user.id,
+        "name": "Me",
+        "email": "me@x.com",
+        "role": role,
+    }
