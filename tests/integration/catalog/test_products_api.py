@@ -530,3 +530,100 @@ def test_activate_unknown_product_is_not_found(admin_client: FlaskClient, produc
 
     assert response.status_code == 404
     assert response.get_json() == {"error": "product_not_found"}
+
+
+@pytest.fixture
+def searchable(catalog: dict[str, Any], make_product: MakeProduct) -> dict[str, Any]:
+    """The `catalog` data plus `XPS 15` (Notebook), `Cámara IP` and `50% Toner` (Impresora)."""
+    printer = catalog["products"][0].product_type
+    make_product(catalog["notebook"], "XPS 15")
+    make_product(printer, "Cámara IP")
+    make_product(printer, "50% Toner")
+    return catalog
+
+
+def test_products_are_searched_by_text_alone_and_with_other_filters(
+    client: FlaskClient, login_as: LoginAs, make_user: MakeUser, searchable: dict[str, Any]
+) -> None:
+    """SPEC-PRD-26 · TC-PRD-26e"""
+    user = logged_in_as("Client", client, make_user, login_as)
+
+    by_text = user.get("/products?q=XPS")
+    with_category = user.get(f"/products?q=xps&category_id={searchable['office'].id}")
+
+    assert by_text.status_code == 200
+    assert listed_names(by_text) == ["xps 13", "XPS 15"]
+    assert with_category.status_code == 200
+    assert with_category.get_json() == []
+
+
+def test_a_blank_search_text_lists_every_product(
+    admin_client: FlaskClient, searchable: dict[str, Any]
+) -> None:
+    """SPEC-PRD-26 · TC-PRD-26g"""
+    everything = admin_client.get("/products")
+
+    response = admin_client.get("/products?q=")
+
+    assert response.status_code == 200
+    assert response.get_json() == everything.get_json()
+    assert len(response.get_json()) == 6
+
+
+def test_products_are_filtered_by_state(
+    admin_client: FlaskClient, searchable: dict[str, Any]
+) -> None:
+    """SPEC-PRD-27 · TC-PRD-27c"""
+    inactive = admin_client.get("/products?is_active=false")
+    active_search = admin_client.get("/products?is_active=true&q=xps")
+
+    assert inactive.status_code == 200
+    assert listed_names(inactive) == ["Optiplex"]
+    assert inactive.get_json()[0]["is_active"] is False
+    assert active_search.status_code == 200
+    assert listed_names(active_search) == ["xps 13", "XPS 15"]
+
+
+@pytest.mark.parametrize("query", ["is_active=yes", "is_active="])
+def test_listing_products_with_a_malformed_state_is_rejected(
+    admin_client: FlaskClient, query: str
+) -> None:
+    """SPEC-PRD-28 · TC-PRD-28b"""
+    response = admin_client.get(f"/products?{query}")
+
+    assert response.status_code == 400
+    assert response.get_json() == {
+        "error": "validation_error",
+        "fields": {"is_active": "invalid"},
+    }
+
+
+def test_products_are_paged(admin_client: FlaskClient, searchable: dict[str, Any]) -> None:
+    """SPEC-PRD-29 · TC-PRD-29d"""
+    first = admin_client.get("/products?page=1&page_size=2")
+    second = admin_client.get("/products?page=2")
+
+    assert first.status_code == 200
+    assert first.get_json()["page"] == 1
+    assert first.get_json()["page_size"] == 2
+    assert first.get_json()["total"] == 6
+    assert [item["name"] for item in first.get_json()["items"]] == ["50% Toner", "Cámara IP"]
+    assert second.get_json() == {"items": [], "page": 2, "page_size": 20, "total": 6}
+
+
+def test_a_page_beyond_the_last_one_is_empty(
+    admin_client: FlaskClient, searchable: dict[str, Any]
+) -> None:
+    """SPEC-PRD-29 · TC-PRD-29f"""
+    response = admin_client.get("/products?page=50&page_size=10")
+
+    assert response.status_code == 200
+    assert response.get_json() == {"items": [], "page": 50, "page_size": 10, "total": 6}
+
+
+def test_listing_products_with_a_malformed_page_is_rejected(admin_client: FlaskClient) -> None:
+    """SPEC-PRD-29 · TC-PRD-29h"""
+    response = admin_client.get("/products?page=abc")
+
+    assert response.status_code == 400
+    assert response.get_json() == {"error": "validation_error", "fields": {"page": "invalid"}}

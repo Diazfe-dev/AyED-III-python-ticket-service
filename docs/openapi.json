@@ -939,7 +939,7 @@
     "/products": {
       "get": {
         "summary": "List products",
-        "description": "Any authenticated user. Every product, active and inactive, ordered by name without case. `category_id` and `product_type_id` are optional filters: both are validated together (`400`), then each must exist (`404`), and the result keeps only the products matching every filter given. A product type outside the category gives an empty list.",
+        "description": "Any authenticated user. Every product, active and inactive, ordered by name without case and then by id. `category_id` and `product_type_id` are optional filters: both are validated together with `is_active`, `page` and `page_size` (`400`), then each must exist (`404`), and the result keeps only the products matching every filter given, `q` and `is_active` included. A product type outside the category gives an empty list. `q` searches the product name. `page` and `page_size` are optional: without them the response is an array.",
         "operationId": "listProducts",
         "tags": [
           "catalog"
@@ -964,6 +964,18 @@
               "type": "integer",
               "minimum": 1
             }
+          },
+          {
+            "$ref": "#/components/parameters/Q"
+          },
+          {
+            "$ref": "#/components/parameters/IsActive"
+          },
+          {
+            "$ref": "#/components/parameters/Page"
+          },
+          {
+            "$ref": "#/components/parameters/PageSize"
           }
         ],
         "responses": {
@@ -1773,14 +1785,21 @@
         }
       },
       "ProductList": {
-        "description": "Products ordered by name without case.",
+        "description": "Products ordered by name without case, as an array or, when `page` or `page_size` is sent, as a page object.",
         "content": {
           "application/json": {
             "schema": {
-              "type": "array",
-              "items": {
-                "$ref": "#/components/schemas/Product"
-              }
+              "oneOf": [
+                {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Product"
+                  }
+                },
+                {
+                  "$ref": "#/components/schemas/ProductPage"
+                }
+              ]
             }
           }
         }
@@ -2263,6 +2282,38 @@
             "description": "Category of the product type."
           }
         }
+      },
+      "ProductPage": {
+        "type": "object",
+        "description": "A page of products.",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Product"
+            }
+          },
+          "page": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "page_size": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 100
+          },
+          "total": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "Matching records across all pages."
+          }
+        },
+        "required": [
+          "items",
+          "page",
+          "page_size",
+          "total"
+        ]
       },
       "CreateProductRequest": {
         "type": "object",
