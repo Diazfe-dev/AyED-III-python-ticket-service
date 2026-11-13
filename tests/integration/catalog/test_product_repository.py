@@ -5,6 +5,7 @@ from sqlalchemy.orm import Session
 
 from app.db import EXTENSION_KEY
 from app.domain.errors import DuplicateProductError
+from app.domain.paging import Page, PageRequest
 from app.domain.products import Category, Product, ProductType
 from app.repositories.product_repository import SqlAlchemyProductRepository
 from tests.conftest import MakeCategory, MakeProduct, MakeProductType
@@ -261,6 +262,23 @@ def test_list_matching_q_treats_percent_and_underscore_literally(
 
     assert names(repository.list_matching(q="%")) == ["50% Toner"]
     assert names(repository.list_matching(q="_")) == []
+
+
+def test_list_matching_pages_concatenate_to_the_whole_listing_without_overlaps(
+    db_session: Session, catalog: dict[str, int], make_product: MakeProduct
+) -> None:
+    """SPEC-PRD-29 · TC-PRD-29e"""
+    make_product(db_session.get(ProductType, catalog["desktop"]), "XPS 13")
+    repository = SqlAlchemyProductRepository(db_session)
+    whole = repository.list_matching()
+
+    pages = [repository.list_matching(window=PageRequest(page=p, page_size=2)) for p in range(1, 5)]
+
+    assert all(isinstance(page, Page) for page in pages)
+    assert [product.id for page in pages for product in page.items] == [p.id for p in whole]
+    assert {page.total for page in pages} == {len(whole)}
+    assert [page.page for page in pages] == [1, 2, 3, 4]
+    assert names(whole) == ["LaserJet", "Optiplex", "xps 13", "XPS 13"]
 
 
 def test_get_many_returns_active_and_inactive_products_ordered_by_id(

@@ -6,7 +6,9 @@ from sqlalchemy.orm import Session, selectinload
 
 from app.db import fits_integer_column
 from app.domain.errors import DuplicateProductError
+from app.domain.paging import Page, PageRequest
 from app.domain.products import Product, ProductType, normalize_name
+from app.repositories.paging import fetch
 
 BY_NAME = (Product.name_key, Product.id)
 WITH_TYPE_AND_CATEGORY = selectinload(Product.product_type).selectinload(ProductType.category)
@@ -61,11 +63,13 @@ class SqlAlchemyProductRepository:
         product_type_id: int | None = None,
         is_active: bool | None = None,
         q: str | None = None,
-    ) -> list[Product]:
+        window: PageRequest | None = None,
+    ) -> list[Product] | Page[Product]:
         """Products matching every given filter, ordered by name without case.
 
         The category of a product is the one of its type, so that filter joins the type.
         `q` matches as a literal substring of the name key, so it ignores case.
+        With a `window` it returns that `Page`; the order always ends in the id.
         """
         statement = select(Product).options(WITH_TYPE_AND_CATEGORY).order_by(*BY_NAME)
         if category_id is not None:
@@ -78,4 +82,4 @@ class SqlAlchemyProductRepository:
             statement = statement.where(Product.is_active == is_active)
         if q is not None:
             statement = statement.where(Product.name_key.contains(q.casefold(), autoescape=True))
-        return list(self._session.scalars(statement))
+        return fetch(self._session, statement, window)
