@@ -253,14 +253,14 @@ classDiagram
         +get_product_service() ProductService
     }
     class CatalogController {
-        +list_categories()
+        +list_categories(q)
         +create_category(body)
         +update_category(category_id, body)
         +delete_category(category_id)
         +create_product_type(body)
         +update_product_type(product_type_id, body)
         +delete_product_type(product_type_id)
-        +list_product_types(category_id)
+        +list_product_types(category_id, q)
         +create_product(body)
         +update_product(product_id, body)
         +deactivate_product(product_id)
@@ -320,11 +320,17 @@ classDiagram
         +create_category(name) Category
         +update_category(category_id, name) Category
         +delete_category(category_id) None
-        +list_categories() list
+        +list_categories(q) list
         +create_product_type(name, category_id) ProductType
         +update_product_type(product_type_id, name, category_id) ProductType
         +delete_product_type(product_type_id) None
-        +list_product_types(category_id) list
+        +list_product_types(category_id, q) list~CategoryGroup~
+        -_group(product_types)$ list~CategoryGroup~
+    }
+    class CategoryGroup {
+        <<immutable>>
+        +Category category
+        +list~ProductType~ product_types
     }
     class validation {
         <<module>>
@@ -385,7 +391,7 @@ classDiagram
         +add(category) None
         +get(category_id) Category
         +find_by_name(name) Category
-        +list_all() list
+        +list_all(q) list
         +list_with_product_types() list
         +has_product_types(category_id) bool
         +delete(category) None
@@ -395,6 +401,7 @@ classDiagram
         +get(product_type_id) ProductType
         +find_by_name_in_category(name, category_id) ProductType
         +has_products(product_type_id) bool
+        +search(q, category_id) list
         +delete(product_type) None
     }
     class ProductRepository {
@@ -454,6 +461,7 @@ classDiagram
     wiring --> TicketService
     wiring --> NotificationService
     CatalogService ..> validation
+    CatalogService ..> listing : search_text
     UserService ..> validation
     ProductService ..> validation
 
@@ -468,6 +476,7 @@ classDiagram
     TicketRepository <|.. SqlAlchemyTicketRepository
     CatalogService --> CategoryRepository
     CatalogService --> ProductTypeRepository
+    CatalogService ..> CategoryGroup : devuelve
     ProductService --> ProductRepository
     ProductService --> ProductTypeRepository
     ProductService --> CategoryRepository
@@ -484,6 +493,7 @@ classDiagram
 - Los **repositories** encapsulan la `Session` de SQLAlchemy y nunca hacen commit. `UserRepository.add` hace `flush()` y traduce el `IntegrityError` del email único a `DuplicateUserError`, y `UserRepository.get` devuelve `None` para un id fuera del `INTEGER` de SQLite (`fits_integer_column`). `TicketRepository.get_visible` aplica el filtro de privacidad (RNF 4).
 - `app/wiring.py` arma `CatalogService` y `ProductService` para cada request con `get_session()` y sus repositorios, así los controllers nunca tocan la `Session`. `ProductService` recibe también `CategoryRepository` para responder `404` a un filtro por categoría inexistente (SPEC-PRD-16). `app/services/validation.py` reúne los validadores de campos que comparten `UserService`, `CatalogService` y `ProductService` (`text_error`, `id_error`, `parse_id`, `provided`, `raise_if_invalid`).
 - `CategoryRepository.add` y `ProductTypeRepository.add` hacen `flush()` y traducen el `IntegrityError` de los `UNIQUE` a `DuplicateCategoryError` y `DuplicateProductTypeError`. `CategoryRepository.delete` traduce el de la FK `RESTRICT` a `CategoryInUseError`. `list_with_product_types` carga las categorías con `selectinload(Category.product_types)` (2 consultas en total). Los dos `get` devuelven `None` para un id que no entra en el `INTEGER` de SQLite (`fits_integer_column` de `app/db.py`).
+- **Búsqueda en el catálogo (`02-product-types`)**: `CatalogService.list_categories(q)` y `list_product_types(category_id, q)` normalizan `q` con `search_text` (un `q` vacío o de solo espacios equivale a no enviarlo) y no paginan: los controllers ignoran `page` y `page_size` y siempre serializan una lista (SPEC-PTY-24). `CategoryRepository.list_all(q)` filtra con `name_key` contiene `q.casefold()` (`%` y `_` literales) y ordena por `(name_key, id)` (SPEC-PTY-21). `list_product_types` devuelve `list[CategoryGroup]`, un `dataclass` inmutable con la categoría y sus tipos ya ordenados. Sin `q` arma los grupos con `list_with_product_types` (o con la categoría pedida), incluidas las categorías sin tipos (SPEC-PTY-22). Con `q` usa `ProductTypeRepository.search(q, category_id)`, que une con la categoría, filtra por `name_key`, carga la categoría con `selectinload` y ordena por `(Category.name_key, Category.id, ProductType.name_key, ProductType.id)`; `_group` agrupa ese resultado conservando el orden y omite las categorías sin coincidencias (SPEC-PTY-23).
 - `ProductRepository.add` traduce el `IntegrityError` del `UNIQUE` a `DuplicateProductError` y `ProductTypeRepository.delete` traduce el de la FK `RESTRICT` de `products` a `ProductTypeInUseError`; `CatalogService.delete_product_type` además lo chequea antes con `has_products`. `ProductRepository.list_matching` filtra por categoría con un `join` sobre el tipo, ordena por `(name_key, id)` y carga tipo y categoría con `selectinload` (3 consultas como máximo). Se llama `list_matching` y no `list` porque un método `list` taparía al tipo `list` en las anotaciones de la clase. `ProductRepository` no tiene métodos de borrado. `get_many` lo usa `TicketService` (`04-tickets`).
 - **Notificador de tickets**: `TicketService` depende del protocolo `TicketNotifier` (`notify(recipient, actor, ticket, message)`), definido en `app/services/ticket_service.py` junto con el protocolo `TicketRepository`. `NotificationService(strategies, clock, commit)` (`app/services/notification_service.py`) lo implementa: elige la estrategia con `strategies[recipient.preferred_channel]`, lee `clock()` una vez, envía, registra la notificación con `Ticket.record_notification` (o `record_failed_notification` si la estrategia lanza `NotificationError`, sin propagarla) y hace `commit()`; si `recipient is actor` retorna sin registrar ni confirmar (SPEC-NTF-11). No hay `NotificationRepository` ni `NullTicketNotifier`. `TicketService` llama a `notify` como última acción de `create_ticket`, `close_ticket`, `reopen_ticket` y `add_milestone`, después de su `commit()` (SPEC-NTF-15); `add_products` y `remove_product` no notifican (SPEC-NTF-17). Los mensajes salen de `app/services/notification_messages.py`. `app/wiring.py` arma `NotificationService(notification_strategies(), utc_now, session.commit)` con `notification_strategies()` (que devuelve `default_strategies()`) y `get_ticket_service` lo inyecta en `TicketService` por request con `utc_now` como reloj y `session.commit`.
 - `SqlAlchemyTicketRepository` implementa `TicketRepository`: `add` hace `flush()`; `get_visible_with_milestones` comparte con él la guarda y el filtro (`_visible_statement`) y carga además `Ticket.milestones` y sus autores con `selectinload`; `get_visible` devuelve `None` si el ticket no existe, no es del actor o el id no entra en el `INTEGER` de SQLite (`fits_integer_column`), lo que el service traduce en `404`; los listados ordenan por `(created_at desc, id desc)` y cargan cliente, representante y productos con `selectinload`. `TicketService.list_tickets` rechaza al `Admin` (`403`) y elige el listado por `actor.role`. `ProductRepository.get_many(product_ids)` devuelve los productos hallados (activos o no) y el service compara cantidades.
