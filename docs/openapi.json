@@ -3,7 +3,7 @@
   "info": {
     "title": "Ticket Service API",
     "version": "0.1.0",
-    "description": "JSON API of the support ticket management system.\n\nEvery error response is a JSON object with an `error` code, in the shape of the `Error` schema. Besides the errors of each operation, any request can get:\n\n- `404` `{\"error\": \"not_found\"}` for a path the API does not expose, including a non-numeric id in the URL.\n- `405` `{\"error\": \"method_not_allowed\"}` for a method the path does not accept; the `Allow` header lists the accepted ones.\n- `500` `{\"error\": \"internal_error\"}` for an unexpected failure, without internal details."
+    "description": "JSON API of the support ticket management system.\n\nEvery error response is a JSON object with an `error` code, in the shape of the `Error` schema. Besides the errors of each operation, any request can get:\n\n- `404` `{\"error\": \"not_found\"}` for a path the API does not expose, including a non-numeric id in the URL.\n- `405` `{\"error\": \"method_not_allowed\"}` for a method the path does not accept; the `Allow` header lists the accepted ones.\n- `500` `{\"error\": \"internal_error\"}` for an unexpected failure, without internal details.\n\nListings that support pagination accept the optional `page` and `page_size` query parameters (see the `Page` and `PageSize` parameters). Without either of them the response is the plain array; with at least one of them it is an object `{items, page, page_size, total}`. Pages are numbered from 1, `page` defaults to 1 and `page_size` defaults to 20 with a maximum of 100; a value that is not a positive integer, or a `page_size` above the maximum, is rejected with `400` `validation_error`. A page beyond the last one returns empty `items` with the real `total`. Listings that support search accept `q` (see the `Q` parameter); an empty `q`, or one with only whitespace, behaves as if it was not sent."
   },
   "security": [
     {
@@ -15,7 +15,9 @@
       "get": {
         "summary": "Liveness check",
         "operationId": "getHealth",
-        "tags": ["platform"],
+        "tags": [
+          "platform"
+        ],
         "security": [],
         "responses": {
           "200": {
@@ -30,7 +32,9 @@
                       "const": "ok"
                     }
                   },
-                  "required": ["status"]
+                  "required": [
+                    "status"
+                  ]
                 }
               }
             }
@@ -42,7 +46,9 @@
       "get": {
         "summary": "OpenAPI contract of this API",
         "operationId": "getOpenApiContract",
-        "tags": ["platform"],
+        "tags": [
+          "platform"
+        ],
         "security": [],
         "responses": {
           "200": {
@@ -62,7 +68,9 @@
       "get": {
         "summary": "Swagger UI for this API",
         "operationId": "getApiDocs",
-        "tags": ["platform"],
+        "tags": [
+          "platform"
+        ],
         "security": [],
         "responses": {
           "200": {
@@ -83,7 +91,9 @@
         "summary": "Start an authenticated session",
         "description": "Checks the credentials and stores the user in the signed session cookie. Any failure (unknown email, wrong password, inactive user or missing fields) gets the same generic answer.",
         "operationId": "login",
-        "tags": ["auth"],
+        "tags": [
+          "auth"
+        ],
         "security": [],
         "requestBody": {
           "required": true,
@@ -134,7 +144,9 @@
       "post": {
         "summary": "End the current session",
         "operationId": "logout",
-        "tags": ["auth"],
+        "tags": [
+          "auth"
+        ],
         "responses": {
           "204": {
             "description": "Session ended. The `session` cookie is cleared."
@@ -150,7 +162,9 @@
         "summary": "Create a user",
         "description": "Admin only. Creates an active user with the given role. The email is stored without surrounding spaces and in lowercase, and must not belong to any other user, active or not.",
         "operationId": "createUser",
-        "tags": ["users"],
+        "tags": [
+          "users"
+        ],
         "requestBody": {
           "required": true,
           "content": {
@@ -197,7 +211,9 @@
         "summary": "Update a user",
         "description": "Admin only. Changes the name, email or preferred channel of a user. Missing or `null` fields keep their value; any other key (such as `role`, `password` or `is_active`) is ignored. The fields sent are validated like on create.",
         "operationId": "updateUser",
-        "tags": ["users"],
+        "tags": [
+          "users"
+        ],
         "requestBody": {
           "required": true,
           "content": {
@@ -247,7 +263,9 @@
         "summary": "Deactivate a user",
         "description": "Admin only. Logical deletion: the user is marked inactive and kept with all its data and history. An inactive user cannot log in and its email stays reserved. An administrator cannot deactivate itself.",
         "operationId": "deactivateUser",
-        "tags": ["users"],
+        "tags": [
+          "users"
+        ],
         "responses": {
           "200": {
             "description": "User deactivated (`is_active` is `false`).",
@@ -289,7 +307,9 @@
         "summary": "List clients",
         "description": "Admin only. Every user with role `Client`, active or not, ordered by id.",
         "operationId": "listClients",
-        "tags": ["users"],
+        "tags": [
+          "users"
+        ],
         "responses": {
           "200": {
             "$ref": "#/components/responses/UserList"
@@ -308,7 +328,9 @@
         "summary": "List representatives",
         "description": "Admin only. Every user with role `Representative`, active or not, ordered by id.",
         "operationId": "listRepresentatives",
-        "tags": ["users"],
+        "tags": [
+          "users"
+        ],
         "responses": {
           "200": {
             "$ref": "#/components/responses/UserList"
@@ -327,7 +349,9 @@
         "summary": "List categories",
         "description": "Any authenticated user. Every category, ordered by name without case.",
         "operationId": "listCategories",
-        "tags": ["catalog"],
+        "tags": [
+          "catalog"
+        ],
         "responses": {
           "200": {
             "description": "Every category, ordered by name.",
@@ -351,7 +375,9 @@
         "summary": "Create a category",
         "description": "Admin only. Creates a category (rubro). The name is required, must be text, is stored without surrounding spaces and must be unique without case.",
         "operationId": "createCategory",
-        "tags": ["catalog"],
+        "tags": [
+          "catalog"
+        ],
         "requestBody": {
           "required": true,
           "content": {
@@ -398,7 +424,9 @@
         "summary": "Rename a category",
         "description": "Admin only. A missing or `null` name keeps the current one; any other key is ignored. The name is validated like on create; renaming a category to its own name with other case is allowed.",
         "operationId": "updateCategory",
-        "tags": ["catalog"],
+        "tags": [
+          "catalog"
+        ],
         "requestBody": {
           "required": true,
           "content": {
@@ -441,7 +469,9 @@
         "summary": "Delete a category",
         "description": "Admin only. Physical deletion of a category without product types.",
         "operationId": "deleteCategory",
-        "tags": ["catalog"],
+        "tags": [
+          "catalog"
+        ],
         "responses": {
           "204": {
             "description": "Category deleted."
@@ -466,7 +496,9 @@
         "summary": "List product types grouped by category",
         "description": "Any authenticated user. Without `category_id`, every category (empty ones included) ordered by name, each with its product types ordered by name. With `category_id`, a list with only that category's group.",
         "operationId": "listProductTypes",
-        "tags": ["catalog"],
+        "tags": [
+          "catalog"
+        ],
         "parameters": [
           {
             "name": "category_id",
@@ -508,7 +540,9 @@
         "summary": "Create a product type",
         "description": "Admin only. Creates a product type in an existing category. `name` and `category_id` are validated together (`400`); then the category must exist (`404`) and the name must be free inside it (`409`).",
         "operationId": "createProductType",
-        "tags": ["catalog"],
+        "tags": [
+          "catalog"
+        ],
         "requestBody": {
           "required": true,
           "content": {
@@ -558,7 +592,9 @@
         "summary": "Rename or move a product type",
         "description": "Admin only. Missing or `null` fields keep their value; any other key is ignored. The final name must be free in the target category, compared without case.",
         "operationId": "updateProductType",
-        "tags": ["catalog"],
+        "tags": [
+          "catalog"
+        ],
         "requestBody": {
           "required": true,
           "content": {
@@ -601,7 +637,9 @@
         "summary": "Delete a product type",
         "description": "Admin only. Physical deletion of a product type that has no products, active or inactive (`409` otherwise).",
         "operationId": "deleteProductType",
-        "tags": ["catalog"],
+        "tags": [
+          "catalog"
+        ],
         "responses": {
           "204": {
             "description": "Product type deleted."
@@ -626,7 +664,9 @@
         "summary": "List products",
         "description": "Any authenticated user. Every product, active and inactive, ordered by name without case. `category_id` and `product_type_id` are optional filters: both are validated together (`400`), then each must exist (`404`), and the result keeps only the products matching every filter given. A product type outside the category gives an empty list.",
         "operationId": "listProducts",
-        "tags": ["catalog"],
+        "tags": [
+          "catalog"
+        ],
         "parameters": [
           {
             "name": "category_id",
@@ -668,7 +708,9 @@
         "summary": "Create a product",
         "description": "Admin only. Creates an active product of an existing product type. `name` and `product_type_id` are validated together (`400`); then the product type must exist (`404`) and the name must be free inside it (`409`).",
         "operationId": "createProduct",
-        "tags": ["catalog"],
+        "tags": [
+          "catalog"
+        ],
         "requestBody": {
           "required": true,
           "content": {
@@ -713,7 +755,9 @@
         "summary": "List the products available for tickets",
         "description": "Any authenticated user. Only the active products, ordered by name without case. Query parameters are ignored.",
         "operationId": "listAvailableProducts",
-        "tags": ["catalog"],
+        "tags": [
+          "catalog"
+        ],
         "responses": {
           "200": {
             "$ref": "#/components/responses/ProductList"
@@ -734,7 +778,9 @@
         "summary": "Rename or move a product",
         "description": "Admin only. Works on active and inactive products and never changes `is_active`. Missing or `null` fields keep their value; any other key is ignored. The final name must be free in the target product type, compared without case.",
         "operationId": "updateProduct",
-        "tags": ["catalog"],
+        "tags": [
+          "catalog"
+        ],
         "requestBody": {
           "required": true,
           "content": {
@@ -784,7 +830,9 @@
         "summary": "Deactivate a product",
         "description": "Admin only. Logical deletion: the product is kept with `is_active: false` and stays in the tickets that already have it, but it can no longer be added to new tickets. Deactivating an inactive product succeeds without changes.",
         "operationId": "deactivateProduct",
-        "tags": ["catalog"],
+        "tags": [
+          "catalog"
+        ],
         "responses": {
           "200": {
             "description": "Product deactivated.",
@@ -813,7 +861,9 @@
         "summary": "List my tickets",
         "description": "A client sees the tickets it owns and a representative the tickets assigned to it; nobody sees the tickets of others. Newest first: ordered by creation date and, for the same instant, by id, both descending. Admins receive `403`.",
         "operationId": "listTickets",
-        "tags": ["tickets"],
+        "tags": [
+          "tickets"
+        ],
         "responses": {
           "200": {
             "description": "The tickets of the session user; an empty list when it has none.",
@@ -840,7 +890,9 @@
         "summary": "Create a ticket",
         "description": "Representatives only: the calling representative becomes the assigned one and the state starts as `New`. `client_id`, `first_message` and `product_ids` are validated together (`400` `validation_error`); then the client must be an active client (`400` `invalid_client`) and every product must exist and be active (`400` `invalid_product`), all or nothing. The first message becomes the first milestone and the products are associated without repeats. Any other key in the body (such as `representative_id` or `state`) is ignored. Admins and clients receive `403`.",
         "operationId": "createTicket",
-        "tags": ["tickets"],
+        "tags": [
+          "tickets"
+        ],
         "requestBody": {
           "required": true,
           "content": {
@@ -918,7 +970,9 @@
         "summary": "Get a ticket",
         "description": "The client of the ticket and its assigned representative. Any other user, including another client or representative, gets the same `404` as for a ticket that does not exist or whose id is out of range. Admins receive `403`.",
         "operationId": "getTicket",
-        "tags": ["tickets"],
+        "tags": [
+          "tickets"
+        ],
         "responses": {
           "200": {
             "description": "The ticket, with its participants (id and name) and all its products, deactivated ones included.",
@@ -952,7 +1006,9 @@
         "summary": "Close a ticket",
         "description": "The client of the ticket or its assigned representative. A `New` or `InProgress` ticket becomes `Closed` and the transition is recorded with the user and the time. Closing a closed ticket is `409` `invalid_transition`. A ticket that is not visible to the session user is `404`; admins receive `403`. No request body.",
         "operationId": "closeTicket",
-        "tags": ["tickets"],
+        "tags": [
+          "tickets"
+        ],
         "responses": {
           "200": {
             "description": "The closed ticket.",
@@ -989,7 +1045,9 @@
         "summary": "Reopen a ticket",
         "description": "The client of the ticket or its assigned representative; the reopening is direct, with no approval. A `Closed` ticket becomes `InProgress` (never `New`) and keeps the representative that handled it, even if that representative is now inactive. Reopening a ticket that is not closed is `409` `invalid_transition`. A ticket that is not visible to the session user is `404`; admins receive `403`. No request body.",
         "operationId": "reopenTicket",
-        "tags": ["tickets"],
+        "tags": [
+          "tickets"
+        ],
         "responses": {
           "200": {
             "description": "The reopened ticket.",
@@ -1026,7 +1084,9 @@
         "summary": "Associate products with a ticket",
         "description": "Only the assigned representative; allowed in a `Closed` ticket. Checks run in this order: admin (`403`); body format (`400` `validation_error`, decided without looking up the ticket, so it is the same for an own, foreign or missing ticket); ticket visibility (`404`); assigned representative (`403`, for example the client that owns the ticket); products (`400` `invalid_product` when any is missing or inactive). All or nothing: repeated ids and products already associated are ignored.",
         "operationId": "addTicketProducts",
-        "tags": ["tickets"],
+        "tags": [
+          "tickets"
+        ],
         "requestBody": {
           "required": true,
           "content": {
@@ -1105,7 +1165,9 @@
         "summary": "Remove a product from a ticket",
         "description": "Only the assigned representative; allowed in a `Closed` ticket. Only the association is removed: the product stays in the catalog. Checks run in this order: admin (`403`); ticket visibility (`404` `ticket_not_found`); assigned representative (`403`, for example the client that owns the ticket); association (`404` `product_not_in_ticket`, also for a product id that does not exist or is out of range).",
         "operationId": "removeTicketProduct",
-        "tags": ["tickets"],
+        "tags": [
+          "tickets"
+        ],
         "responses": {
           "204": {
             "description": "Product removed from the ticket."
@@ -1132,7 +1194,9 @@
         "summary": "Register a milestone",
         "description": "The client of the ticket or its assigned representative. Checks run in this order: body format (`400` `validation_error`, decided without looking up the ticket, so it is the same for an own, foreign or missing ticket); admin (`403`); ticket visibility (`404`); closed ticket (`409` `ticket_closed`). `start_progress` is optional (default `false`) and only has effect when the assigned representative sends it `true` on a `New` ticket, which becomes `InProgress` in the same operation; otherwise it is ignored. The author and the date are those of the session user and the server clock; other keys are ignored.",
         "operationId": "addMilestone",
-        "tags": ["tickets"],
+        "tags": [
+          "tickets"
+        ],
         "requestBody": {
           "required": true,
           "content": {
@@ -1175,7 +1239,9 @@
         "summary": "List the milestones of a ticket",
         "description": "The client of the ticket and its assigned representative, in any state of the ticket. Milestones come in chronological order (oldest first), with their author (id, name and role). Any other user gets the same `404` as for a ticket that does not exist or whose id is out of range. Admins receive `403`.",
         "operationId": "listMilestones",
-        "tags": ["tickets"],
+        "tags": [
+          "tickets"
+        ],
         "responses": {
           "200": {
             "description": "The milestones of the ticket, oldest first.",
@@ -1552,7 +1618,9 @@
             "description": "Machine-readable error code."
           }
         },
-        "required": ["error"]
+        "required": [
+          "error"
+        ]
       },
       "LoginRequest": {
         "type": "object",
@@ -1567,7 +1635,10 @@
             "format": "password"
           }
         },
-        "required": ["email", "password"]
+        "required": [
+          "email",
+          "password"
+        ]
       },
       "SessionUser": {
         "type": "object",
@@ -1586,15 +1657,27 @@
             "$ref": "#/components/schemas/Role"
           }
         },
-        "required": ["id", "name", "email", "role"]
+        "required": [
+          "id",
+          "name",
+          "email",
+          "role"
+        ]
       },
       "Role": {
         "type": "string",
-        "enum": ["Admin", "Representative", "Client"]
+        "enum": [
+          "Admin",
+          "Representative",
+          "Client"
+        ]
       },
       "PreferredChannel": {
         "type": "string",
-        "enum": ["mail", "whatsapp"],
+        "enum": [
+          "mail",
+          "whatsapp"
+        ],
         "description": "Notification channel of the user."
       },
       "User": {
@@ -1621,7 +1704,14 @@
             "type": "boolean"
           }
         },
-        "required": ["id", "name", "email", "role", "preferred_channel", "is_active"]
+        "required": [
+          "id",
+          "name",
+          "email",
+          "role",
+          "preferred_channel",
+          "is_active"
+        ]
       },
       "CreateUserRequest": {
         "type": "object",
@@ -1647,7 +1737,12 @@
             "default": "mail"
           }
         },
-        "required": ["name", "email", "role", "password"]
+        "required": [
+          "name",
+          "email",
+          "role",
+          "password"
+        ]
       },
       "ValidationErrorResponse": {
         "type": "object",
@@ -1661,11 +1756,18 @@
             "description": "Invalid field name mapped to its reason.",
             "additionalProperties": {
               "type": "string",
-              "enum": ["required", "invalid", "too_short"]
+              "enum": [
+                "required",
+                "invalid",
+                "too_short"
+              ]
             }
           }
         },
-        "required": ["error", "fields"]
+        "required": [
+          "error",
+          "fields"
+        ]
       },
       "UpdateUserRequest": {
         "type": "object",
@@ -1685,7 +1787,10 @@
       },
       "Category": {
         "type": "object",
-        "required": ["id", "name"],
+        "required": [
+          "id",
+          "name"
+        ],
         "properties": {
           "id": {
             "type": "integer"
@@ -1697,7 +1802,9 @@
       },
       "CategoryRequest": {
         "type": "object",
-        "required": ["name"],
+        "required": [
+          "name"
+        ],
         "properties": {
           "name": {
             "type": "string",
@@ -1720,7 +1827,11 @@
       },
       "ProductType": {
         "type": "object",
-        "required": ["id", "name", "category_id"],
+        "required": [
+          "id",
+          "name",
+          "category_id"
+        ],
         "properties": {
           "id": {
             "type": "integer"
@@ -1735,7 +1846,10 @@
       },
       "CreateProductTypeRequest": {
         "type": "object",
-        "required": ["name", "category_id"],
+        "required": [
+          "name",
+          "category_id"
+        ],
         "properties": {
           "name": {
             "type": "string",
@@ -1768,7 +1882,11 @@
       },
       "CategoryWithProductTypes": {
         "type": "object",
-        "required": ["id", "name", "product_types"],
+        "required": [
+          "id",
+          "name",
+          "product_types"
+        ],
         "properties": {
           "id": {
             "type": "integer"
@@ -1786,7 +1904,13 @@
       },
       "Product": {
         "type": "object",
-        "required": ["id", "name", "is_active", "product_type", "category"],
+        "required": [
+          "id",
+          "name",
+          "is_active",
+          "product_type",
+          "category"
+        ],
         "properties": {
           "id": {
             "type": "integer"
@@ -1809,7 +1933,10 @@
       },
       "CreateProductRequest": {
         "type": "object",
-        "required": ["name", "product_type_id"],
+        "required": [
+          "name",
+          "product_type_id"
+        ],
         "properties": {
           "name": {
             "type": "string",
@@ -1851,18 +1978,32 @@
             "type": "string"
           }
         },
-        "required": ["id", "name"]
+        "required": [
+          "id",
+          "name"
+        ]
       },
       "Ticket": {
         "type": "object",
-        "required": ["id", "state", "client", "representative", "products", "created_at"],
+        "required": [
+          "id",
+          "state",
+          "client",
+          "representative",
+          "products",
+          "created_at"
+        ],
         "properties": {
           "id": {
             "type": "integer"
           },
           "state": {
             "type": "string",
-            "enum": ["New", "InProgress", "Closed"]
+            "enum": [
+              "New",
+              "InProgress",
+              "Closed"
+            ]
           },
           "client": {
             "$ref": "#/components/schemas/TicketParty"
@@ -1886,7 +2027,10 @@
       },
       "CreateTicketRequest": {
         "type": "object",
-        "required": ["client_id", "first_message"],
+        "required": [
+          "client_id",
+          "first_message"
+        ],
         "properties": {
           "client_id": {
             "type": "integer",
@@ -1910,7 +2054,9 @@
       },
       "AddTicketProductsRequest": {
         "type": "object",
-        "required": ["product_ids"],
+        "required": [
+          "product_ids"
+        ],
         "properties": {
           "product_ids": {
             "type": "array",
@@ -1926,7 +2072,11 @@
       "MilestoneAuthor": {
         "type": "object",
         "description": "Author of a milestone. No email.",
-        "required": ["id", "name", "role"],
+        "required": [
+          "id",
+          "name",
+          "role"
+        ],
         "properties": {
           "id": {
             "type": "integer"
@@ -1936,14 +2086,22 @@
           },
           "role": {
             "type": "string",
-            "enum": ["Client", "Representative"]
+            "enum": [
+              "Client",
+              "Representative"
+            ]
           }
         }
       },
       "Milestone": {
         "type": "object",
         "description": "Immutable entry of a ticket's timeline.",
-        "required": ["id", "content", "author", "created_at"],
+        "required": [
+          "id",
+          "content",
+          "author",
+          "created_at"
+        ],
         "properties": {
           "id": {
             "type": "integer"
@@ -1963,7 +2121,9 @@
       },
       "AddMilestoneRequest": {
         "type": "object",
-        "required": ["content"],
+        "required": [
+          "content"
+        ],
         "properties": {
           "content": {
             "type": "string"
@@ -2014,6 +2174,36 @@
         "required": true,
         "schema": {
           "type": "integer"
+        }
+      },
+      "Page": {
+        "name": "page",
+        "in": "query",
+        "required": false,
+        "description": "Page number, starting at 1. Defaults to 1 when `page_size` is sent. Sending `page` or `page_size` turns the response into a page object.",
+        "schema": {
+          "type": "integer",
+          "minimum": 1
+        }
+      },
+      "PageSize": {
+        "name": "page_size",
+        "in": "query",
+        "required": false,
+        "description": "Items per page, from 1 to 100. Defaults to 20 when `page` is sent. Sending `page` or `page_size` turns the response into a page object.",
+        "schema": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 100
+        }
+      },
+      "Q": {
+        "name": "q",
+        "in": "query",
+        "required": false,
+        "description": "Search text. Empty or whitespace-only text behaves as if `q` was not sent.",
+        "schema": {
+          "type": "string"
         }
       }
     }
