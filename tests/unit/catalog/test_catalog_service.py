@@ -454,7 +454,7 @@ def group_names(groups: list[Category]) -> list[tuple[str, list[str]]]:
 def test_list_product_types_groups_them_by_category_including_empty_ones(
     sut: ServiceUnderTest,
 ) -> None:
-    """SPEC-PTY-09 · TC-PTY-09a"""
+    """SPEC-PTY-22 · TC-PTY-22a"""
     redes, audio, hardware = (Category(name=n) for n in ["Redes", "audio", "Hardware"])
     for category in (redes, audio, hardware):
         sut.categories.add(category)

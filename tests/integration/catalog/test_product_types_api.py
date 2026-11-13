@@ -232,7 +232,7 @@ def test_any_user_lists_product_types_grouped_by_category(
     make_category: MakeCategory,
     make_product_type: MakeProductType,
 ) -> None:
-    """SPEC-PTY-09 · TC-PTY-09d"""
+    """SPEC-PTY-22 · TC-PTY-22d"""
     redes, audio, hardware = (make_category(n) for n in ["Redes", "audio", "Hardware"])
     router = make_product_type(redes, "Router")
     access_point = make_product_type(redes, "Access point")
