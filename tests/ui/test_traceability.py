@@ -151,3 +151,37 @@ def test_format_check_rejects_titles_outside_the_format():
     assert title_format_errors("f", None, "`SPEC-UI-01 ${x}`", True)
     assert title_format_errors("f", "plain other area", "", False) == []
     assert title_format_errors("f", "bad but cites SPEC-UI-01", "", False)
+
+
+SPEC_TABLE_ROW = re.compile(r"^\| (SPEC-UI-\d+) \|", re.MULTILINE)
+
+
+def spec_ids() -> list[str]:
+    """Return the SPEC-UI IDs defined in the rows of the spec tables, not in the decisions."""
+    text = (ROOT / "specs" / "07-ui" / "spec.md").read_text(encoding="utf-8")
+    return SPEC_TABLE_ROW.findall(text)
+
+
+def cited_ids() -> set[str]:
+    """Return the SPEC-UI IDs cited by any test title or docstring in the repository."""
+    cited: set[str] = set()
+    for path in _js_files():
+        for title in extract_js_titles(path.read_text(encoding="utf-8")):
+            cited.update(SPEC_REF.findall(title.text or ""))
+    for path in sorted(TESTS.rglob("*.py")):
+        for _name, doc in _python_test_docstrings(path):
+            cited.update(SPEC_REF.findall(doc or ""))
+    return cited
+
+
+def test_spec_md_yields_136_unique_ids_from_the_table_rows():
+    """SPEC-UI-121 reads the 136 IDs from the table rows only (TC-UI-121b)"""
+    ids = spec_ids()
+    assert len(ids) == 136
+    assert len(set(ids)) == 136
+
+
+def test_every_spec_is_cited_by_at_least_one_test():
+    """SPEC-UI-121 requires a test citing every spec of the area (TC-UI-121a)"""
+    missing = [spec for spec in spec_ids() if spec not in cited_ids()]
+    assert missing == []
