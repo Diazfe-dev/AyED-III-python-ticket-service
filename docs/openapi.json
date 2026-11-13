@@ -1197,25 +1197,18 @@
     },
     "/tickets": {
       "get": {
-        "summary": "List my tickets",
-        "description": "A client sees the tickets it owns and a representative the tickets assigned to it; nobody sees the tickets of others. Newest first: ordered by creation date and, for the same instant, by id, both descending. Admins receive `403`.",
+        "summary": "List tickets",
+        "description": "The tickets the session user may see: an administrator sees all of them, a client the tickets it owns and a representative the tickets assigned to it. `state`, `client_id`, `representative_id` and `q` narrow the result (all must match); `q` searches the client name and the first message, without case. `client_id` is forbidden to clients and `representative_id` to clients and representatives (`403`, even with their own id). The format of every query parameter is validated together (`400`) before the forbidden filters are checked. Newest first by default (`order`). `page` and `page_size` are optional: without them the response is an array.",
         "operationId": "listTickets",
         "tags": [
           "tickets"
         ],
         "responses": {
           "200": {
-            "description": "The tickets of the session user; an empty list when it has none.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/Ticket"
-                  }
-                }
-              }
-            }
+            "$ref": "#/components/responses/TicketList"
+          },
+          "400": {
+            "$ref": "#/components/responses/ValidationFailed"
           },
           "401": {
             "$ref": "#/components/responses/AuthenticationRequired"
@@ -1223,7 +1216,30 @@
           "403": {
             "$ref": "#/components/responses/TicketForbidden"
           }
-        }
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/TicketState"
+          },
+          {
+            "$ref": "#/components/parameters/TicketClientId"
+          },
+          {
+            "$ref": "#/components/parameters/TicketRepresentativeId"
+          },
+          {
+            "$ref": "#/components/parameters/Q"
+          },
+          {
+            "$ref": "#/components/parameters/TicketOrder"
+          },
+          {
+            "$ref": "#/components/parameters/Page"
+          },
+          {
+            "$ref": "#/components/parameters/PageSize"
+          }
+        ]
       },
       "post": {
         "summary": "Create a ticket",
@@ -1973,6 +1989,26 @@
             }
           }
         }
+      },
+      "TicketList": {
+        "description": "The tickets ordered by creation date and, for the same instant, by id in the same direction. A plain array, or a page object when `page` or `page_size` was sent.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "oneOf": [
+                {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Ticket"
+                  }
+                },
+                {
+                  "$ref": "#/components/schemas/TicketPage"
+                }
+              ]
+            }
+          }
+        }
       }
     },
     "schemas": {
@@ -2640,6 +2676,38 @@
         "required": [
           "new_password"
         ]
+      },
+      "TicketPage": {
+        "type": "object",
+        "description": "A page of tickets.",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Ticket"
+            }
+          },
+          "page": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "page_size": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 100
+          },
+          "total": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "Matching records across all pages."
+          }
+        },
+        "required": [
+          "items",
+          "page",
+          "page_size",
+          "total"
+        ]
       }
     },
     "parameters": {
@@ -2723,6 +2791,53 @@
           "enum": [
             "true",
             "false"
+          ]
+        }
+      },
+      "TicketState": {
+        "name": "state",
+        "in": "query",
+        "required": false,
+        "description": "Keep the tickets in this state. Only the exact values are accepted; any other, including an empty one or a different case, is rejected with `400`.",
+        "schema": {
+          "type": "string",
+          "enum": [
+            "New",
+            "InProgress",
+            "Closed"
+          ]
+        }
+      },
+      "TicketClientId": {
+        "name": "client_id",
+        "in": "query",
+        "required": false,
+        "description": "Keep the tickets of this client. A positive integer, otherwise `400`. Administrators and representatives only; a client sending it gets `403` (after the format check).",
+        "schema": {
+          "type": "integer",
+          "minimum": 1
+        }
+      },
+      "TicketRepresentativeId": {
+        "name": "representative_id",
+        "in": "query",
+        "required": false,
+        "description": "Keep the tickets assigned to this representative. A positive integer, otherwise `400`. Administrators only; clients and representatives sending it get `403` (after the format check), even with their own id.",
+        "schema": {
+          "type": "integer",
+          "minimum": 1
+        }
+      },
+      "TicketOrder": {
+        "name": "order",
+        "in": "query",
+        "required": false,
+        "description": "Creation order: `desc` (default, newest first) or `asc` (oldest first). Any other value is rejected with `400`.",
+        "schema": {
+          "type": "string",
+          "enum": [
+            "asc",
+            "desc"
           ]
         }
       }

@@ -1,13 +1,16 @@
 """Ticket endpoints (the TicketController): HTTP in and out, the rules live in the service."""
 
-from flask import Blueprint
+from flask import Blueprint, request
 from flask.typing import ResponseReturnValue
 
 from app.auth import authenticated_user, login_required
+from app.controllers.listing import listing_json
 from app.controllers.serializers import json_body, ticket_json
 from app.wiring import get_ticket_service
 
 bp = Blueprint("tickets", __name__)
+
+LISTING_ARGS = ("state", "client_id", "representative_id", "q", "order", "page", "page_size")
 
 
 @bp.post("/tickets")
@@ -26,9 +29,10 @@ def create_ticket() -> ResponseReturnValue:
 @bp.get("/tickets")
 @login_required
 def list_tickets() -> ResponseReturnValue:
-    return [
-        ticket_json(ticket) for ticket in get_ticket_service().list_tickets(authenticated_user())
-    ]
+    args = {name: request.args.get(name) for name in LISTING_ARGS}
+    return listing_json(
+        get_ticket_service().list_tickets(authenticated_user(), **args), ticket_json
+    )
 
 
 @bp.get("/tickets/<int:ticket_id>")
