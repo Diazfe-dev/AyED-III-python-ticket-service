@@ -9,6 +9,8 @@ FLASK_PARAM = re.compile(r"<(?:[^:<>]+:)?([^<>]+)>")
 
 Route = tuple[str, str]
 
+UI_ROUTES = {("GET", "/"), ("GET", "/static/<path:filename>")}
+
 
 def test_openapi_contract_is_served_as_openapi_3_1_json(client: FlaskClient) -> None:
     """SPEC-PLT-12 · TC-PLT-12a"""
@@ -43,14 +45,22 @@ def test_docs_page_loads_pinned_swagger_ui_assets(client: FlaskClient) -> None:
     assert "swagger-ui-dist@5.17.14/swagger-ui-bundle.js" in html
 
 
+def to_openapi_path(rule: str) -> str:
+    return FLASK_PARAM.sub(r"{\1}", rule)
+
+
 def flask_routes(app: Flask) -> set[Route]:
     """(path, METHOD) pairs exposed by the app, with paths in OpenAPI format."""
     return {
-        (FLASK_PARAM.sub(r"{\1}", rule.rule), method)
+        (to_openapi_path(rule.rule), method)
         for rule in app.url_map.iter_rules()
-        if rule.endpoint != "static"
         for method in rule.methods - IGNORED_METHODS
     }
+
+
+def ui_routes() -> set[Route]:
+    """Explicit UI routes that live outside the contract, in OpenAPI path format."""
+    return {(to_openapi_path(path), method) for method, path in UI_ROUTES}
 
 
 def contract_routes(client: FlaskClient) -> set[Route]:
@@ -64,11 +74,27 @@ def contract_routes(client: FlaskClient) -> set[Route]:
     }
 
 
-def test_every_flask_route_is_documented_in_the_contract(app: Flask, client: FlaskClient) -> None:
-    """SPEC-PLT-14 · TC-PLT-14a"""
-    assert flask_routes(app) - contract_routes(client) == set()
+def test_every_flask_route_is_in_the_contract_or_the_ui_set(
+    app: Flask, client: FlaskClient
+) -> None:
+    """SPEC-PLT-23 · TC-PLT-23a"""
+    assert flask_routes(app) - contract_routes(client) - ui_routes() == set()
 
 
 def test_every_contract_operation_is_exposed_by_flask(app: Flask, client: FlaskClient) -> None:
-    """SPEC-PLT-14 · TC-PLT-14b"""
+    """SPEC-PLT-23 · TC-PLT-23b"""
     assert contract_routes(client) - flask_routes(app) == set()
+
+
+def test_ui_static_route_exists_and_is_outside_the_contract(
+    app: Flask, client: FlaskClient
+) -> None:
+    """SPEC-PLT-23 · TC-PLT-23c"""
+    rules = {(rule.rule, method) for rule in app.url_map.iter_rules() for method in rule.methods}
+
+    assert ("/static/<path:filename>", "GET") in rules
+    assert ("/static/{filename}", "GET") not in contract_routes(client)
+
+
+# TC-PLT-23d (GET / exists and is outside the contract) is pending: the 07-ui task
+# that creates GET / writes it.

@@ -395,6 +395,39 @@ classDiagram
         +get_many(product_ids) list
     }
 
+    class PageRequest {
+        <<immutable>>
+        +int page
+        +int page_size
+        +offset() int
+        +limit() int
+    }
+    class Page {
+        <<immutable>>
+        +list items
+        +int page
+        +int page_size
+        +int total
+    }
+    class listing {
+        <<module services>>
+        +page_request(page, page_size) PageRequest or None
+        +search_text(q) str
+    }
+    class paging {
+        <<module repositories>>
+        +fetch(session, statement, window) list or Page
+    }
+    class listing_json {
+        <<module controllers>>
+        +listing_json(result, item_json) list or dict
+    }
+
+    listing ..> PageRequest : builds
+    paging ..> PageRequest : receives
+    paging ..> Page : returns
+    listing_json ..> Page : serializes
+
     AuthController --> auth
     UserController --> auth
     cli --> auth
@@ -443,4 +476,5 @@ classDiagram
 - `ProductRepository.add` traduce el `IntegrityError` del `UNIQUE` a `DuplicateProductError` y `ProductTypeRepository.delete` traduce el de la FK `RESTRICT` de `products` a `ProductTypeInUseError`; `CatalogService.delete_product_type` además lo chequea antes con `has_products`. `ProductRepository.list_matching` filtra por categoría con un `join` sobre el tipo, ordena por `(name_key, id)` y carga tipo y categoría con `selectinload` (3 consultas como máximo). Se llama `list_matching` y no `list` porque un método `list` taparía al tipo `list` en las anotaciones de la clase. `ProductRepository` no tiene métodos de borrado. `get_many` lo usa `TicketService` (`04-tickets`).
 - **Notificador de tickets**: `TicketService` depende del protocolo `TicketNotifier` (`notify(recipient, actor, ticket, message)`), definido en `app/services/ticket_service.py` junto con el protocolo `TicketRepository`. `NotificationService(strategies, clock, commit)` (`app/services/notification_service.py`) lo implementa: elige la estrategia con `strategies[recipient.preferred_channel]`, lee `clock()` una vez, envía, registra la notificación con `Ticket.record_notification` (o `record_failed_notification` si la estrategia lanza `NotificationError`, sin propagarla) y hace `commit()`; si `recipient is actor` retorna sin registrar ni confirmar (SPEC-NTF-11). No hay `NotificationRepository` ni `NullTicketNotifier`. `TicketService` llama a `notify` como última acción de `create_ticket`, `close_ticket`, `reopen_ticket` y `add_milestone`, después de su `commit()` (SPEC-NTF-15); `add_products` y `remove_product` no notifican (SPEC-NTF-17). Los mensajes salen de `app/services/notification_messages.py`. `app/wiring.py` arma `NotificationService(notification_strategies(), utc_now, session.commit)` con `notification_strategies()` (que devuelve `default_strategies()`) y `get_ticket_service` lo inyecta en `TicketService` por request con `utc_now` como reloj y `session.commit`.
 - `SqlAlchemyTicketRepository` implementa `TicketRepository`: `add` hace `flush()`; `get_visible_with_milestones` comparte con él la guarda y el filtro (`_visible_statement`) y carga además `Ticket.milestones` y sus autores con `selectinload`; `get_visible` devuelve `None` si el ticket no existe, no es del actor o el id no entra en el `INTEGER` de SQLite (`fits_integer_column`), lo que el service traduce en `404`; los listados ordenan por `(created_at desc, id desc)` y cargan cliente, representante y productos con `selectinload`. `TicketService.list_tickets` rechaza al `Admin` (`403`) y elige el listado por `actor.role`. `ProductRepository.get_many(product_ids)` devuelve los productos hallados (activos o no) y el service compara cantidades.
+- **Paginación y búsqueda (`00-platform`)**: `PageRequest` (`page`, `page_size`, propiedades `offset` y `limit`) y `Page[T]` (`items`, `page`, `page_size`, `total`) son dataclasses inmutables de la capa de dominio (`app/domain/paging.py`) que comparten services y repositories. En services, `app/services/listing.py` tiene `page_request(page, page_size)` (devuelve `None` si no llegó ningún parámetro y lanza `ValidationError` si alguno es inválido) y `search_text(q)` (devuelve `None` si `q` falta o es solo espacios). En repositories, `app/repositories/paging.py` tiene `fetch(session, statement, window)`, que devuelve la lista completa o un `Page` con el total. En controllers, `app/controllers/listing.py` tiene `listing_json(result, item_json)`, que serializa una lista como arreglo y un `Page` como objeto paginado.
 - No hay `MilestoneService`: los hitos forman parte del agregado `Ticket` y se gestionan desde `TicketService`.
