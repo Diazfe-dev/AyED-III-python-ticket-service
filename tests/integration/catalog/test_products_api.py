@@ -480,3 +480,233 @@ def test_deactivate_an_inactive_product_succeeds(
 
     assert response.status_code == 200
     assert response.get_json()["is_active"] is False
+
+
+def test_admin_activates_an_inactive_product(
+    admin_client: FlaskClient, db_session: Session, catalog: dict[str, Any]
+) -> None:
+    """SPEC-PRD-22 · TC-PRD-22c"""
+    optiplex = catalog["products"][1]
+
+    response = admin_client.post(f"/products/{optiplex.id}/activate")
+
+    assert response.status_code == 200
+    assert response.get_json() == expected_json(optiplex) | {"is_active": True}
+    assert response.get_json()["is_active"] is True
+    assert ("Optiplex", optiplex.product_type_id, True) in stored_products(db_session)
+
+
+def test_an_activated_product_is_available_again(
+    client: FlaskClient,
+    admin_client: FlaskClient,
+    login_as: LoginAs,
+    make_user: MakeUser,
+    catalog: dict[str, Any],
+) -> None:
+    """SPEC-PRD-22 · TC-PRD-22d"""
+    admin_client.post(f"/products/{catalog['products'][1].id}/activate")
+
+    response = logged_in_as("Representative", client, make_user, login_as).get(
+        "/products/available"
+    )
+
+    assert "Optiplex" in listed_names(response)
+
+
+def test_activate_an_active_product_succeeds(
+    admin_client: FlaskClient, catalog: dict[str, Any]
+) -> None:
+    """SPEC-PRD-23 · TC-PRD-23b"""
+    response = admin_client.post(f"/products/{catalog['products'][2].id}/activate")
+
+    assert response.status_code == 200
+    assert response.get_json()["is_active"] is True
+
+
+@pytest.mark.parametrize("product_id", ["9999", "9223372036854775808"])
+def test_activate_unknown_product_is_not_found(admin_client: FlaskClient, product_id: str) -> None:
+    """SPEC-PRD-24 · TC-PRD-24b"""
+    response = admin_client.post(f"/products/{product_id}/activate")
+
+    assert response.status_code == 404
+    assert response.get_json() == {"error": "product_not_found"}
+
+
+@pytest.fixture
+def searchable(catalog: dict[str, Any], make_product: MakeProduct) -> dict[str, Any]:
+    """The `catalog` data plus `XPS 15` (Notebook), `Cámara IP` and `50% Toner` (Impresora)."""
+    printer = catalog["products"][0].product_type
+    make_product(catalog["notebook"], "XPS 15")
+    make_product(printer, "Cámara IP")
+    make_product(printer, "50% Toner")
+    return catalog
+
+
+def test_products_are_searched_by_text_alone_and_with_other_filters(
+    client: FlaskClient, login_as: LoginAs, make_user: MakeUser, searchable: dict[str, Any]
+) -> None:
+    """SPEC-PRD-26 · TC-PRD-26e"""
+    user = logged_in_as("Client", client, make_user, login_as)
+
+    by_text = user.get("/products?q=XPS")
+    with_category = user.get(f"/products?q=xps&category_id={searchable['office'].id}")
+
+    assert by_text.status_code == 200
+    assert listed_names(by_text) == ["xps 13", "XPS 15"]
+    assert with_category.status_code == 200
+    assert with_category.get_json() == []
+
+
+def test_a_blank_search_text_lists_every_product(
+    admin_client: FlaskClient, searchable: dict[str, Any]
+) -> None:
+    """SPEC-PRD-26 · TC-PRD-26g"""
+    everything = admin_client.get("/products")
+
+    response = admin_client.get("/products?q=")
+
+    assert response.status_code == 200
+    assert response.get_json() == everything.get_json()
+    assert len(response.get_json()) == 6
+
+
+def test_products_are_filtered_by_state(
+    admin_client: FlaskClient, searchable: dict[str, Any]
+) -> None:
+    """SPEC-PRD-27 · TC-PRD-27c"""
+    inactive = admin_client.get("/products?is_active=false")
+    active_search = admin_client.get("/products?is_active=true&q=xps")
+
+    assert inactive.status_code == 200
+    assert listed_names(inactive) == ["Optiplex"]
+    assert inactive.get_json()[0]["is_active"] is False
+    assert active_search.status_code == 200
+    assert listed_names(active_search) == ["xps 13", "XPS 15"]
+
+
+@pytest.mark.parametrize("query", ["is_active=yes", "is_active="])
+def test_listing_products_with_a_malformed_state_is_rejected(
+    admin_client: FlaskClient, query: str
+) -> None:
+    """SPEC-PRD-28 · TC-PRD-28b"""
+    response = admin_client.get(f"/products?{query}")
+
+    assert response.status_code == 400
+    assert response.get_json() == {
+        "error": "validation_error",
+        "fields": {"is_active": "invalid"},
+    }
+
+
+def test_products_are_paged(admin_client: FlaskClient, searchable: dict[str, Any]) -> None:
+    """SPEC-PRD-29 · TC-PRD-29d"""
+    first = admin_client.get("/products?page=1&page_size=2")
+    second = admin_client.get("/products?page=2")
+
+    assert first.status_code == 200
+    assert first.get_json()["page"] == 1
+    assert first.get_json()["page_size"] == 2
+    assert first.get_json()["total"] == 6
+    assert [item["name"] for item in first.get_json()["items"]] == ["50% Toner", "Cámara IP"]
+    assert second.get_json() == {"items": [], "page": 2, "page_size": 20, "total": 6}
+
+
+def test_a_page_beyond_the_last_one_is_empty(
+    admin_client: FlaskClient, searchable: dict[str, Any]
+) -> None:
+    """SPEC-PRD-29 · TC-PRD-29f"""
+    response = admin_client.get("/products?page=50&page_size=10")
+
+    assert response.status_code == 200
+    assert response.get_json() == {"items": [], "page": 50, "page_size": 10, "total": 6}
+
+
+def test_listing_products_with_a_malformed_page_is_rejected(admin_client: FlaskClient) -> None:
+    """SPEC-PRD-29 · TC-PRD-29h"""
+    response = admin_client.get("/products?page=abc")
+
+    assert response.status_code == 400
+    assert response.get_json() == {"error": "validation_error", "fields": {"page": "invalid"}}
+
+
+def test_available_products_are_searched_by_text(
+    client: FlaskClient, login_as: LoginAs, make_user: MakeUser, searchable: dict[str, Any]
+) -> None:
+    """SPEC-PRD-26 · TC-PRD-26f"""
+    rep = logged_in_as("Representative", client, make_user, login_as)
+
+    response = rep.get("/products/available?q=xps")
+
+    assert response.status_code == 200
+    assert listed_names(response) == ["xps 13", "XPS 15"]
+
+
+def test_available_products_with_a_blank_search_text_are_all_listed(
+    client: FlaskClient, login_as: LoginAs, make_user: MakeUser, searchable: dict[str, Any]
+) -> None:
+    """SPEC-PRD-26 · TC-PRD-26g"""
+    rep = logged_in_as("Representative", client, make_user, login_as)
+
+    response = rep.get("/products/available?q=%20%20")
+
+    assert response.status_code == 200
+    assert response.get_json() == rep.get("/products/available").get_json()
+    assert len(response.get_json()) == 5
+
+
+def test_available_products_are_paged(
+    client: FlaskClient, login_as: LoginAs, make_user: MakeUser, searchable: dict[str, Any]
+) -> None:
+    """SPEC-PRD-29 · TC-PRD-29g"""
+    rep = logged_in_as("Representative", client, make_user, login_as)
+
+    toner = next(
+        product
+        for product in searchable["products"][0].product_type.products
+        if product.name == "50% Toner"
+    )
+
+    response = rep.get("/products/available?page=1&page_size=1")
+
+    assert response.status_code == 200
+    assert response.get_json() == {
+        "items": [expected_json(toner)],
+        "page": 1,
+        "page_size": 1,
+        "total": 5,
+    }
+
+
+def test_listing_available_products_with_a_malformed_page_size_is_rejected(
+    admin_client: FlaskClient,
+) -> None:
+    """SPEC-PRD-29 · TC-PRD-29h"""
+    response = admin_client.get("/products/available?page_size=0")
+
+    assert response.status_code == 400
+    assert response.get_json() == {"error": "validation_error", "fields": {"page_size": "invalid"}}
+
+
+def test_available_products_ignore_every_other_parameter(
+    admin_client: FlaskClient, searchable: dict[str, Any]
+) -> None:
+    """SPEC-PRD-30 · TC-PRD-30a"""
+    plain = admin_client.get("/products/available")
+
+    response = admin_client.get(
+        "/products/available?is_active=false&category_id=abc&product_type_id=0&foo=1"
+    )
+
+    assert response.status_code == 200
+    assert response.get_json() == plain.get_json()
+    assert len(response.get_json()) == 5
+
+
+def test_available_products_apply_the_search_and_ignore_the_category(
+    admin_client: FlaskClient, searchable: dict[str, Any]
+) -> None:
+    """SPEC-PRD-30 · TC-PRD-30b"""
+    response = admin_client.get(f"/products/available?q=xps&category_id={searchable['office'].id}")
+
+    assert response.status_code == 200
+    assert listed_names(response) == ["xps 13", "XPS 15"]

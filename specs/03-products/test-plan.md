@@ -10,7 +10,7 @@ Fixture nueva (`tests/conftest.py`):
 Helper compartido (T-PRD-01): `count_statements(session)` en `tests/integration/catalog/queries.py`, movido desde `test_category_repository.py`. Cuenta las sentencias SQL con un listener `before_cursor_execute` del engine.
 
 Dobles para tests unitarios (sin Flask ni base), en `tests/unit/catalog/fakes.py`:
-- `FakeProductRepository` (nuevo): diccionario en memoria que asigna ids, busca por `(product_type.id, name_key)` y lista con los filtros de `list_matching` (categoría por `product.product_type.category.id`, tipo por `product.product_type.id`, `active_only` por `is_active`), ordenado por `(name_key, id)`.
+- `FakeProductRepository` (nuevo): diccionario en memoria que asigna ids, busca por `(product_type.id, name_key)` y lista con los filtros de `list_matching` (categoría por `product.product_type.category.id`, tipo por `product.product_type.id`, `is_active`, `q` por contenido del `name_key` y `window` para paginar), ordenado por `(name_key, id)`.
 - `FakeProductTypeRepository` (existente): suma `has_products(product_type_id)`, que responde `bool(product_type.products)`.
 - `FakeCategoryRepository` (existente) y `CommitSpy` (`tests/unit/fakes.py`) sin cambios.
 

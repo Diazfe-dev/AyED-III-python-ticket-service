@@ -74,3 +74,6 @@ class Product(CatalogName, Base):
 
     def deactivate(self) -> None:
         self.is_active = False
+
+    def activate(self) -> None:
+        self.is_active = True

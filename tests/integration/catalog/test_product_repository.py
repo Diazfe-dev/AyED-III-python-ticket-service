@@ -1,9 +1,11 @@
 import pytest
 from flask import Flask
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.db import EXTENSION_KEY
 from app.domain.errors import DuplicateProductError
+from app.domain.paging import Page, PageRequest
 from app.domain.products import Category, Product, ProductType
 from app.repositories.product_repository import SqlAlchemyProductRepository
 from tests.conftest import MakeCategory, MakeProduct, MakeProductType
@@ -206,13 +208,83 @@ def test_list_matching_with_a_type_outside_the_category_is_empty(
     assert products == []
 
 
-def test_list_matching_active_only_skips_inactive_products(
+def test_list_matching_is_active_true_skips_inactive_products(
     db_session: Session, catalog: dict[str, int]
 ) -> None:
     """SPEC-PRD-10 · TC-PRD-10b"""
-    products = SqlAlchemyProductRepository(db_session).list_matching(active_only=True)
+    products = SqlAlchemyProductRepository(db_session).list_matching(is_active=True)
 
     assert names(products) == ["LaserJet", "xps 13"]
+
+
+def test_list_matching_is_active_is_a_tri_state_filter(
+    db_session: Session, catalog: dict[str, int]
+) -> None:
+    """SPEC-PRD-27 · TC-PRD-27b"""
+    repository = SqlAlchemyProductRepository(db_session)
+
+    assert names(repository.list_matching(is_active=False)) == ["Optiplex"]
+    assert names(repository.list_matching(is_active=True)) == ["LaserJet", "xps 13"]
+    assert names(repository.list_matching()) == ["LaserJet", "Optiplex", "xps 13"]
+
+
+@pytest.fixture
+def searchable_catalog(
+    db_session: Session, catalog: dict[str, int], make_product: MakeProduct
+) -> dict[str, int]:
+    """The `catalog` plus `XPS 15` (Notebook), `Cámara IP` and `50% Toner` (Impresora)."""
+    notebook = db_session.get(ProductType, catalog["notebook"])
+    printer = db_session.scalars(select(ProductType).where(ProductType.name == "Impresora")).one()
+    make_product(notebook, "XPS 15")
+    make_product(printer, "Cámara IP")
+    make_product(printer, "50% Toner")
+    return catalog
+
+
+def test_list_matching_q_ignores_case_and_combines_with_other_filters(
+    db_session: Session, searchable_catalog: dict[str, int]
+) -> None:
+    """SPEC-PRD-26 · TC-PRD-26b"""
+    repository = SqlAlchemyProductRepository(db_session)
+
+    assert names(repository.list_matching(q="CÁMARA")) == ["Cámara IP"]
+    assert names(repository.list_matching(q="xps", category_id=searchable_catalog["hardware"])) == [
+        "xps 13",
+        "XPS 15",
+    ]
+
+
+def test_list_matching_q_treats_percent_and_underscore_literally(
+    db_session: Session, searchable_catalog: dict[str, int]
+) -> None:
+    """SPEC-PRD-26 · TC-PRD-26c"""
+    repository = SqlAlchemyProductRepository(db_session)
+
+    assert names(repository.list_matching(q="%")) == ["50% Toner"]
+    assert names(repository.list_matching(q="_")) == []
+
+
+def test_list_matching_pages_concatenate_to_the_whole_listing_without_overlaps(
+    db_session: Session, catalog: dict[str, int], make_product: MakeProduct
+) -> None:
+    """SPEC-PRD-29 · TC-PRD-29e"""
+    desktop = db_session.get(ProductType, catalog["desktop"])
+    make_product(desktop, "XPS 13")
+    printer = db_session.scalars(select(ProductType).where(ProductType.name == "Impresora")).one()
+    make_product(printer, "Xps 13")
+    repository = SqlAlchemyProductRepository(db_session)
+    whole = repository.list_matching()
+
+    pages = [repository.list_matching(window=PageRequest(page=p, page_size=3)) for p in range(1, 4)]
+
+    assert all(isinstance(page, Page) for page in pages)
+    assert [product.id for page in pages for product in page.items] == [p.id for p in whole]
+    assert {page.total for page in pages} == {len(whole)}
+    assert [page.page for page in pages] == [1, 2, 3]
+    assert names(whole) == ["LaserJet", "Optiplex", "xps 13", "XPS 13", "Xps 13"]
+    across_the_boundary = [pages[0].items[-1], pages[1].items[0]]
+    assert across_the_boundary[0].name_key == across_the_boundary[1].name_key
+    assert across_the_boundary[0].id < across_the_boundary[1].id
 
 
 def test_get_many_returns_active_and_inactive_products_ordered_by_id(

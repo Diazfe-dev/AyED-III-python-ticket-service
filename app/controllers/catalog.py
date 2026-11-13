@@ -4,6 +4,7 @@ from flask import Blueprint, request
 from flask.typing import ResponseReturnValue
 
 from app.auth import admin_required, login_required
+from app.controllers.listing import listing_json
 from app.controllers.serializers import (
     category_group_json,
     category_json,
@@ -98,14 +99,22 @@ def list_products() -> ResponseReturnValue:
     products = get_product_service().list_products(
         category_id=request.args.get("category_id"),
         product_type_id=request.args.get("product_type_id"),
+        **_listing_args("q", "is_active", "page", "page_size"),
     )
-    return [product_json(product) for product in products]
+    return listing_json(products, product_json)
 
 
 @bp.get("/products/available")
 @login_required
 def list_available_products() -> ResponseReturnValue:
-    return [product_json(product) for product in get_product_service().list_available_products()]
+    products = get_product_service().list_available_products(
+        **_listing_args("q", "page", "page_size")
+    )
+    return listing_json(products, product_json)
+
+
+def _listing_args(*names: str) -> dict[str, str | None]:
+    return {name: request.args.get(name) for name in names}
 
 
 @bp.patch("/products/<int:product_id>")
@@ -121,3 +130,9 @@ def update_product(product_id: int) -> ResponseReturnValue:
 @admin_required
 def deactivate_product(product_id: int) -> ResponseReturnValue:
     return product_json(get_product_service().deactivate_product(product_id))
+
+
+@bp.post("/products/<int:product_id>/activate")
+@admin_required
+def activate_product(product_id: int) -> ResponseReturnValue:
+    return product_json(get_product_service().activate_product(product_id))
