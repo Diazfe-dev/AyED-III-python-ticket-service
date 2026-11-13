@@ -24,7 +24,7 @@ def guarded_routes(app: Flask, schema: None) -> None:
 
 @pytest.mark.usefixtures("guarded_routes")
 def test_protected_route_without_session_requires_authentication(client: FlaskClient) -> None:
-    """SPEC-USR-16 · TC-USR-16a"""
+    """SPEC-USR-49 · TC-USR-49c"""
     response = client.get("/test/protected")
 
     assert response.status_code == 401
@@ -35,7 +35,7 @@ def test_protected_route_without_session_requires_authentication(client: FlaskCl
 def test_session_of_a_deactivated_user_counts_as_no_session(
     client: FlaskClient, make_user: MakeUser, login_as: LoginAs, db_session: Session
 ) -> None:
-    """SPEC-USR-16 · TC-USR-16b"""
+    """SPEC-USR-49 · TC-USR-49d"""
     user = make_user()
     login_as(client, user)
     user.deactivate()
@@ -46,7 +46,7 @@ def test_session_of_a_deactivated_user_counts_as_no_session(
 
 @pytest.mark.usefixtures("guarded_routes")
 def test_session_of_an_unknown_user_counts_as_no_session(client: FlaskClient) -> None:
-    """SPEC-USR-16 · TC-USR-16c"""
+    """SPEC-USR-49 · TC-USR-49e"""
     with client.session_transaction() as session:
         session[USER_ID_KEY] = 9999
 

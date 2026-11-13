@@ -1,4 +1,4 @@
-"""Login, logout and session identity endpoints."""
+"""Login, logout, session identity and own-password endpoints."""
 
 from flask import Blueprint, session
 from flask.typing import ResponseReturnValue
@@ -29,3 +29,13 @@ def logout() -> ResponseReturnValue:
 @login_required
 def me() -> ResponseReturnValue:
     return session_user_json(authenticated_user())
+
+
+@bp.post("/me/password")
+@login_required
+def change_own_password() -> ResponseReturnValue:
+    body = json_body()
+    get_user_service().change_own_password(
+        authenticated_user(), body.get("current_password"), body.get("new_password")
+    )
+    return "", 204
