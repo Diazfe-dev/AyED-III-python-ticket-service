@@ -35,6 +35,10 @@ class TicketRepository(Protocol):
 
     def get_visible_with_milestones(self, ticket_id: int, actor: User) -> Ticket | None: ...
 
+    def get(self, ticket_id: int) -> Ticket | None: ...
+
+    def get_with_milestones(self, ticket_id: int) -> Ticket | None: ...
+
     def list_by_client(self, client_id: int) -> list[Ticket]: ...
 
     def list_by_representative(self, representative_id: int) -> list[Ticket]: ...
@@ -92,12 +96,20 @@ class TicketService:
         return listing(actor.id)
 
     def get_ticket(self, ticket_id: int, actor: User) -> Ticket:
-        """The ticket, if the actor is its client or its assigned representative."""
-        self._reject_admin(actor)
-        return self._visible_ticket(ticket_id, actor)
+        """The ticket: any for the admin, else only if the actor is its client or representative."""
+        lookup = {
+            "Admin": lambda: self._tickets.get(ticket_id),
+            "Client": lambda: self._tickets.get_visible(ticket_id, actor),
+            "Representative": lambda: self._tickets.get_visible(ticket_id, actor),
+        }[actor.role]
+        ticket = lookup()
+        if ticket is None:
+            raise TicketNotFoundError()
+        return ticket
 
     def close_ticket(self, ticket_id: int, actor: User) -> Ticket:
         """Close the ticket on behalf of its client or its assigned representative."""
+        self._reject_admin(actor)
         ticket = self.get_ticket(ticket_id, actor)
         ticket.close(actor, self._clock())
         self._commit()
@@ -106,6 +118,7 @@ class TicketService:
 
     def reopen_ticket(self, ticket_id: int, actor: User) -> Ticket:
         """Reopen a closed ticket; the representative that handled it stays assigned."""
+        self._reject_admin(actor)
         ticket = self.get_ticket(ticket_id, actor)
         ticket.reopen(actor, self._clock())
         self._commit()

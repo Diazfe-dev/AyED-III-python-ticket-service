@@ -330,8 +330,8 @@ def _remove_product(setup: Setup, ticket_id, actor):
     return setup.service.remove_product(ticket_id, 1, actor)
 
 
-def _list_tickets(setup: Setup, ticket_id, actor):
-    return setup.service.list_tickets(actor)
+def _add_milestone(setup: Setup, ticket_id, actor):
+    return setup.service.add_milestone(ticket_id, "Hola", actor)
 
 
 TICKET_OPERATIONS = [
@@ -341,10 +341,13 @@ TICKET_OPERATIONS = [
     pytest.param(_add_products, id="add_products"),
     pytest.param(_remove_product, id="remove_product"),
 ]
-OPERATIONS = [
+WRITE_OPERATIONS = [
     pytest.param(_create_ticket, id="create_ticket"),
-    pytest.param(_list_tickets, id="list_tickets"),
-    *TICKET_OPERATIONS,
+    pytest.param(_close_ticket, id="close_ticket"),
+    pytest.param(_reopen_ticket, id="reopen_ticket"),
+    pytest.param(_add_products, id="add_products"),
+    pytest.param(_remove_product, id="remove_product"),
+    pytest.param(_add_milestone, id="add_milestone"),
 ]
 
 
@@ -353,9 +356,9 @@ def _assert_untouched(setup: Setup, tickets: list[Ticket]) -> None:
     assert setup.commit.calls == 0
 
 
-@pytest.mark.parametrize("operation", OPERATIONS)
-def test_admin_is_denied_every_ticket_operation(setup, operation):
-    """SPEC-TKT-27 · TC-TKT-27a"""
+@pytest.mark.parametrize("operation", WRITE_OPERATIONS)
+def test_admin_is_denied_every_ticket_write_operation(setup, operation):
+    """SPEC-TKT-32 · TC-TKT-32a"""
     ticket = setup.add_ticket(setup.ana, setup.raul)
 
     with pytest.raises(PermissionDeniedError):
@@ -364,8 +367,28 @@ def test_admin_is_denied_every_ticket_operation(setup, operation):
     _assert_untouched(setup, [ticket])
 
 
+def test_admin_gets_any_ticket(setup):
+    """SPEC-TKT-34 · TC-TKT-34a"""
+    xps = setup.add_product("XPS 13")
+    ticket = setup.add_ticket(setup.ana, setup.raul, [xps])
+
+    found = setup.service.get_ticket(ticket.id, setup.root)
+
+    assert found is ticket
+    assert found.state.name == "New"
+    assert found.client is setup.ana
+    assert found.representative is setup.raul
+    assert found.products == [xps]
+
+
+def test_admin_gets_not_found_for_a_missing_ticket(setup):
+    """SPEC-TKT-34 · TC-TKT-34d"""
+    with pytest.raises(TicketNotFoundError):
+        setup.service.get_ticket(9999, setup.root)
+
+
 def test_create_ticket_validates_the_body_before_rejecting_an_admin(setup):
-    """SPEC-TKT-27 · TC-TKT-27i"""
+    """SPEC-TKT-32 · TC-TKT-32f"""
     with pytest.raises(ValidationError) as blank:
         setup.service.create_ticket(setup.ana.id, [], "", setup.root)
     with pytest.raises(ValidationError) as malformed:

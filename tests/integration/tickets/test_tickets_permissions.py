@@ -13,6 +13,7 @@ from sqlalchemy.orm import Session
 from app.domain.milestone import Milestone
 from app.domain.state_change import StateChange
 from app.domain.ticket import Ticket, ticket_products
+from app.domain.users import User
 from tests.conftest import (
     LoginAs,
     MakeCategory,
@@ -30,24 +31,28 @@ def snapshot(db_session: Session) -> list[int]:
     return [db_session.scalar(select(func.count()).select_from(table)) or 0 for table in TABLES]
 
 
-# (method, path, body) of the requests an admin makes; they grow with each endpoint.
+# (method, path, body) of the write requests an admin makes: the role wins over `404` and
+# `invalid_client`.
 ADMIN_PRECEDENCE_REQUESTS = [
     ("POST", "/tickets", {"client_id": 9999, "first_message": "Hola"}),
-    ("GET", "/tickets/9999", None),
     ("POST", "/tickets/9999/close", None),
+    ("POST", "/tickets/9999/reopen", None),
+    ("DELETE", "/tickets/9999/products/1", None),
 ]
 
 # (method, path, body) of the endpoints of `/tickets`, with a ticket that exists. A whole-string
 # `{name}` in a body is replaced by that id (an integer); in a path, by `str.format`.
-ALL_ENDPOINTS = [
+WRITE_ENDPOINTS = [
     ("POST", "/tickets", {"client_id": "{ana}", "first_message": "Hola"}),
-    ("GET", "/tickets", None),
-    ("GET", "/tickets/{ticket}", None),
     ("POST", "/tickets/{ticket}/close", None),
     ("POST", "/tickets/{ticket}/reopen", None),
     ("POST", "/tickets/{ticket}/products", {"product_ids": ["{xps}"]}),
     ("DELETE", "/tickets/{ticket}/products/{xps}", None),
     ("POST", "/tickets/{ticket}/milestones", {"content": "Hola"}),
+]
+READ_ENDPOINTS = [
+    ("GET", "/tickets", None),
+    ("GET", "/tickets/{ticket}", None),
     ("GET", "/tickets/{ticket}/milestones", None),
 ]
 
@@ -62,7 +67,7 @@ TICKET_ENDPOINTS = [
     ("GET", "/tickets/{ticket}/milestones", None),
 ]
 
-ENDPOINT_IDS = [f"{method} {path}" for method, path, _ in ALL_ENDPOINTS]
+WRITE_ENDPOINT_IDS = [f"{method} {path}" for method, path, _ in WRITE_ENDPOINTS]
 TICKET_ENDPOINT_IDS = [f"{method} {path}" for method, path, _ in TICKET_ENDPOINTS]
 
 
@@ -108,14 +113,14 @@ def call(
     return client.open(path.format(**ids), method=method, json=resolve(body, ids))
 
 
-@pytest.mark.parametrize("endpoint", ALL_ENDPOINTS, ids=ENDPOINT_IDS)
-def test_admin_cannot_use_any_ticket_endpoint(
+@pytest.mark.parametrize("endpoint", WRITE_ENDPOINTS, ids=WRITE_ENDPOINT_IDS)
+def test_admin_cannot_use_any_ticket_write_endpoint(
     endpoint: tuple[str, str, Any],
     admin_client: FlaskClient,
     db_session: Session,
     world: SimpleNamespace,
 ) -> None:
-    """SPEC-TKT-27 · TC-TKT-27b"""
+    """SPEC-TKT-32 · TC-TKT-32b"""
     before = snapshot(db_session)
 
     response = call(admin_client, endpoint, world)
@@ -129,13 +134,30 @@ def test_admin_cannot_use_any_ticket_endpoint(
 def test_admin_forbidden_wins_over_not_found_and_invalid_body(
     request_: tuple[str, str, Any], admin_client: FlaskClient
 ) -> None:
-    """SPEC-TKT-27 · TC-TKT-27c"""
+    """SPEC-TKT-32 · TC-TKT-32c"""
     method, path, body = request_
 
     response = admin_client.open(path, method=method, json=body)
 
     assert response.status_code == 403
     assert response.get_json() == {"error": "forbidden"}
+
+
+def test_admin_reads_any_ticket_and_gets_not_found_for_a_missing_one(
+    client: FlaskClient, login_as: LoginAs, admin: User, world: SimpleNamespace
+) -> None:
+    """SPEC-TKT-34 · TC-TKT-34c"""
+    login_as(client, world.ana)
+    expected = client.get(f"/tickets/{world.ticket.id}")
+    login_as(client, admin)
+
+    found = client.get(f"/tickets/{world.ticket.id}")
+    missing = client.get("/tickets/9999")
+
+    assert found.status_code == 200
+    assert found.get_json() == expected.get_json()
+    assert missing.status_code == 404
+    assert missing.get_json() == {"error": "ticket_not_found"}
 
 
 @pytest.mark.parametrize("endpoint", TICKET_ENDPOINTS, ids=TICKET_ENDPOINT_IDS)
@@ -276,7 +298,7 @@ def test_a_malformed_product_ids_is_the_same_bad_request_for_every_ticket(
 def test_admin_gets_a_bad_request_for_an_invalid_creation_body_and_forbidden_for_a_valid_one(
     admin_client: FlaskClient, db_session: Session, world: SimpleNamespace
 ) -> None:
-    """SPEC-TKT-27 · TC-TKT-27j"""
+    """SPEC-TKT-32 · TC-TKT-32g"""
     before = snapshot(db_session)
 
     invalid = admin_client.post("/tickets", json={"first_message": ""})
@@ -320,14 +342,14 @@ def normalized(path: str) -> str:
 
 
 def test_the_endpoint_matrix_lists_every_ticket_route_of_the_app(app: Flask) -> None:
-    """SPEC-TKT-27 · TC-TKT-27d"""
+    """SPEC-TKT-32 · TC-TKT-32d"""
     routes = {
         (method, normalized(rule.rule))
         for rule in app.url_map.iter_rules()
         if rule.rule.startswith("/tickets")
         for method in rule.methods - {"HEAD", "OPTIONS"}
     }
-    listed = {(method, normalized(path)) for method, path, _ in ALL_ENDPOINTS}
+    listed = {(method, normalized(path)) for method, path, _ in WRITE_ENDPOINTS + READ_ENDPOINTS}
 
     assert len(routes) == 9
     assert routes == listed
