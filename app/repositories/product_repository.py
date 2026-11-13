@@ -59,7 +59,7 @@ class SqlAlchemyProductRepository:
         self,
         category_id: int | None = None,
         product_type_id: int | None = None,
-        active_only: bool = False,
+        is_active: bool | None = None,
     ) -> list[Product]:
         """Products matching every given filter, ordered by name without case.
 
@@ -72,6 +72,6 @@ class SqlAlchemyProductRepository:
             )
         if product_type_id is not None:
             statement = statement.where(Product.product_type_id == product_type_id)
-        if active_only:
-            statement = statement.where(Product.is_active.is_(True))
+        if is_active is not None:
+            statement = statement.where(Product.is_active == is_active)
         return list(self._session.scalars(statement))

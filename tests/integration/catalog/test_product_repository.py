@@ -206,13 +206,24 @@ def test_list_matching_with_a_type_outside_the_category_is_empty(
     assert products == []
 
 
-def test_list_matching_active_only_skips_inactive_products(
+def test_list_matching_is_active_true_skips_inactive_products(
     db_session: Session, catalog: dict[str, int]
 ) -> None:
     """SPEC-PRD-10 · TC-PRD-10b"""
-    products = SqlAlchemyProductRepository(db_session).list_matching(active_only=True)
+    products = SqlAlchemyProductRepository(db_session).list_matching(is_active=True)
 
     assert names(products) == ["LaserJet", "xps 13"]
+
+
+def test_list_matching_is_active_is_a_tri_state_filter(
+    db_session: Session, catalog: dict[str, int]
+) -> None:
+    """SPEC-PRD-27 · TC-PRD-27b"""
+    repository = SqlAlchemyProductRepository(db_session)
+
+    assert names(repository.list_matching(is_active=False)) == ["Optiplex"]
+    assert names(repository.list_matching(is_active=True)) == ["LaserJet", "xps 13"]
+    assert names(repository.list_matching()) == ["LaserJet", "Optiplex", "xps 13"]
 
 
 def test_get_many_returns_active_and_inactive_products_ordered_by_id(

@@ -121,13 +121,13 @@ class FakeProductRepository:
         self,
         category_id: int | None = None,
         product_type_id: int | None = None,
-        active_only: bool = False,
+        is_active: bool | None = None,
     ) -> list[Product]:
         matching = [
             p
             for p in self.products.values()
             if category_id in (None, p.product_type.category.id)
             and product_type_id in (None, p.product_type.id)
-            and (p.is_active or not active_only)
+            and is_active in (None, p.is_active)
         ]
         return sorted(matching, key=_by_name)

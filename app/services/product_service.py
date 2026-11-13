@@ -25,7 +25,7 @@ class ProductRepository(Protocol):
         self,
         category_id: int | None = None,
         product_type_id: int | None = None,
-        active_only: bool = False,
+        is_active: bool | None = None,
     ) -> list[Product]: ...
 
 
@@ -92,7 +92,7 @@ class ProductService:
 
     def list_available_products(self) -> list[Product]:
         """Active products: the ones that can be added to a ticket."""
-        return self._products.list_matching(active_only=True)
+        return self._products.list_matching(is_active=True)
 
     def _get_product(self, product_id: int) -> Product:
         product = self._products.get(product_id)
