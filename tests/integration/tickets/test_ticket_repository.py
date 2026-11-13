@@ -1,10 +1,13 @@
+from collections.abc import Iterable
 from datetime import timedelta
+from typing import NamedTuple
 
 import pytest
 from flask import Flask
 from sqlalchemy.orm import Session
 
 from app.db import EXTENSION_KEY
+from app.domain.paging import Page, PageRequest
 from app.domain.ticket import Ticket
 from app.domain.users import User
 from app.repositories.ticket_repository import SqlAlchemyTicketRepository
@@ -341,3 +344,137 @@ def test_list_by_client_orders_newest_first_with_id_descending_on_ties(
     result = SqlAlchemyTicketRepository(db_session).list_by_client(ana.id)
 
     assert [t.id for t in result] == [*sorted((t.id for t in tied), reverse=True), older.id]
+
+
+class ListingData(NamedTuple):
+    ana: User
+    beto: User
+    angela: User
+    raul: User
+    rosa: User
+    t1: Ticket
+    t2: Ticket
+    t3: Ticket
+    t4: Ticket
+
+
+@pytest.fixture
+def listing_data(db_session: Session, make_user: MakeUser, make_ticket: MakeTicket) -> ListingData:
+    ana = make_user("Client", name="Ana")
+    beto = make_user("Client", name="Beto")
+    angela = make_user("Client", name="Ángela")
+    raul = make_user("Representative", name="Raúl")
+    rosa = make_user("Representative", name="Rosa")
+    t0 = DEFAULT_TICKET_TIME
+    t1 = make_ticket(ana, raul, first_message="Hola, no anda el router", now=t0)
+    t2 = make_ticket(beto, raul, first_message="Pedido 50% off", now=t0 + timedelta(hours=1))
+    t3 = make_ticket(ana, rosa, first_message="Factura", now=t0 + timedelta(hours=2))
+    t4 = make_ticket(angela, rosa, first_message="Router roto", now=t0 + timedelta(hours=2))
+    t2.close(beto, t0 + timedelta(hours=3))
+    t3.start_progress(rosa, t0 + timedelta(hours=3))
+    t3.add_milestone("router nuevo", rosa, t0 + timedelta(hours=4))
+    db_session.commit()
+    return ListingData(ana, beto, angela, raul, rosa, t1, t2, t3, t4)
+
+
+def ids(tickets: Iterable[Ticket]) -> list[int]:
+    return [ticket.id for ticket in tickets]
+
+
+def test_search_without_filters_returns_every_ticket_newest_first(
+    db_session: Session, listing_data: ListingData
+) -> None:
+    """SPEC-TKT-33 · TC-TKT-33b"""
+    d = listing_data
+
+    result = SqlAlchemyTicketRepository(db_session).search()
+
+    assert ids(result) == ids([d.t4, d.t3, d.t2, d.t1])
+
+
+def test_search_filters_by_state(db_session: Session, listing_data: ListingData) -> None:
+    """SPEC-TKT-38 · TC-TKT-38b"""
+    d = listing_data
+
+    result = SqlAlchemyTicketRepository(db_session).search(state="New")
+
+    assert ids(result) == ids([d.t4, d.t1])
+
+
+def test_search_filters_by_client_and_combines_filters_with_and(
+    db_session: Session, listing_data: ListingData
+) -> None:
+    """SPEC-TKT-39 · TC-TKT-39b"""
+    d = listing_data
+    repository = SqlAlchemyTicketRepository(db_session)
+
+    assert ids(repository.search(client_id=d.ana.id)) == ids([d.t3, d.t1])
+    assert ids(repository.search(client_id=d.ana.id, representative_id=d.raul.id)) == ids([d.t1])
+
+
+def test_search_with_an_id_that_does_not_fit_matches_nothing_without_querying(
+    db_session: Session, listing_data: ListingData
+) -> None:
+    """SPEC-TKT-39 · TC-TKT-39c"""
+    repository = SqlAlchemyTicketRepository(db_session)
+
+    with count_statements(db_session) as statements:
+        by_client = repository.search(client_id=2**63)
+        page = repository.search(representative_id=2**63, window=PageRequest(1, 20))
+
+    assert by_client == []
+    assert page == Page(items=[], page=1, page_size=20, total=0)
+    assert statements == []
+
+
+def test_search_filters_by_representative(db_session: Session, listing_data: ListingData) -> None:
+    """SPEC-TKT-40 · TC-TKT-40b"""
+    d = listing_data
+
+    result = SqlAlchemyTicketRepository(db_session).search(representative_id=d.rosa.id)
+
+    assert ids(result) == ids([d.t4, d.t3])
+
+
+def test_search_orders_ascending_with_the_id_tie_break_in_the_same_direction(
+    db_session: Session, listing_data: ListingData
+) -> None:
+    """SPEC-TKT-42 · TC-TKT-42b"""
+    d = listing_data
+    repository = SqlAlchemyTicketRepository(db_session)
+
+    assert ids(repository.search(ascending=True)) == ids([d.t1, d.t2, d.t3, d.t4])
+    assert ids(repository.search()) == ids([d.t4, d.t3, d.t2, d.t1])
+
+
+def test_search_combines_representative_and_state_with_and(
+    db_session: Session, listing_data: ListingData
+) -> None:
+    """SPEC-TKT-44 · TC-TKT-44b"""
+    d = listing_data
+
+    result = SqlAlchemyTicketRepository(db_session).search(representative_id=d.raul.id, state="New")
+
+    assert ids(result) == ids([d.t1])
+
+
+@pytest.mark.parametrize("ascending", [False, True])
+def test_search_pages_concatenate_to_the_full_listing_without_overlaps(
+    db_session: Session,
+    make_user: MakeUser,
+    make_ticket: MakeTicket,
+    listing_data: ListingData,
+    ascending: bool,
+) -> None:
+    """SPEC-TKT-45 · TC-TKT-45e"""
+    d = listing_data
+    for _ in range(2):
+        make_ticket(d.ana, d.rosa, now=DEFAULT_TICKET_TIME + timedelta(hours=2))
+    repository = SqlAlchemyTicketRepository(db_session)
+    everything = ids(repository.search(ascending=ascending))
+
+    pages = [repository.search(ascending=ascending, window=PageRequest(p, 2)) for p in (1, 2, 3, 4)]
+
+    assert [page.total for page in pages] == [6, 6, 6, 6]
+    assert [i for page in pages for i in ids(page.items)] == everything
+    assert len(everything) == 6

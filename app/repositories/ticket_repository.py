@@ -5,10 +5,12 @@ from sqlalchemy.orm import Load, Session, selectinload
 
 from app.db import fits_integer_column
 from app.domain.milestone import Milestone
+from app.domain.paging import Page, PageRequest
 from app.domain.products import Product, ProductType
 from app.domain.state_change import StateChange
 from app.domain.ticket import Ticket
 from app.domain.users import User
+from app.repositories.paging import fetch
 
 WITH_PARTICIPANTS_AND_PRODUCTS = (
     selectinload(Ticket.client),
@@ -94,3 +96,39 @@ class SqlAlchemyTicketRepository:
             .order_by(Ticket.created_at.desc(), Ticket.id.desc())
         )
         return list(self._session.scalars(statement))
+
+    def search(
+        self,
+        *,
+        client_id: int | None = None,
+        representative_id: int | None = None,
+        state: str | None = None,
+        ascending: bool = False,
+        window: PageRequest | None = None,
+    ) -> list[Ticket] | Page[Ticket]:
+        """Tickets matching every given filter, by `(created_at, id)`, newest first by default.
+
+        An id SQLite cannot store matches nothing, so the query is not even run.
+        """
+        ids = {Ticket.client_id: client_id, Ticket.representative_id: representative_id}
+        if not all(fits_integer_column(value) for value in ids.values() if value is not None):
+            return _nothing(window)
+        statement = select(Ticket).options(*WITH_PARTICIPANTS_AND_PRODUCTS)
+        for column, value in ids.items():
+            if value is not None:
+                statement = statement.where(column == value)
+        if state is not None:
+            statement = statement.where(Ticket.state_name == state)
+        order = (
+            (Ticket.created_at.asc(), Ticket.id.asc())
+            if ascending
+            else (Ticket.created_at.desc(), Ticket.id.desc())
+        )
+        statement = statement.order_by(*order)
+        return fetch(self._session, statement, window)
+
+
+def _nothing(window: PageRequest | None) -> list[Ticket] | Page[Ticket]:
+    if window is None:
+        return []
+    return Page(items=[], page=window.page, page_size=window.page_size, total=0)
