@@ -1607,6 +1607,19 @@
             }
           }
         }
+      },
+      "InvalidCurrentPassword": {
+        "description": "The current password is wrong (`invalid_current_password`).",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            },
+            "example": {
+              "error": "invalid_current_password"
+            }
+          }
+        }
       }
     },
     "schemas": {
@@ -2133,6 +2146,115 @@
             "description": "When true on a `New` ticket, moves it to `In Progress`. Optional, defaults to false."
           }
         }
+      },
+      "ClientSummary": {
+        "type": "object",
+        "description": "The minimal view of a client that a representative gets: no email, channel or state.",
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "name": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name"
+        ]
+      },
+      "UserPage": {
+        "type": "object",
+        "description": "A page of users.",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/User"
+            }
+          },
+          "page": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "page_size": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 100
+          },
+          "total": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "Matching records across all pages."
+          }
+        },
+        "required": [
+          "items",
+          "page",
+          "page_size",
+          "total"
+        ]
+      },
+      "ClientSummaryPage": {
+        "type": "object",
+        "description": "A page of client summaries.",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ClientSummary"
+            }
+          },
+          "page": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "page_size": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 100
+          },
+          "total": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "Matching records across all pages."
+          }
+        },
+        "required": [
+          "items",
+          "page",
+          "page_size",
+          "total"
+        ]
+      },
+      "ChangePasswordRequest": {
+        "type": "object",
+        "properties": {
+          "current_password": {
+            "type": "string",
+            "description": "The password the session user has now."
+          },
+          "new_password": {
+            "type": "string",
+            "description": "At least 8 characters."
+          }
+        },
+        "required": [
+          "current_password",
+          "new_password"
+        ]
+      },
+      "ResetPasswordRequest": {
+        "type": "object",
+        "properties": {
+          "new_password": {
+            "type": "string",
+            "description": "At least 8 characters."
+          }
+        },
+        "required": [
+          "new_password"
+        ]
       }
     },
     "parameters": {
@@ -2204,6 +2326,19 @@
         "description": "Search text. Empty or whitespace-only text behaves as if `q` was not sent.",
         "schema": {
           "type": "string"
+        }
+      },
+      "IsActive": {
+        "name": "is_active",
+        "in": "query",
+        "required": false,
+        "description": "Filter by state: `true` keeps active records, `false` keeps inactive ones. Any other value, including an empty one or a different case, is rejected with `400`.",
+        "schema": {
+          "type": "string",
+          "enum": [
+            "true",
+            "false"
+          ]
         }
       }
     }
