@@ -95,6 +95,47 @@ def test_get_visible_loads_everything_the_detail_needs_in_few_statements(
         assert len(statements) <= 6
 
 
+def test_get_finds_any_ticket_without_a_participant_filter(
+    app: Flask,
+    db_session: Session,
+    make_user: MakeUser,
+    make_category: MakeCategory,
+    make_product_type: MakeProductType,
+    make_product: MakeProduct,
+    make_ticket: MakeTicket,
+) -> None:
+    """SPEC-TKT-34 · TC-TKT-34b"""
+    ana = make_user("Client", name="Ana")
+    raul = make_user("Representative", name="Raul")
+    notebook = make_product_type(make_category("Hardware"), "Notebook")
+    editor = make_product_type(make_category("Software"), "Editor")
+    products = [
+        make_product(notebook, "XPS 13"),
+        make_product(notebook, "ThinkPad"),
+        make_product(editor, "Vim"),
+    ]
+    ticket = make_ticket(ana, raul, products)
+    ticket_id = ticket.id
+
+    with new_session(app) as session:
+        repository = SqlAlchemyTicketRepository(session)
+        with count_statements(session) as statements:
+            found = repository.get(ticket_id)
+            assert found is not None
+            assert found.client.name == "Ana"
+            assert found.representative.name == "Raul"
+            assert [p.product_type.category.name for p in found.products]
+        assert len(statements) <= 6
+
+        assert repository.get(9999) is None
+        assert repository.get(2**63) is None
+        with_milestones = repository.get_with_milestones(ticket_id)
+        assert with_milestones is not None
+        assert [m.content for m in with_milestones.milestones] == ["Hola"]
+        assert [m.author.name for m in with_milestones.milestones] == ["Raul"]
+        assert repository.get_with_milestones(9999) is None
+
+
 def test_added_ticket_gets_its_id_on_flush_without_committing(
     db_session: Session, make_user: MakeUser
 ) -> None:

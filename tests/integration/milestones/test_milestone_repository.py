@@ -58,6 +58,30 @@ def test_get_visible_with_milestones_keeps_the_chronological_order(
         assert [m.content for m in ticket.milestones] == ["Hola", "C", "B", "D"]
 
 
+def test_get_with_milestones_returns_them_in_order_with_authors_for_any_ticket(
+    app: Flask, db_session: Session, world: SimpleNamespace
+) -> None:
+    """SPEC-MLS-12 · TC-MLS-12b"""
+    ticket_id = world.ticket.id
+    world.ticket.add_milestone("B", world.raul, T2)
+    world.ticket.add_milestone("C", world.ana, T1)
+    db_session.commit()
+
+    with new_session(app) as session:
+        repository = SqlAlchemyTicketRepository(session)
+        with count_statements(session) as statements:
+            ticket = repository.get_with_milestones(ticket_id)
+            assert ticket is not None
+            assert [m.content for m in ticket.milestones] == ["Hola", "C", "B"]
+            for milestone in ticket.milestones:
+                assert milestone.author.name
+                assert milestone.author.role
+        assert len(statements) <= 8
+
+        assert repository.get_with_milestones(9999) is None
+        assert repository.get_with_milestones(2**63) is None
+
+
 def _statements_to_walk(app: Flask, ticket_id: int, actor_id: int, actor_type: type) -> int:
     with new_session(app) as session:
         actor = session.get_one(actor_type, actor_id)

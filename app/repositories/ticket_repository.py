@@ -16,6 +16,7 @@ WITH_PARTICIPANTS_AND_PRODUCTS = (
     .selectinload(Product.product_type)
     .selectinload(ProductType.category),
 )
+WITH_MILESTONES = (selectinload(Ticket.milestones).selectinload(Milestone.author),)
 
 
 class SqlAlchemyTicketRepository:
@@ -34,31 +35,37 @@ class SqlAlchemyTicketRepository:
 
         An id SQLite cannot store matches nothing, so it never reaches the query.
         """
-        return self._find_visible(ticket_id, actor, ())
+        return self._find(ticket_id, actor, ())
 
     def get_visible_with_milestones(self, ticket_id: int, actor: User) -> Ticket | None:
         """Like `get_visible`, with the milestones and their authors loaded."""
-        return self._find_visible(
-            ticket_id, actor, (selectinload(Ticket.milestones).selectinload(Milestone.author),)
-        )
+        return self._find(ticket_id, actor, WITH_MILESTONES)
 
-    def _find_visible(
-        self, ticket_id: int, actor: User, extra_options: tuple[Load, ...]
+    def get(self, ticket_id: int) -> Ticket | None:
+        """The ticket whoever its participants are, else `None` (for the `Admin`)."""
+        return self._find(ticket_id, None, ())
+
+    def get_with_milestones(self, ticket_id: int) -> Ticket | None:
+        """Like `get`, with the milestones and their authors loaded."""
+        return self._find(ticket_id, None, WITH_MILESTONES)
+
+    def _find(
+        self, ticket_id: int, participant: User | None, extra_options: tuple[Load, ...]
     ) -> Ticket | None:
         if not fits_integer_column(ticket_id):
             return None
-        statement = self._visible_statement(ticket_id, actor).options(*extra_options)
+        statement = self._ticket_statement(ticket_id, participant).options(*extra_options)
         return self._session.scalars(statement).one_or_none()
 
     @staticmethod
-    def _visible_statement(ticket_id: int, actor: User) -> Select[tuple[Ticket]]:
-        return (
-            select(Ticket)
-            .options(*WITH_PARTICIPANTS_AND_PRODUCTS)
-            .where(
-                Ticket.id == ticket_id,
-                or_(Ticket.client_id == actor.id, Ticket.representative_id == actor.id),
-            )
+    def _ticket_statement(ticket_id: int, participant: User | None) -> Select[tuple[Ticket]]:
+        statement = (
+            select(Ticket).options(*WITH_PARTICIPANTS_AND_PRODUCTS).where(Ticket.id == ticket_id)
+        )
+        if participant is None:
+            return statement
+        return statement.where(
+            or_(Ticket.client_id == participant.id, Ticket.representative_id == participant.id)
         )
 
     def list_by_client(self, client_id: int) -> list[Ticket]:
