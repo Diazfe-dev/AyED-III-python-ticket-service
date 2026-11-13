@@ -357,8 +357,8 @@ def test_the_endpoint_matrix_lists_every_ticket_route_of_the_app(app: Flask) -> 
     assert routes == listed
 
 
-def test_every_ticket_operation_documents_its_forbidden_with_ticket_forbidden() -> None:
-    """SPEC-TKT-27 · TC-TKT-27e"""
+def test_only_ticket_writes_and_the_listing_document_a_forbidden_with_ticket_forbidden() -> None:
+    """SPEC-TKT-32 · TC-TKT-32e"""
     contract = json.loads(OPENAPI_CONTRACT.read_text(encoding="utf-8"))
     operations = [
         (path, method, operation)
@@ -371,8 +371,13 @@ def test_every_ticket_operation_documents_its_forbidden_with_ticket_forbidden() 
     error_schema = ticket_forbidden["content"]["application/json"]
 
     assert len(operations) == 9
-    for _, _, operation in operations:
-        assert operation["responses"]["403"] == {"$ref": "#/components/responses/TicketForbidden"}
+    for path, method, operation in operations:
+        if method == "get" and path != "/tickets":
+            assert "403" not in operation["responses"], (method, path)
+        else:
+            assert operation["responses"]["403"] == {
+                "$ref": "#/components/responses/TicketForbidden"
+            }
     assert error_schema["schema"] == {"$ref": "#/components/schemas/Error"}
     assert error_schema["example"] == {"error": "forbidden"}
 

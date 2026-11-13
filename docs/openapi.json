@@ -1323,7 +1323,7 @@
       ],
       "get": {
         "summary": "Get a ticket",
-        "description": "The client of the ticket and its assigned representative. Any other user, including another client or representative, gets the same `404` as for a ticket that does not exist or whose id is out of range. Admins receive `403`.",
+        "description": "The client of the ticket, its assigned representative and admins. Any other user, including another client or representative, gets the same `404` as for a ticket that does not exist or whose id is out of range. Admins read any ticket; a missing one is `404`.",
         "operationId": "getTicket",
         "tags": [
           "tickets"
@@ -1341,9 +1341,6 @@
           },
           "401": {
             "$ref": "#/components/responses/AuthenticationRequired"
-          },
-          "403": {
-            "$ref": "#/components/responses/TicketForbidden"
           },
           "404": {
             "$ref": "#/components/responses/TicketNotFound"
@@ -1592,7 +1589,7 @@
       },
       "get": {
         "summary": "List the milestones of a ticket",
-        "description": "The client of the ticket and its assigned representative, in any state of the ticket. Milestones come in chronological order (oldest first), with their author (id, name and role). Any other user gets the same `404` as for a ticket that does not exist or whose id is out of range. Admins receive `403`.",
+        "description": "The client of the ticket, its assigned representative and admins, in any state of the ticket. Milestones come in chronological order (oldest first), with their author (id, name and role). Any other user gets the same `404` as for a ticket that does not exist or whose id is out of range. Admins read the milestones of any ticket; a missing one is `404`.",
         "operationId": "listMilestones",
         "tags": [
           "tickets"
@@ -1613,9 +1610,6 @@
           },
           "401": {
             "$ref": "#/components/responses/AuthenticationRequired"
-          },
-          "403": {
-            "$ref": "#/components/responses/TicketForbidden"
           },
           "404": {
             "$ref": "#/components/responses/TicketNotFound"
@@ -1887,7 +1881,7 @@
         }
       },
       "TicketForbidden": {
-        "description": "The session user may not perform this operation on tickets (`forbidden`): an administrator, or a user who is not allowed to act on the ticket (for example a client changing its products).",
+        "description": "The session user may not perform this operation on tickets (`forbidden`): an administrator on any write operation, a forbidden listing filter (`client_id` for clients, `representative_id` for clients and representatives), a non-representative creating a ticket, or a user who is not allowed to act on the ticket (for example a client changing its products).",
         "content": {
           "application/json": {
             "schema": {
