@@ -48,6 +48,20 @@ export function homeOf(role) {
   return HOMES[role];
 }
 
+export function routeOf(screen) {
+  const entry = Object.entries(ROUTES).find(([, route]) => route.screen === screen);
+  return entry ? entry[0] : null;
+}
+
+const SHARED_INSTANCES = [["tickets-list", "ticket-new"]];
+
+export function sharesScreenInstance(current, next) {
+  if (current === null || next === null || current === undefined || next === undefined) {
+    return false;
+  }
+  return SHARED_INSTANCES.some((group) => group.includes(current) && group.includes(next));
+}
+
 export function navItems(role) {
   return (NAV[role] ?? []).map((item) => ({ ...item }));
 }

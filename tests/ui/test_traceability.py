@@ -174,11 +174,11 @@ def cited_ids() -> set[str]:
     return cited
 
 
-def test_spec_md_yields_136_unique_ids_from_the_table_rows():
-    """SPEC-UI-121 reads the 136 IDs from the table rows only (TC-UI-121b)"""
+def test_spec_md_yields_172_unique_ids_from_the_table_rows():
+    """SPEC-UI-121 reads the 172 IDs from the table rows only (TC-UI-121b)"""
     ids = spec_ids()
-    assert len(ids) == 136
-    assert len(set(ids)) == 136
+    assert len(ids) == 172
+    assert len(set(ids)) == 172
 
 
 def test_every_spec_is_cited_by_at_least_one_test():

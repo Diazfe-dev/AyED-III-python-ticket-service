@@ -1,0 +1,90 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-11-13T00:00:00Z",
+  "title": "Design System: Mesa de ayuda",
+  "extensions": {
+    "colorMeta": {
+      "ink": { "role": "neutral", "displayName": "Counter Ink", "canonical": "#1f2933", "tonalRamp": ["#0b0f13", "#141b21", "#1f2933", "#323f4b", "#52606d", "#7b8794", "#cbd2d9", "#f5f7fa"] },
+      "ink-muted": { "role": "neutral", "displayName": "Quiet Ink", "canonical": "#3e4c59", "tonalRamp": ["#10151a", "#1f2933", "#323f4b", "#3e4c59", "#616e7c", "#7b8794", "#cbd2d9", "#f0f4f8"] },
+      "paper": { "role": "neutral", "displayName": "Cool Paper", "canonical": "#f5f7fa", "tonalRamp": ["#323f4b", "#52606d", "#7b8794", "#9aa5b1", "#cbd2d9", "#e4e7eb", "#f0f4f8", "#f5f7fa"] },
+      "rule": { "role": "neutral", "displayName": "Hairline Gray", "canonical": "#cbd2d9", "tonalRamp": ["#323f4b", "#52606d", "#7b8794", "#9aa5b1", "#b0b9c3", "#cbd2d9", "#e4e7eb", "#f5f7fa"] },
+      "focus-blue": { "role": "primary", "displayName": "Focus Blue", "canonical": "#1d4ed8", "tonalRamp": ["#0f2a75", "#1239a6", "#1d4ed8", "#3b6ae8", "#6b8ff0", "#9bb2f5", "#c9d6fa", "#eaf0fd"] },
+      "error-red": { "role": "semantic", "displayName": "Error Red", "canonical": "#8a1c1c", "tonalRamp": ["#3d0c0c", "#5c1212", "#8a1c1c", "#b02b2b", "#cf5c5c", "#e29a9a", "#f2c9c9", "#fbeaea"] },
+      "success-green": { "role": "semantic", "displayName": "Success Green", "canonical": "#14532d", "tonalRamp": ["#082a17", "#0e3c20", "#14532d", "#1f7a45", "#3fa066", "#7bc79a", "#b8e3c9", "#e6f5ec"] },
+      "disabled-ink": { "role": "neutral", "displayName": "Disabled Ink", "canonical": "#4b5563", "tonalRamp": ["#111827", "#1f2937", "#374151", "#4b5563", "#6b7280", "#9ca3af", "#d1d5db", "#f3f4f6"] },
+      "disabled-fill": { "role": "neutral", "displayName": "Disabled Fill", "canonical": "#e5e7eb", "tonalRamp": ["#4b5563", "#6b7280", "#9ca3af", "#b8bec7", "#d1d5db", "#e5e7eb", "#f3f4f6", "#f9fafb"] }
+    },
+    "typographyMeta": {
+      "body": { "displayName": "Body", "purpose": "All text; system font stack." },
+      "brand": { "displayName": "Brand", "purpose": "Product name in the header, bold." }
+    },
+    "shadows": [],
+    "motion": [],
+    "breakpoints": []
+  },
+  "components": [
+    {
+      "name": "Shell",
+      "kind": "nav",
+      "refersTo": "shell",
+      "description": "Header row with brand and navigation, hairline underneath.",
+      "html": "<header class=\"ds-shell\"><span class=\"ds-brand\">Mesa de ayuda</span><nav class=\"ds-nav\"><a href=\"#/tickets\">Tickets</a><a href=\"#/account\">Cuenta</a></nav></header>",
+      "css": ".ds-shell { display: flex; flex-wrap: wrap; gap: 1rem; align-items: center; padding: 1rem; border-bottom: 1px solid #cbd2d9; color: #1f2933; font-family: system-ui, -apple-system, \"Segoe UI\", Roboto, sans-serif; } .ds-brand { font-weight: 700; } .ds-nav { display: flex; flex-wrap: wrap; gap: 0.5rem 1rem; } .ds-nav a:focus-visible { outline: 3px solid #1d4ed8; outline-offset: 2px; }"
+    },
+    {
+      "name": "Error Message",
+      "kind": "custom",
+      "refersTo": "message-error",
+      "description": "Alert bar for API errors.",
+      "html": "<div class=\"ds-message-error\" role=\"alert\">No se pudo guardar el ticket.</div>",
+      "css": ".ds-message-error { padding: 1rem; color: #8a1c1c; font-weight: 600; font-family: system-ui, -apple-system, \"Segoe UI\", Roboto, sans-serif; }"
+    },
+    {
+      "name": "Status Message",
+      "kind": "custom",
+      "refersTo": "message-status",
+      "description": "Confirmation bar for successful actions.",
+      "html": "<div class=\"ds-message-status\" role=\"status\">Contraseña actualizada.</div>",
+      "css": ".ds-message-status { padding: 1rem; color: #14532d; font-family: system-ui, -apple-system, \"Segoe UI\", Roboto, sans-serif; }"
+    },
+    {
+      "name": "Form Field",
+      "kind": "input",
+      "refersTo": "control-disabled",
+      "description": "Label above a native control; focus and disabled states styled.",
+      "html": "<div class=\"ds-field\"><label for=\"ds-email\">Correo electrónico</label><input id=\"ds-email\" type=\"email\"></div>",
+      "css": ".ds-field { margin: 0 0 0.75rem; font-family: system-ui, -apple-system, \"Segoe UI\", Roboto, sans-serif; color: #1f2933; } .ds-field label { display: block; } .ds-field input { max-width: 100%; } .ds-field input:focus-visible { outline: 3px solid #1d4ed8; outline-offset: 2px; } .ds-field input:disabled { color: #4b5563; background: #e5e7eb; cursor: not-allowed; }"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Service Counter",
+    "overview": "A service counter is plain on purpose: the person behind it is there to get something done, not to admire the furniture. This interface works the same way. It sets a calm cool-gray page, one system typeface, a hairline under the header, and leaves everything else (buttons, inputs, selects, tables) to the browser's native controls. The ticket data is the content; the chrome stays out of its way.",
+    "keyCharacteristics": [
+      "Native controls, unstyled; the browser supplies buttons, inputs, selects and tables.",
+      "One system font stack, no web fonts, no external origins (SPEC-UI-06).",
+      "Cool-gray page, near-black text, one blue reserved for focus.",
+      "Single centered column, 64rem maximum.",
+      "Flat: no shadows, no radii, one hairline border."
+    ],
+    "rules": [
+      { "name": "The Blue Is Focus Rule", "body": "Focus Blue appears only as the focus outline. If it shows up as a fill, a link or a heading, it has been misused.", "section": "colors" },
+      { "name": "The Text-Not-Tint Rule", "body": "State messages are colored text, not colored panels. Error is bold; success is not.", "section": "colors" },
+      { "name": "The No-Webfont Rule", "body": "No font files and no external font requests. The stack must resolve locally.", "section": "typography" },
+      { "name": "The Flat-By-Default Rule", "body": "Surfaces stay flat at rest. Introduce a shadow only if a future overlay genuinely needs separation from the page.", "section": "elevation" }
+    ],
+    "dos": [
+      "Do keep native controls and add styling only where a state or layout need cannot be met without it.",
+      "Do keep the Focus Blue outline on every focusable element (3px, 2px offset).",
+      "Do use only the system font stack and same-origin assets.",
+      "Do express disabled state with `disabled` or `aria-disabled=\"true\"`, which the spec requires while a request is in flight (SPEC-UI-134).",
+      "Do keep copy and labels in Spanish."
+    ],
+    "donts": [
+      "Don't load web fonts, icon fonts, CDN scripts or external stylesheets (SPEC-UI-06).",
+      "Don't use Focus Blue as a fill, link or decoration color.",
+      "Don't add shadows, gradients or rounded decoration to a flat, counter-plain system without an explicit design decision.",
+      "Don't put business rules in styling or markup; permissions and transitions belong to the API.",
+      "Don't convey state with color alone; pair it with text."
+    ]
+  }
+}

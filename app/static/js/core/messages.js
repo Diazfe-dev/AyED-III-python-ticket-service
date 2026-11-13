@@ -26,6 +26,7 @@ export const API_ERROR_MESSAGES = Object.freeze({
 
 export const OWN_MESSAGES = Object.freeze({
   passwordUpdated: "Contraseña actualizada.",
+  passwordReset: "Contraseña restablecida.",
   userCreated: "Usuario creado.",
   sessionExpired: "Tu sesión venció. Inicia sesión nuevamente.",
 });

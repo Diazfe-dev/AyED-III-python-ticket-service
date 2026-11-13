@@ -1,0 +1,20 @@
+{
+  "detector": {
+    "ignoreRules": [],
+    "ignoreFiles": [],
+    "ignoreValues": [
+      {
+        "rule": "design-system-font",
+        "value": "material symbols outlined",
+        "createdAt": "2026-11-13T19:19:52.498Z",
+        "reason": "user confirmed Roboto and local Material icons on 2026-11-13; DESIGN.md is regenerated at the end of the redesign"
+      },
+      {
+        "rule": "overused-font",
+        "value": "roboto",
+        "createdAt": "2026-11-13T19:20:43.773Z",
+        "reason": "user confirmed on 2026-11-13: Material UI look pinned, with Roboto self-hosted"
+      }
+    ]
+  }
+}

@@ -1,14 +1,18 @@
 import { translateError } from "../core/messages.js";
 import {
   applyFilter,
+  changePageSize,
+  hasNext,
   lastValidPage,
   listState,
+  memoryPage,
   nextPage,
   previousPage,
   reloadQuery,
 } from "../core/query.js";
-import { renderPaginator } from "./paginator.js";
+import { createFooter } from "./paginator.js";
 import { clear, el, emptyResults, loadingIndicator } from "./render.js";
+import { buildTable } from "./table.js";
 
 const LIST_KEY = "list";
 const LIST_CONTEXT = "list";
@@ -50,50 +54,49 @@ export async function fillOptions({ select, request, path, key, showError }) {
   }
 }
 
-function buildTable(columns, items, row) {
-  const head = el("tr", {}, columns.map((name) => el("th", { scope: "col" }, [name])));
-  const body = items.map((item) => el("tr", {}, row(item).map((cell) => el("td", {}, [cell]))));
-  return el("div", { class: "table-scroll" }, [
-    el("table", {}, [el("thead", {}, [head]), el("tbody", {}, body)]),
-  ]);
+function listingFrame(footerHandlers) {
+  const body = el("div", { class: "listing-body" });
+  const footer = createFooter(footerHandlers);
+  const element = el("div", { class: "listing" }, [body, footer.element]);
+  return { element, body, footer };
 }
 
-export function createListing({ request, showError, path, columns, row, filters = {} }) {
+function drawBody(body, { label, columns, row, items }) {
+  clear(body);
+  body.append(items.length === 0 ? emptyResults() : buildTable({ label, columns, items, row }));
+}
+
+export function createListing({ request, showError, path, label, columns, row, filters = {} }) {
   let state = listState(filters, 1);
-  const element = el("div", { class: "listing" });
+  const frame = listingFrame({
+    onPrevious: () => go(previousPage(state)),
+    onNext: () => go(nextPage(state)),
+    onPageSize: (size) => go(changePageSize(state, size)),
+  });
 
   function draw(body) {
-    clear(element);
-    if (body.items.length === 0) {
-      element.append(emptyResults());
-    } else {
-      element.append(buildTable(columns, body.items, row));
-    }
-    if (body.total > 0) {
-      element.append(
-        renderPaginator({
-          state,
-          body,
-          onPrevious: () => go(previousPage(state)),
-          onNext: () => go(nextPage(state)),
-        }),
-      );
-    }
+    drawBody(frame.body, { label, columns, row, items: body.items });
+    frame.footer.update({
+      page: body.page,
+      pageSize: state.pageSize,
+      total: body.total,
+      hasNext: hasNext({ page: body.page, page_size: state.pageSize, total: body.total }),
+    });
   }
 
   async function load({ clampToLastPage = false } = {}) {
     showError("");
-    clear(element);
-    element.append(loadingIndicator());
+    clear(frame.body);
+    frame.body.append(loadingIndicator());
     const response = await request("GET", reloadQuery(path, state), undefined, LIST_KEY);
-    if (!element.isConnected) {
+    if (!frame.element.isConnected) {
       return;
     }
     if (response.ok && clampToLastPage && response.body.items.length === 0 && response.body.total > 0) {
-      state = listState(state.filters, lastValidPage(response.body.total));
+      state = listState(state.filters, lastValidPage(response.body.total, state.pageSize), state.pageSize);
       return load();
     }
-    clear(element);
+    clear(frame.body);
     if (response.ok) {
       draw(response.body);
     } else {
@@ -107,10 +110,59 @@ export function createListing({ request, showError, path, columns, row, filters 
   }
 
   return {
-    element,
+    element: frame.element,
     load,
     reload: () => load({ clampToLastPage: true }),
     apply: (changes) => go(applyFilter(state, changes)),
+    state: () => state,
+  };
+}
+
+export function createMemoryListing({ fetchItems, showError, label, columns, row }) {
+  let state = listState({}, 1);
+  let items = [];
+  const frame = listingFrame({
+    onPrevious: () => show(previousPage(state)),
+    onNext: () => show(nextPage(state)),
+    onPageSize: (size) => show(changePageSize(state, size)),
+  });
+
+  function show(next) {
+    state = next;
+    const view = memoryPage(items, state.page, state.pageSize);
+    state = listState(state.filters, view.page, state.pageSize);
+    drawBody(frame.body, { label, columns, row, items: view.items });
+    frame.footer.update({
+      page: view.page,
+      pageSize: view.pageSize,
+      total: view.total,
+      hasNext: hasNext({ page: view.page, page_size: view.pageSize, total: view.total }),
+    });
+  }
+
+  async function load(next) {
+    state = next;
+    showError("");
+    clear(frame.body);
+    frame.body.append(loadingIndicator());
+    const result = await fetchItems(state.filters.q ?? "");
+    if (!frame.element.isConnected) {
+      return;
+    }
+    clear(frame.body);
+    if (result.ok) {
+      items = result.items;
+      show(next);
+    } else {
+      showError(result.message);
+    }
+  }
+
+  return {
+    element: frame.element,
+    load: () => load(state),
+    reload: () => load(state),
+    apply: (changes) => load(applyFilter(state, changes)),
     state: () => state,
   };
 }

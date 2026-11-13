@@ -23,13 +23,15 @@ async function openProductTypes(page, items = [LAPTOP, ROUTER]) {
   return api;
 }
 
-test("SPEC-UI-50 groups the product types by category (TC-UI-50a)", async ({ page }) => {
+test("SPEC-UI-50 shows each product type in a table row with its category (TC-UI-50a)", async ({
+  page,
+}) => {
   const api = await openProductTypes(page);
-  const computing = page.getByRole("group", { name: "Computación" });
-  const networks = page.getByRole("group", { name: "Redes" });
-  await expect(computing.getByText("Notebook", { exact: true })).toBeVisible();
-  await expect(networks.getByText("Router", { exact: true })).toBeVisible();
-  await expect(computing.getByText("Router", { exact: true })).toHaveCount(0);
+  const notebook = page.getByRole("row").filter({ hasText: "Notebook" });
+  const router = page.getByRole("row").filter({ hasText: "Router" });
+  await expect(notebook).toContainText("Computación");
+  await expect(router).toContainText("Redes");
+  await expect(notebook).not.toContainText("Redes");
   expect(listRequests(api).find((r) => /\/product-types$/.test(r.url))).toBeTruthy();
 });
 
@@ -58,7 +60,8 @@ test("SPEC-UI-90 creates a product type with the category from the selector (TC-
     status: 201,
     body: { id: 9, name: "Monitor", category_id: 3 },
   });
-  const form = page.getByRole("form", { name: "Nuevo tipo de producto" });
+  await page.getByRole("main").getByRole("button", { name: "Nuevo tipo de producto" }).click();
+  const form = page.getByRole("dialog", { name: "Nuevo tipo de producto" });
   await expect(form.getByRole("option", { name: "Redes" })).toHaveCount(1);
   await form.getByLabel("Nombre", { exact: true }).fill("Monitor");
   await form.getByLabel("Categoría", { exact: true }).selectOption({ label: "Computación" });
@@ -70,7 +73,8 @@ test("SPEC-UI-90 creates a product type with the category from the selector (TC-
 test("SPEC-UI-90 shows the API error on a duplicate type (TC-UI-90a)", async ({ page }) => {
   const api = await openProductTypes(page);
   api.on("POST", "/product-types", { status: 409, body: { error: "duplicate_product_type" } });
-  const form = page.getByRole("form", { name: "Nuevo tipo de producto" });
+  await page.getByRole("main").getByRole("button", { name: "Nuevo tipo de producto" }).click();
+  const form = page.getByRole("dialog", { name: "Nuevo tipo de producto" });
   await form.getByLabel("Nombre", { exact: true }).fill("Notebook");
   await form.getByRole("button", { name: "Crear" }).click();
   await expect(form.getByRole("alert")).toHaveText(
@@ -85,9 +89,10 @@ test("SPEC-UI-91 edits the name and category of a product type (TC-UI-91a)", asy
     body: { id: 4, name: "Laptop", category_id: 5 },
   });
   await page.getByRole("button", { name: "Editar Notebook" }).click();
-  await page.getByLabel("Nuevo nombre de Notebook").fill("Laptop");
-  await page.getByLabel("Nueva categoría de Notebook").selectOption({ label: "Redes" });
-  await page.getByRole("button", { name: "Guardar" }).click();
+  const edit = page.getByRole("dialog", { name: "Editar tipo de producto" });
+  await edit.getByLabel("Nombre", { exact: true }).fill("Laptop");
+  await edit.getByLabel("Categoría", { exact: true }).selectOption({ label: "Redes" });
+  await edit.getByRole("button", { name: "Guardar" }).click();
   await expect.poll(() => writes(api, "PATCH").length).toBe(1);
   expect(writes(api, "PATCH")[0].url).toMatch(/\/product-types\/4$/);
   expect(writes(api, "PATCH")[0].body).toEqual({ name: "Laptop", category_id: 5 });

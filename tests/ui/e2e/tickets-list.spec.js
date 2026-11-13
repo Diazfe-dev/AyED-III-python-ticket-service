@@ -148,7 +148,7 @@ test("SPEC-UI-101 shows the paginator with the page number and the total (TC-UI-
   await expect(page.getByRole("button", { name: "Anterior" })).toBeVisible();
   await expect(page.getByRole("button", { name: "Siguiente" })).toBeVisible();
   await expect(page.getByText("Página 1")).toBeVisible();
-  await expect(page.getByText("45 resultados")).toBeVisible();
+  await expect(page.getByText("1–20 de 45")).toBeVisible();
 });
 
 test("SPEC-UI-102 requests the next page with the same filters (TC-UI-102b)", async ({ page }) => {

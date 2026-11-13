@@ -25,6 +25,11 @@ const settle = (page) =>
     () => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))),
   );
 const heading = (page, name) => page.getByRole("heading", { name, exact: true });
+const dialogOf = (page) => page.getByRole("dialog", { name: "Nuevo ticket" });
+const goToHash = (page, hash) =>
+  page.evaluate((value) => {
+    window.location.hash = value;
+  }, hash);
 
 async function openNew(page) {
   const api = await installFakeApi(page);
@@ -32,24 +37,26 @@ async function openNew(page) {
   api.on("GET", "/products/available", { status: 200, body: [NOTEBOOK, NOTEBOOK_PRO, MONITOR] });
   await loginAs(page, api, "Representative");
   await page.goto("/#/tickets/new");
-  await expect(heading(page, "Nuevo ticket")).toBeVisible();
-  await expect(page.getByLabel("Cliente", { exact: true }).locator("option")).toHaveCount(3);
-  await expect(page.getByLabel("Productos", { exact: true }).locator("option")).toHaveCount(3);
+  await expect(heading(page, "Tickets")).toBeVisible();
+  await expect(dialogOf(page)).toBeVisible();
+  await expect(dialogOf(page).getByLabel("Cliente", { exact: true }).locator("option")).toHaveCount(3);
+  await expect(dialogOf(page).getByLabel("Productos", { exact: true }).locator("option")).toHaveCount(3);
   return api;
 }
 
 async function fillForm(page) {
-  await page.getByLabel("Cliente", { exact: true }).selectOption({ label: "Ana Gómez" });
-  await page.getByLabel("Primer mensaje", { exact: true }).fill("No enciende");
-  await page.getByLabel("Productos", { exact: true }).selectOption({ label: "Notebook X" });
+  const dialog = dialogOf(page);
+  await dialog.getByLabel("Cliente", { exact: true }).selectOption({ label: "Ana Gómez" });
+  await dialog.getByLabel("Primer mensaje", { exact: true }).fill("No enciende");
+  await dialog.getByLabel("Productos", { exact: true }).selectOption({ label: "Notebook X" });
 }
 
-async function submitAndLeave(page, api, link) {
+async function submitAndLeave(page, api, hash) {
   const gate = api.defer("POST", "/tickets");
   await fillForm(page);
-  await page.getByRole("button", { name: "Crear ticket" }).click();
+  await dialogOf(page).getByRole("button", { name: "Crear", exact: true }).click();
   await gate.requested;
-  await page.getByRole("link", { name: link, exact: true }).click();
+  await goToHash(page, hash);
   return gate;
 }
 
@@ -57,10 +64,11 @@ test("SPEC-UI-30 shows client, first message and optional products (TC-UI-30a)",
   page,
 }) => {
   await openNew(page);
-  await expect(page.getByLabel("Cliente", { exact: true })).toBeVisible();
-  await expect(page.getByLabel("Primer mensaje", { exact: true })).toBeVisible();
-  await expect(page.getByLabel("Productos", { exact: true })).toBeVisible();
-  await expect(page.getByRole("button", { name: "Crear ticket" })).toBeVisible();
+  const dialog = dialogOf(page);
+  await expect(dialog.getByLabel("Cliente", { exact: true })).toBeVisible();
+  await expect(dialog.getByLabel("Primer mensaje", { exact: true })).toBeVisible();
+  await expect(dialog.getByLabel("Productos", { exact: true })).toBeVisible();
+  await expect(dialog.getByRole("button", { name: "Crear", exact: true })).toBeVisible();
 });
 
 test("SPEC-UI-31 searches clients with q and offers only the returned names (TC-UI-31a)", async ({
@@ -68,9 +76,9 @@ test("SPEC-UI-31 searches clients with q and offers only the returned names (TC-
 }) => {
   const api = await openNew(page);
   api.on("GET", "/clients?q=anita", { status: 200, body: [ANITA] });
-  await page.getByLabel("Buscar cliente", { exact: true }).fill("anita");
-  await page.getByRole("button", { name: "Buscar clientes" }).click();
-  const select = page.getByLabel("Cliente", { exact: true });
+  await dialogOf(page).getByLabel("Buscar cliente", { exact: true }).fill("anita");
+  await dialogOf(page).getByRole("button", { name: "Buscar clientes" }).click();
+  const select = dialogOf(page).getByLabel("Cliente", { exact: true });
   await expect(select.locator("option")).toHaveCount(2);
   expect(await optionTexts(select)).toContain("Anita Torres");
   expect(await optionTexts(select)).not.toContain("Ana Gómez");
@@ -81,9 +89,9 @@ test("SPEC-UI-31 searches clients with q and offers only the returned names (TC-
 test("SPEC-UI-32 searches available products with q (TC-UI-32a)", async ({ page }) => {
   const api = await openNew(page);
   api.on("GET", "/products/available?q=note", { status: 200, body: [NOTEBOOK, NOTEBOOK_PRO] });
-  await page.getByLabel("Buscar producto", { exact: true }).fill("note");
-  await page.getByRole("button", { name: "Buscar productos" }).click();
-  const select = page.getByLabel("Productos", { exact: true });
+  await dialogOf(page).getByLabel("Buscar producto", { exact: true }).fill("note");
+  await dialogOf(page).getByRole("button", { name: "Buscar productos" }).click();
+  const select = dialogOf(page).getByLabel("Productos", { exact: true });
   await expect(select.locator("option")).toHaveCount(2);
   expect(await optionTexts(select)).not.toContain("Monitor 24");
   const last = api.requests.filter((r) => /\/products\/available/.test(r.url)).at(-1);
@@ -94,7 +102,7 @@ test("SPEC-UI-33 creates the ticket and shows its detail (TC-UI-33a)", async ({ 
   const api = await openNew(page);
   api.on("POST", "/tickets", { status: 201, body: CREATED });
   await fillForm(page);
-  await page.getByRole("button", { name: "Crear ticket" }).click();
+  await dialogOf(page).getByRole("button", { name: "Crear", exact: true }).click();
   await expect.poll(() => new URL(page.url()).hash).toBe("#/tickets/15");
   await expect.poll(() => ticketReads(api).length).toBeGreaterThan(0);
   expect(writes(api)[0].body).toEqual({
@@ -110,14 +118,14 @@ test("SPEC-UI-33 marks the fields on a validation error (TC-UI-33a)", async ({ p
     status: 400,
     body: { error: "validation_error", fields: { first_message: "required" } },
   });
-  await page.getByRole("button", { name: "Crear ticket" }).click();
-  await expect(page.getByText("Este campo es obligatorio")).toBeVisible();
+  await dialogOf(page).getByRole("button", { name: "Crear", exact: true }).click();
+  await expect(dialogOf(page).getByText("Este campo es obligatorio")).toBeVisible();
   expect(new URL(page.url()).hash).toBe("#/tickets/new");
 });
 
 test("SPEC-UI-136 ignores a 201 that arrives on another screen (TC-UI-136c)", async ({ page }) => {
   const api = await openNew(page);
-  const gate = await submitAndLeave(page, api, "Mi cuenta");
+  const gate = await submitAndLeave(page, api, "#/account");
   await expect(heading(page, "Mi cuenta")).toBeVisible();
   gate.release(201, CREATED);
   await expect.poll(() => writes(api)[0].status).toBe(201);
@@ -128,7 +136,7 @@ test("SPEC-UI-136 ignores a 201 that arrives on another screen (TC-UI-136c)", as
 
 test("SPEC-UI-136 shows no error for a stale 400 (TC-UI-136c)", async ({ page }) => {
   const api = await openNew(page);
-  const gate = await submitAndLeave(page, api, "Mi cuenta");
+  const gate = await submitAndLeave(page, api, "#/account");
   await expect(heading(page, "Mi cuenta")).toBeVisible();
   gate.release(400, { error: "validation_error", fields: { first_message: "required" } });
   await expect.poll(() => writes(api)[0].status).toBe(400);
@@ -142,22 +150,23 @@ test("SPEC-UI-136 ignores the earlier 201 after leaving and coming back (TC-UI-1
   page,
 }) => {
   const api = await openNew(page);
-  const gate = await submitAndLeave(page, api, "Mi cuenta");
+  const gate = await submitAndLeave(page, api, "#/account");
   await expect(heading(page, "Mi cuenta")).toBeVisible();
   await page.getByRole("link", { name: "Nuevo ticket", exact: true }).click();
-  await expect(heading(page, "Nuevo ticket")).toBeVisible();
+  await expect(heading(page, "Tickets")).toBeVisible();
+  await expect(dialogOf(page)).toBeVisible();
   gate.release(201, CREATED);
   await expect.poll(() => writes(api)[0].status).toBe(201);
   await settle(page);
-  await expect(heading(page, "Nuevo ticket")).toBeVisible();
-  await expect(page.getByLabel("Primer mensaje", { exact: true })).toHaveValue("");
+  await expect(heading(page, "Tickets")).toBeVisible();
+  await expect(dialogOf(page).getByLabel("Primer mensaje", { exact: true })).toHaveValue("");
   expect(new URL(page.url()).hash).toBe("#/tickets/new");
   expect(ticketReads(api)).toHaveLength(0);
 });
 
 async function expectStaleFailureIgnored(page, finish) {
   const api = await openNew(page);
-  const gate = await submitAndLeave(page, api, "Tickets");
+  const gate = await submitAndLeave(page, api, "#/tickets");
   await expect(heading(page, "Tickets")).toBeVisible();
   finish(gate);
   await expect.poll(() => writes(api)[0].status !== undefined || writes(api)[0].aborted).toBe(true);

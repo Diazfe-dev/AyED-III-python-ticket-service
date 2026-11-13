@@ -40,7 +40,7 @@ test("SPEC-UI-22 the seeded representative sees the real tickets (TC-UI-22b)", a
   await expect(
     page.getByRole("row").filter({ hasText: "Ana Gómez" }),
   ).toHaveCount(20);
-  await expect(page.locator(".page-total")).toHaveText("25 resultados");
+  await expect(page.locator(".page-range")).toHaveText("1–20 de 25");
 });
 
 test("SPEC-UI-27 the real detail shows the milestones and the state change (TC-UI-27b)", async ({

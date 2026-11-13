@@ -1,22 +1,39 @@
-import { hasNext, hasPrevious, pageInfo } from "../core/query.js";
+import { PAGE_SIZE_OPTIONS, rangeText } from "../core/query.js";
 import { el } from "./render.js";
 
 const PAGINATOR_LABEL = "Paginación";
+const SIZE_LABEL = "Filas por página";
+const SIZE_ID = "page-size";
 
-function totalText(total) {
-  return total === 1 ? "1 resultado" : `${total} resultados`;
-}
-
-export function renderPaginator({ state, body, onPrevious, onNext }) {
-  const { page, total } = pageInfo(body);
-  const previous = el("button", { type: "button", disabled: !hasPrevious(state) }, ["Anterior"]);
-  const next = el("button", { type: "button", disabled: !hasNext(body) }, ["Siguiente"]);
+export function createFooter({ onPrevious, onNext, onPageSize }) {
+  const select = el(
+    "select",
+    { id: SIZE_ID, name: SIZE_ID },
+    PAGE_SIZE_OPTIONS.map((size) => el("option", { value: size }, [String(size)])),
+  );
+  const range = el("span", { class: "page-range" });
+  const number = el("span", { class: "page-number" });
+  const previous = el("button", { type: "button", disabled: true }, ["Anterior"]);
+  const next = el("button", { type: "button", disabled: true }, ["Siguiente"]);
+  select.addEventListener("change", () => onPageSize(select.value));
   previous.addEventListener("click", onPrevious);
   next.addEventListener("click", onNext);
-  return el("div", { class: "paginator", role: "group", "aria-label": PAGINATOR_LABEL }, [
+  const element = el("div", { class: "table-footer", role: "group", "aria-label": PAGINATOR_LABEL }, [
+    el("div", { class: "page-size" }, [el("label", { for: SIZE_ID }, [SIZE_LABEL]), select]),
+    range,
+    number,
     previous,
-    el("span", { class: "page-number" }, [`Página ${page}`]),
     next,
-    el("span", { class: "page-total" }, [totalText(total)]),
   ]);
+  select.value = "20";
+  return {
+    element,
+    update({ page, pageSize, total, hasNext }) {
+      select.value = String(pageSize);
+      range.textContent = rangeText({ page, pageSize, total });
+      number.textContent = `Página ${page}`;
+      previous.disabled = page <= 1;
+      next.disabled = !hasNext;
+    },
+  };
 }

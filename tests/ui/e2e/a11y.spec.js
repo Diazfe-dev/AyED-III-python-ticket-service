@@ -11,7 +11,7 @@ const USER_ROWS = [
 ];
 const SCREENS = [
   { name: "tickets", role: "Admin", hash: "#/tickets", heading: "Tickets" },
-  { name: "new ticket", role: "Representative", hash: "#/tickets/new", heading: "Nuevo ticket" },
+  { name: "new ticket", role: "Representative", hash: "#/tickets/new", heading: "Tickets" },
   { name: "ticket detail", role: "Representative", hash: "#/tickets/7", heading: "Ticket #7" },
   { name: "account", role: "Client", hash: "#/account", heading: "Mi cuenta" },
   { name: "users", role: "Admin", hash: "#/users", heading: "Usuarios" },
@@ -139,17 +139,18 @@ test("SPEC-UI-68 the whole flow works with the keyboard only (TC-UI-68a)", async
 
   await tabTo(page, { tag: "A", text: "Nuevo ticket" });
   await page.keyboard.press("Enter");
-  await expect(headingOf(page, "Nuevo ticket")).toBeVisible();
-  await expect(page.getByLabel("Cliente", { exact: true }).locator("option")).toHaveCount(3);
+  await expect(page.getByRole("dialog", { name: "Nuevo ticket" })).toBeVisible();
+  await expect(
+    page.getByRole("dialog").getByLabel("Cliente", { exact: true }).locator("option"),
+  ).toHaveCount(3);
 
   await tabTo(page, isField("ticket-client"));
   await page.keyboard.press("ArrowDown");
   await page.keyboard.type("Ana");
-  await page.keyboard.press("Escape");
-  await expect(page.getByLabel("Cliente", { exact: true })).toHaveValue("11");
+  await expect(page.getByRole("dialog").getByLabel("Cliente", { exact: true })).toHaveValue("11");
   await tabTo(page, isField("ticket-message"));
   await page.keyboard.type("No enciende");
-  await tabTo(page, isButton("Crear ticket"));
+  await tabTo(page, isButton("Crear"));
   await page.keyboard.press("Space");
   await expect(headingOf(page, "Ticket #15")).toBeVisible();
 
@@ -373,4 +374,144 @@ test("SPEC-UI-72 text keeps a 4.5:1 contrast while the screen is inert (TC-UI-72
     await expectReadable(page, `${screen.name} inert`);
     logout.release(204);
   }
+});
+
+const focusedHeading = (page) =>
+  page.evaluate(() => {
+    const node = document.activeElement;
+    return node?.tagName === "H1" ? node.textContent : `${node?.tagName}:${node?.textContent}`;
+  });
+
+const navLink = (page, name) =>
+  page.getByRole("navigation").getByRole("link", { name, exact: true });
+
+test("SPEC-UI-137 moves focus to the heading of the login screen (TC-UI-137a)", async ({
+  page,
+}) => {
+  const api = await installFakeApi(page);
+  api.on("GET", "/me", NO_SESSION);
+  await page.goto("/");
+  await expect(headingOf(page, "Iniciar sesión")).toBeVisible();
+  await expect(headingOf(page, "Iniciar sesión")).toBeFocused();
+});
+
+test("SPEC-UI-137 moves focus to the heading of the role home after the session check (TC-UI-137b)", async ({
+  page,
+}) => {
+  const api = await installFakeApi(page);
+  await loginAs(page, api, "Admin");
+  await expect(headingOf(page, "Usuarios")).toBeVisible();
+  expect(await focusedHeading(page)).toBe("Usuarios");
+});
+
+test("SPEC-UI-137 moves focus to the heading of each screen reached from the navigation (TC-UI-137c)", async ({
+  page,
+}) => {
+  const api = await installFakeApi(page);
+  await loginAs(page, api, "Representative");
+  await expect(headingOf(page, "Tickets")).toBeVisible();
+  for (const name of ["Mi cuenta", "Tickets"]) {
+    await navLink(page, name).click();
+    await expect(headingOf(page, name)).toBeVisible();
+    expect(await focusedHeading(page), name).toBe(name);
+  }
+});
+
+test("SPEC-UI-137 moves focus to the first field of the dialog on #/tickets/new (TC-UI-137f)", async ({
+  page,
+}) => {
+  const api = await installFakeApi(page);
+  await loginAs(page, api, "Representative");
+  await expect(headingOf(page, "Tickets")).toBeVisible();
+  await navLink(page, "Nuevo ticket").click();
+  const dialog = page.getByRole("dialog", { name: "Nuevo ticket" });
+  await expect(dialog).toBeVisible();
+  await expect(dialog.locator("input, select, textarea").first()).toBeFocused();
+});
+
+test("SPEC-UI-137 moves focus to the heading of the not-found screen (TC-UI-137d)", async ({
+  page,
+}) => {
+  const api = await installFakeApi(page);
+  await loginAs(page, api, "Client");
+  await expect(headingOf(page, "Tickets")).toBeVisible();
+  await page.evaluate(() => {
+    window.location.hash = "#/does-not-exist";
+  });
+  await expect(page.getByRole("heading", { level: 1 })).not.toHaveText("Tickets");
+  expect(await page.evaluate(() => document.activeElement.tagName)).toBe("H1");
+});
+
+test("SPEC-UI-137 keeps the focus indicator on controls while the heading has no ring (TC-UI-137e)", async ({
+  page,
+}) => {
+  const api = await installFakeApi(page);
+  await loginAs(page, api, "Admin");
+  await expect(headingOf(page, "Usuarios")).toBeFocused();
+  const outline = await headingOf(page, "Usuarios").evaluate(
+    (node) => getComputedStyle(node).outlineStyle,
+  );
+  expect(outline).toBe("none");
+  await page.keyboard.press("Tab");
+  const control = await page.evaluate(() => {
+    const node = document.activeElement;
+    const read = () => {
+      const style = getComputedStyle(node);
+      return { outline: style.outlineStyle, width: style.outlineWidth, shadow: style.boxShadow };
+    };
+    const focused = read();
+    node.blur();
+    const plain = read();
+    node.focus();
+    return { focused, plain };
+  });
+  const ring = control.focused.outline !== "none" && control.focused.width !== "0px";
+  const shadow = control.focused.shadow !== "none" && control.focused.shadow !== control.plain.shadow;
+  expect(ring || shadow).toBe(true);
+});
+
+const currentLinks = (page) =>
+  page.getByRole("navigation").evaluate((nav) =>
+    [...nav.querySelectorAll("a[aria-current]")].map((link) => ({
+      text: link.textContent,
+      value: link.getAttribute("aria-current"),
+    })),
+  );
+
+test("SPEC-UI-138 marks only the navigation link of the shown route for an administrator (TC-UI-138a)", async ({
+  page,
+}) => {
+  const api = await installFakeApi(page);
+  await loginAs(page, api, "Admin");
+  await expect(headingOf(page, "Usuarios")).toBeVisible();
+  expect(await currentLinks(page)).toEqual([{ text: "Usuarios", value: "page" }]);
+  for (const name of ["Mi cuenta", "Tickets", "Productos"]) {
+    await navLink(page, name).click();
+    await expect(headingOf(page, name)).toBeVisible();
+    expect(await currentLinks(page), name).toEqual([{ text: name, value: "page" }]);
+  }
+});
+
+test("SPEC-UI-138 marks only the navigation link of the shown route for a client (TC-UI-138b)", async ({
+  page,
+}) => {
+  const api = await installFakeApi(page);
+  await loginAs(page, api, "Client");
+  await expect(headingOf(page, "Tickets")).toBeVisible();
+  expect(await currentLinks(page)).toEqual([{ text: "Mis tickets", value: "page" }]);
+  await navLink(page, "Mi cuenta").click();
+  await expect(headingOf(page, "Mi cuenta")).toBeVisible();
+  expect(await currentLinks(page)).toEqual([{ text: "Mi cuenta", value: "page" }]);
+});
+
+test("SPEC-UI-138 marks no navigation link on the ticket detail (TC-UI-138c)", async ({ page }) => {
+  const api = await installFakeApi(page);
+  api.on("GET", "/tickets/7", { status: 200, body: ticket(7, "New", CREATED_AT) });
+  await loginAs(page, api, "Representative");
+  await expect(headingOf(page, "Tickets")).toBeVisible();
+  await page.evaluate(() => {
+    window.location.hash = "#/tickets/7";
+  });
+  await expect(headingOf(page, "Ticket #7")).toBeVisible();
+  expect(await currentLinks(page)).toEqual([]);
 });

@@ -1,6 +1,13 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { classify, homeOf, isValidTicketId, navItems } from "../../../app/static/js/core/routes.js";
+import {
+  classify,
+  homeOf,
+  isValidTicketId,
+  navItems,
+  routeOf,
+  sharesScreenInstance,
+} from "../../../app/static/js/core/routes.js";
 
 const ROLES = ["Representative", "Admin", "Client"];
 const MAX_ID = "9223372036854775807";
@@ -108,4 +115,24 @@ test("SPEC-UI-126 sends every hash to login without a session (TC-UI-126a)", () 
   for (const hash of ["", "#/users", "#/tickets/007", "#/tickets/new", "#/desconocido", "#/login"]) {
     assert.deepEqual(classify(hash, null), { kind: "login" }, hash);
   }
+});
+
+test("SPEC-UI-138 maps a screen to the exact route of its navigation link (TC-UI-138d)", () => {
+  assert.equal(routeOf("tickets-list"), "#/tickets");
+  assert.equal(routeOf("ticket-new"), "#/tickets/new");
+  assert.equal(routeOf("account"), "#/account");
+  assert.equal(routeOf("users"), "#/users");
+  assert.equal(routeOf("ticket-detail"), null);
+  assert.equal(routeOf("login"), null);
+  assert.equal(routeOf("not-found"), null);
+});
+
+test("SPEC-UI-170 treats the ticket list and the ticket creation route as one screen instance (TC-UI-170c)", () => {
+  assert.equal(sharesScreenInstance("tickets-list", "ticket-new"), true);
+  assert.equal(sharesScreenInstance("ticket-new", "tickets-list"), true);
+  assert.equal(sharesScreenInstance("tickets-list", "tickets-list"), true);
+  assert.equal(sharesScreenInstance("tickets-list", "ticket-detail"), false);
+  assert.equal(sharesScreenInstance("ticket-new", "account"), false);
+  assert.equal(sharesScreenInstance("users", "users"), false);
+  assert.equal(sharesScreenInstance(null, "tickets-list"), false);
 });

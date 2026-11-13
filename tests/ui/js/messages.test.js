@@ -56,6 +56,7 @@ test("SPEC-UI-56 maps each of the 20 API error codes to its exact text (TC-UI-56
 
 test("SPEC-UI-56 keeps the own interface messages in their table (TC-UI-56a)", () => {
   assert.equal(OWN_MESSAGES.passwordUpdated, "Contraseña actualizada.");
+  assert.equal(OWN_MESSAGES.passwordReset, "Contraseña restablecida.");
   assert.equal(OWN_MESSAGES.userCreated, "Usuario creado.");
   assert.equal(OWN_MESSAGES.sessionExpired, "Tu sesión venció. Inicia sesión nuevamente.");
 });

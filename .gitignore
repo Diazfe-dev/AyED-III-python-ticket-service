@@ -26,3 +26,7 @@ instance/
 node_modules/
 test-results/
 playwright-report/
+
+# Impeccable skill: platform binaries are downloaded and checksum-verified by the launcher
+.claude/skills/impeccable/scripts/bin/
+.agents/skills/impeccable/scripts/bin/

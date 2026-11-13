@@ -1,7 +1,10 @@
 import { activeLabel } from "../core/labels.js";
 import { translateError } from "../core/messages.js";
+import { openFormDialog } from "../dom/dialog.js";
+import { createFields } from "../dom/form.js";
+import { pageHeader, surface, toolbar } from "../dom/layout.js";
 import { createListing, searchField, selectField } from "../dom/listing.js";
-import { clear, el } from "../dom/render.js";
+import { el } from "../dom/render.js";
 
 const COLUMNS = ["Nombre", "Tipo", "Categoría", "Estado", "Acciones"];
 const ALL_OPTION = { value: "", label: "Todos" };
@@ -23,61 +26,40 @@ function typeOptions(productTypes) {
   return productTypes.map((type) => ({ value: type.id, label: type.name }));
 }
 
-function buildForm({ label, productTypes, product, submitLabel, extraButtons = [], onSubmit }) {
-  const prefix = product === undefined ? "product-new" : `product-edit-${product.id}`;
-  const nameInput = el("input", {
-    type: "text",
-    id: `${prefix}-name`,
-    name: "name",
-    autocomplete: "off",
-    value: product?.name ?? "",
-  });
-  const typeSelect = el(
-    "select",
-    { id: `${prefix}-type`, name: "product_type_id" },
-    optionNodes([{ value: "", label: "Seleccione un tipo" }, ...typeOptions(productTypes)]),
-  );
-  typeSelect.value = product === undefined ? "" : String(product.product_type.id);
-  const message = el("p", { class: "message-error", role: "alert" });
-  message.hidden = true;
-  const form = el("form", { "aria-label": label, novalidate: true }, [
-    el("div", { class: "field" }, [el("label", { for: nameInput.id }, ["Nombre"]), nameInput]),
-    el("div", { class: "field" }, [el("label", { for: typeSelect.id }, ["Tipo"]), typeSelect]),
-    message,
-    el("button", { type: "submit" }, [submitLabel]),
-    ...extraButtons,
-  ]);
-  form.addEventListener("submit", (event) => {
-    event.preventDefault();
-    onSubmit({ name: nameInput.value, typeId: typeSelect.value });
-  });
-  return {
-    element: form,
-    reset() {
-      nameInput.value = "";
-      typeSelect.value = "";
-      message.hidden = true;
+function productFields(productTypes, product) {
+  return [
+    { name: "name", label: "Nombre", value: product?.name ?? "" },
+    {
+      name: "product_type_id",
+      label: "Tipo",
+      options: typeOptions(productTypes).map((option) => ({ ...option, value: String(option.value) })),
+      placeholder: "Seleccione un tipo",
+      value: product === undefined ? "" : String(product.product_type.id),
     },
-    showMessage(text) {
-      message.textContent = text;
-      message.hidden = false;
-    },
-  };
+  ];
+}
+
+function writeBody(values) {
+  return { name: values.name, product_type_id: Number(values.product_type_id) };
 }
 
 export function mount({ root, request, showError, showStatus }) {
-  const panel = el("div", { class: "product-panel" });
-  const createSlot = el("div", { class: "product-create" });
   let listing = null;
+  let header = null;
   let productTypes = [];
+  const fallback = () => header.button;
+  const clearMessages = () => {
+    showError("");
+    showStatus("");
+  };
 
-  function closePanel() {
-    clear(panel);
+  async function reloadAfter(dialog) {
+    await listing.reload();
+    dialog.refocus();
   }
 
   async function runAction(promise) {
-    showError("");
-    showStatus("");
+    clearMessages();
     const response = await promise;
     if (response.ok) {
       await listing.reload();
@@ -86,59 +68,51 @@ export function mount({ root, request, showError, showStatus }) {
     showError(translateError(response).message);
   }
 
-  function writeBody({ name, typeId }) {
-    return { name, product_type_id: Number(typeId) };
-  }
-
-  function drawCreate() {
-    clear(createSlot);
-    const form = buildForm({
-      label: "Nuevo producto",
-      productTypes,
+  function openCreate(opener) {
+    clearMessages();
+    openFormDialog({
+      parent: root,
+      id: "product-create",
+      title: "Nuevo producto",
       submitLabel: "Crear",
-      onSubmit: async (values) => {
-        showError("");
-        showStatus("");
-        const response = await request("POST", "/products", writeBody(values));
-        if (response.ok) {
-          form.reset();
-          await listing.reload();
-          return;
+      opener,
+      fallback,
+      form: createFields("product-create", productFields(productTypes)),
+      onSubmit: async (values, dialog) => {
+        clearMessages();
+        const response = await dialog.send(request("POST", "/products", writeBody(values)));
+        if (response) {
+          await reloadAfter(dialog);
         }
-        form.showMessage(translateError(response, "form").message);
       },
     });
-    createSlot.append(form.element);
   }
 
-  function openEdit(product) {
-    const cancel = el("button", { type: "button" }, ["Cancelar"]);
-    cancel.addEventListener("click", closePanel);
-    const form = buildForm({
-      label: "Editar producto",
-      productTypes,
-      product,
+  function openEdit(product, opener) {
+    clearMessages();
+    openFormDialog({
+      parent: root,
+      id: `product-edit-${product.id}`,
+      title: "Editar producto",
       submitLabel: "Guardar",
-      extraButtons: [cancel],
-      onSubmit: async (values) => {
-        showError("");
-        showStatus("");
-        const response = await request("PATCH", `/products/${product.id}`, writeBody(values));
-        if (response.ok) {
-          closePanel();
-          await listing.reload();
-          return;
+      opener,
+      fallback,
+      form: createFields(`product-edit-${product.id}`, productFields(productTypes, product)),
+      onSubmit: async (values, dialog) => {
+        clearMessages();
+        const response = await dialog.send(
+          request("PATCH", `/products/${product.id}`, writeBody(values)),
+        );
+        if (response) {
+          await reloadAfter(dialog);
         }
-        form.showMessage(translateError(response, "form").message);
       },
     });
-    clear(panel);
-    panel.append(form.element);
   }
 
   function actionButton(text, product, onClick) {
     const button = el("button", { type: "button", "aria-label": `${text} ${product.name}` }, [text]);
-    button.addEventListener("click", onClick);
+    button.addEventListener("click", () => onClick(button));
     return button;
   }
 
@@ -155,7 +129,10 @@ export function mount({ root, request, showError, showStatus }) {
       product.product_type.name,
       product.category.name,
       activeLabel(product.is_active),
-      el("div", { class: "row-actions" }, [actionButton("Editar", product, () => openEdit(product)), toggle]),
+      el("div", { class: "row-actions" }, [
+        actionButton("Editar", product, (button) => openEdit(product, button)),
+        toggle,
+      ]),
     ];
   }
 
@@ -163,6 +140,7 @@ export function mount({ root, request, showError, showStatus }) {
     request,
     showError,
     path: "/products",
+    label: title(),
     columns: COLUMNS,
     row: productRow,
   });
@@ -207,25 +185,19 @@ export function mount({ root, request, showError, showStatus }) {
     if (types.ok) {
       productTypes = types.body;
       typeFilter.select.append(...optionNodes(typeOptions(types.body)));
-      drawCreate();
     } else {
       showError(translateError(types, "list").message);
     }
   }
 
+  header = pageHeader({ title: title(), action: { label: "Nuevo producto", onClick: openCreate } });
   root.append(
-    el("h1", {}, [title()]),
-    createSlot,
-    panel,
-    el("div", { class: "filters" }, [
-      statusFilter.element,
-      categoryFilter.element,
-      typeFilter.element,
-      searchForm,
-    ]),
-    listing.element,
+    header.element,
+    surface({
+      toolbar: toolbar([statusFilter.element, categoryFilter.element, typeFilter.element, searchForm]),
+      table: listing.element,
+    }),
   );
-  drawCreate();
   loadSelectors();
   listing.load();
 }

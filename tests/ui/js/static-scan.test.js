@@ -118,7 +118,11 @@ test("SPEC-UI-06 serves source files without a build step (TC-UI-06a)", () => {
   assert.match(index, /<script type="module" src="\/static\/js\/app\.js"><\/script>/);
   assert.match(index, /<link rel="stylesheet" href="\/static\/css\/app\.css">/);
   const css = readFileSync(join(STATIC_DIR, "css/app.css"), "utf8");
-  assert.doesNotMatch(css, /@import|@font-face/);
+  assert.doesNotMatch(css, /@import/);
+  for (const source of css.match(/@font-face\s*{[^}]*}/g) ?? []) {
+    assert.match(source, /url\(\s*["']?\.\.\/fonts\/[\w.-]+\.woff2["']?\s*\)/);
+    assert.deepEqual(externalReferences(sample(".css", source)), []);
+  }
 });
 
 test("SPEC-UI-61 flags secret patterns in sample text (TC-UI-61a)", () => {

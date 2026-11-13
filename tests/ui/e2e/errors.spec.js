@@ -29,9 +29,11 @@ test("SPEC-UI-56 shows the duplicate category message on a 409 (TC-UI-56b)", asy
   await page.goto("/#/categories");
   await expect(heading(page, "Categorías")).toBeVisible();
   api.on("POST", "/categories", { status: 409, body: { error: "duplicate_category" } });
-  await page.getByLabel("Nombre", { exact: true }).fill("Redes");
-  await page.getByRole("button", { name: "Crear" }).click();
-  await expect(page.getByText("Ya existe una categoría con ese nombre.")).toBeVisible();
+  await page.getByRole("main").getByRole("button", { name: "Nueva categoría" }).click();
+  const dialog = page.getByRole("dialog", { name: "Nueva categoría" });
+  await dialog.getByLabel("Nombre", { exact: true }).fill("Redes");
+  await dialog.getByRole("button", { name: "Crear" }).click();
+  await expect(dialog.getByText("Ya existe una categoría con ese nombre.")).toBeVisible();
 });
 
 test("SPEC-UI-58 shows the generic message and hides an internal detail on a 500 (TC-UI-58b)", async ({
