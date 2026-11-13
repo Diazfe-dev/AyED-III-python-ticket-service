@@ -540,7 +540,7 @@ def test_list_product_types_with_q_groups_matches_and_omits_empty_categories(
     sut: ServiceUnderTest, reference_data: Category
 ) -> None:
     """SPEC-PTY-23 · TC-PTY-23a"""
-    groups = sut.service.list_product_types(q="RUT")
+    groups = sut.service.list_product_types(q="R")
 
     assert group_names(groups) == [("Hardware", ["Ruteador USB"]), ("Redes", ["Router"])]
 
