@@ -173,7 +173,7 @@ test('SPEC-UI-142 shows 0 de 0 when the total is 0 (TC-UI-142b)', () => {
   assert.equal(rangeText({ page: 1, pageSize: 20, total: 0 }), '0 de 0');
 });
 
-test('SPEC-UI-143 slices the full array into the visible page (TC-UI-143a)', () => {
+test('SPEC-UI-207 slices the full array into the visible page (TC-UI-207a)', () => {
   const items = Array.from({ length: 57 }, (_, i) => i + 1);
   const first = memoryPage(items, 1, 20);
   assert.equal(first.items.length, 20);
@@ -186,7 +186,7 @@ test('SPEC-UI-143 slices the full array into the visible page (TC-UI-143a)', () 
   assert.deepEqual(memoryPage([], 1, 20), { items: [], page: 1, pageSize: 20, total: 0 });
 });
 
-test('SPEC-UI-145 moves between in-memory pages and sizes without touching the list (TC-UI-145a)', () => {
+test('SPEC-UI-208 moves between in-memory pages and sizes without touching the list (TC-UI-208a)', () => {
   const items = Array.from({ length: 45 }, (_, i) => i);
   const state = listState({}, 1, 20);
   const second = memoryPage(items, nextPage(state).page, state.pageSize);
@@ -199,13 +199,13 @@ test('SPEC-UI-145 moves between in-memory pages and sizes without touching the l
   assert.equal(items.length, 45);
 });
 
-test('SPEC-UI-146 a new search text goes back to page 1 and keeps the size (TC-UI-146a)', () => {
+test('SPEC-UI-209 a new search text goes back to page 1 and keeps the size (TC-UI-209a)', () => {
   const state = listState({ q: 'a' }, 3, 50);
   const next = applyFilter(state, { q: 'b' });
   assert.deepEqual([next.page, next.pageSize, next.filters.q], [1, 50, 'b']);
 });
 
-test('SPEC-UI-147 shows the last valid page when the page is beyond it and keeps it otherwise (TC-UI-147a)', () => {
+test('SPEC-UI-210 shows the last valid page when the page is beyond it and keeps it otherwise (TC-UI-210a)', () => {
   const items = Array.from({ length: 41 }, (_, i) => i);
   assert.equal(memoryPage(items, 5, 20).page, 3);
   assert.equal(memoryPage(items, 3, 20).items.length, 1);
