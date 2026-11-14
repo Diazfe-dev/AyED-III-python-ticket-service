@@ -45,7 +45,7 @@ def test_admin_creates_a_product(
         "id": body["id"],
         "name": "XPS 13",
         "is_active": True,
-        "product_type": {"id": notebook.id, "name": "Notebook", "category_id": hardware.id},
+        "product_type": {"id": notebook.id, "name": "Notebook"},
         "category": {"id": hardware.id, "name": "Hardware"},
     }
     assert stored_products(db_session) == [("XPS 13", notebook.id, True)]
@@ -168,11 +168,7 @@ def expected_json(product: Product) -> dict[str, Any]:
         "id": product.id,
         "name": product.name,
         "is_active": product.is_active,
-        "product_type": {
-            "id": product_type.id,
-            "name": product_type.name,
-            "category_id": product_type.category_id,
-        },
+        "product_type": {"id": product_type.id, "name": product_type.name},
         "category": {"id": product_type.category.id, "name": product_type.category.name},
     }
 
@@ -324,7 +320,7 @@ def test_admin_renames_and_moves_a_product_ignoring_other_keys(
         "id": xps.id,
         "name": "Optiplex",
         "is_active": True,
-        "product_type": {"id": desktop.id, "name": "Desktop", "category_id": hardware.id},
+        "product_type": {"id": desktop.id, "name": "Desktop"},
         "category": {"id": hardware.id, "name": "Hardware"},
     }
     assert stored_products(db_session) == [("Optiplex", desktop.id, True)]

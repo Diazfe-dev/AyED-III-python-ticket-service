@@ -34,11 +34,7 @@ def category_json(category: Category) -> dict[str, Any]:
 
 
 def product_type_json(product_type: ProductType) -> dict[str, Any]:
-    return {
-        "id": product_type.id,
-        "name": product_type.name,
-        "category_id": product_type.category_id,
-    }
+    return {"id": product_type.id, "name": product_type.name}
 
 
 def product_json(product: Product) -> dict[str, Any]:
