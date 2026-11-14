@@ -153,13 +153,32 @@ def test_format_check_rejects_titles_outside_the_format():
     assert title_format_errors("f", "bad but cites SPEC-UI-01", "", False)
 
 
-SPEC_TABLE_ROW = re.compile(r"^\| (SPEC-UI-\d+) \|", re.MULTILINE)
+SPEC_TABLE_ROW = re.compile(r"^\| (SPEC-UI-\d+) \|(.*)$", re.MULTILINE)
+RETIRED_MARK = re.compile(r"\*\*(?:Eliminada|Reemplazada por)\b")
+
+
+def _spec_rows() -> list[tuple[str, bool]]:
+    """Return (ID, retired) for each row of the spec tables, not for the decisions."""
+    text = (ROOT / "specs" / "07-ui" / "spec.md").read_text(encoding="utf-8")
+    return [
+        (spec_id, RETIRED_MARK.search(rest) is not None)
+        for spec_id, rest in SPEC_TABLE_ROW.findall(text)
+    ]
 
 
 def spec_ids() -> list[str]:
-    """Return the SPEC-UI IDs defined in the rows of the spec tables, not in the decisions."""
-    text = (ROOT / "specs" / "07-ui" / "spec.md").read_text(encoding="utf-8")
-    return SPEC_TABLE_ROW.findall(text)
+    """Return every SPEC-UI ID defined in the rows of the spec tables."""
+    return [spec_id for spec_id, _ in _spec_rows()]
+
+
+def current_spec_ids() -> list[str]:
+    """Return the IDs of the rows not marked Eliminada or Reemplazada por."""
+    return [spec_id for spec_id, retired in _spec_rows() if not retired]
+
+
+def retired_spec_ids() -> list[str]:
+    """Return the IDs of the rows marked Eliminada or Reemplazada por."""
+    return [spec_id for spec_id, retired in _spec_rows() if retired]
 
 
 def cited_ids() -> set[str]:
@@ -174,14 +193,24 @@ def cited_ids() -> set[str]:
     return cited
 
 
-def test_spec_md_yields_172_unique_ids_from_the_table_rows():
-    """SPEC-UI-121 reads the 172 IDs from the table rows only (TC-UI-121b)"""
+def test_spec_md_yields_unique_ids_from_the_table_rows():
+    """SPEC-UI-121 reads unique IDs from the table rows only (TC-UI-121b)"""
     ids = spec_ids()
-    assert len(ids) == 172
-    assert len(set(ids)) == 172
+    assert ids
+    assert len(set(ids)) == len(ids)
+    assert set(current_spec_ids()) | set(retired_spec_ids()) == set(ids)
 
 
-def test_every_spec_is_cited_by_at_least_one_test():
-    """SPEC-UI-121 requires a test citing every spec of the area (TC-UI-121a)"""
-    missing = [spec for spec in spec_ids() if spec not in cited_ids()]
+def test_every_current_spec_is_cited_by_at_least_one_test():
+    """SPEC-UI-121 requires a test citing every current spec of the area (TC-UI-121a)"""
+    cited = cited_ids()
+    missing = [spec for spec in current_spec_ids() if spec not in cited]
     assert missing == []
+
+
+def test_retired_specs_are_not_required_to_be_cited():
+    """SPEC-UI-121 does not require a citation of the Eliminada or Reemplazada rows (TC-UI-121c)"""
+    retired = retired_spec_ids()
+    assert retired
+    assert not set(retired) & set(current_spec_ids())
+    assert {"SPEC-UI-49", "SPEC-UI-17"} <= set(retired)
