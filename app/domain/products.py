@@ -40,18 +40,16 @@ class Category(CatalogName, Base):
 
 
 class ProductType(CatalogName, Base):
-    """A kind of product, classified under exactly one category."""
+    """A kind of product: the trade (rubro) that technicians specialize in."""
 
     __tablename__ = "product_types"
-    __table_args__ = (
-        UniqueConstraint("category_id", "name_key", name="uq_product_types_category_name"),
-    )
+    __table_args__ = (UniqueConstraint("name_key", name="uq_product_types_name_key"),)
 
     id: Mapped[int] = mapped_column(primary_key=True)
-    category_id: Mapped[int] = mapped_column(
+    category_id: Mapped[int | None] = mapped_column(
         ForeignKey("categories.id", ondelete="RESTRICT"), index=True
     )
-    category: Mapped[Category] = relationship(back_populates="product_types")
+    category: Mapped[Category | None] = relationship(back_populates="product_types")
     products: Mapped[list["Product"]] = relationship(
         back_populates="product_type", passive_deletes="all"
     )
