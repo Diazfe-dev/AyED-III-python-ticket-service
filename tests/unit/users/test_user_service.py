@@ -695,3 +695,146 @@ def test_authenticate_with_non_text_credentials_is_rejected(
     """SPEC-USR-25 · TC-USR-25c"""
     with pytest.raises(InvalidCredentialsError):
         sut.service.authenticate(email, password)
+
+
+REFERENCE_BODY = {
+    "name": "Nora",
+    "email": "nora@x.com",
+    "role": "Client",
+    "password": "password1",
+}
+
+
+@pytest.fixture
+def rosa(sut: ServiceUnderTest) -> User:
+    return sut.service.create_user("Rosa", "rosa@x.com", "Representative", "password1")
+
+
+@pytest.fixture
+def client_actor(sut: ServiceUnderTest) -> User:
+    return sut.service.create_user("Ana", "ana.client@x.com", "Client", "password1")
+
+
+@pytest.fixture
+def fresh(sut: ServiceUnderTest, rosa: User, client_actor: User) -> ServiceUnderTest:
+    """The service with the actors already stored and the call counters reset."""
+    sut.commit.calls = 0
+    sut.repository.add_calls = 0
+    return sut
+
+
+def test_representative_creates_an_active_client(fresh: ServiceUnderTest, rosa: User) -> None:
+    """SPEC-USR-51 · TC-USR-51a"""
+    user = fresh.service.create_user(**REFERENCE_BODY, actor=rosa)
+
+    assert user.role == "Client"
+    assert user.is_active is True
+    assert user.password_hash == "hashed:password1"
+    assert user.preferred_channel == "mail"
+    assert fresh.repository.get(user.id) is user
+    assert fresh.commit.calls == 1
+
+
+def test_representative_creating_a_client_gets_the_admin_validation(
+    fresh: ServiceUnderTest, rosa: User
+) -> None:
+    """SPEC-USR-51 · TC-USR-51b"""
+    with pytest.raises(ValidationError) as raised:
+        fresh.service.create_user(
+            **{**REFERENCE_BODY, "name": None, "password": "1234567"}, actor=rosa
+        )
+    assert raised.value.fields == {"name": "required", "password": "too_short"}
+    with pytest.raises(ValidationError) as raised:
+        fresh.service.create_user(**REFERENCE_BODY, preferred_channel="sms", actor=rosa)
+    assert raised.value.fields == {"preferred_channel": "invalid"}
+    with pytest.raises(DuplicateUserError):
+        fresh.service.create_user(**{**REFERENCE_BODY, "email": "ROSA@x.com"}, actor=rosa)
+
+    assert fresh.repository.add_calls == 0
+    assert fresh.commit.calls == 0
+
+
+@pytest.mark.parametrize("role", ["Admin", "Representative"])
+def test_representative_cannot_create_other_roles(
+    fresh: ServiceUnderTest, rosa: User, monkeypatch: pytest.MonkeyPatch, role: str
+) -> None:
+    """SPEC-USR-52 · TC-USR-52a"""
+    hashed: list[str] = []
+    monkeypatch.setattr(fresh.hasher, "hash", lambda password: hashed.append(password) or "x")
+
+    with pytest.raises(PermissionDeniedError):
+        fresh.service.create_user(**{**REFERENCE_BODY, "role": role}, actor=rosa)
+
+    assert fresh.repository.add_calls == 0
+    assert fresh.commit.calls == 0
+    assert hashed == []
+
+
+@pytest.mark.parametrize(
+    ("overrides", "expected"),
+    [
+        ({"role": "Root"}, {"role": "invalid"}),
+        ({"role": "Admin", "password": "1234567"}, {"password": "too_short"}),
+    ],
+)
+def test_the_format_is_checked_before_the_role_permission(
+    fresh: ServiceUnderTest, rosa: User, overrides: dict[str, str], expected: dict[str, str]
+) -> None:
+    """SPEC-USR-52 · TC-USR-52b"""
+    with pytest.raises(ValidationError) as raised:
+        fresh.service.create_user(**{**REFERENCE_BODY, **overrides}, actor=rosa)
+
+    assert raised.value.fields == expected
+
+
+def test_the_role_permission_comes_before_the_email_lookup(
+    fresh: ServiceUnderTest, rosa: User
+) -> None:
+    """SPEC-USR-52 · TC-USR-52c"""
+    fresh.service.create_user(**REFERENCE_BODY, actor=rosa)
+
+    with pytest.raises(PermissionDeniedError):
+        fresh.service.create_user(
+            **{**REFERENCE_BODY, "email": "NORA@x.com", "role": "Admin"}, actor=rosa
+        )
+
+
+@pytest.mark.parametrize("role", ["Client", "Admin"])
+def test_client_cannot_create_any_user(
+    fresh: ServiceUnderTest, client_actor: User, role: str
+) -> None:
+    """SPEC-USR-54 · TC-USR-54a"""
+    with pytest.raises(PermissionDeniedError):
+        fresh.service.create_user(**{**REFERENCE_BODY, "role": role}, actor=client_actor)
+
+    assert fresh.repository.add_calls == 0
+    assert fresh.commit.calls == 0
+
+
+def test_client_with_a_malformed_body_gets_the_format_error(
+    fresh: ServiceUnderTest, client_actor: User
+) -> None:
+    """SPEC-USR-54 · TC-USR-54b"""
+    with pytest.raises(ValidationError) as raised:
+        fresh.service.create_user(**{**REFERENCE_BODY, "name": None}, actor=client_actor)
+
+    assert raised.value.fields == {"name": "required"}
+
+
+@pytest.mark.parametrize("role", ["Admin", "Representative", "Client"])
+def test_admin_creates_a_user_of_every_role(
+    fresh: ServiceUnderTest, admin: User, role: str
+) -> None:
+    """SPEC-USR-01 · TC-USR-01e"""
+    user = fresh.service.create_user("Zoe", f"zoe.{role}@x.com", role, "password1", actor=admin)
+
+    assert user.role == role
+    assert user.is_active is True
+
+
+def test_a_system_call_without_actor_creates_an_admin(sut: ServiceUnderTest) -> None:
+    """SPEC-USR-20 · TC-USR-20f"""
+    user = sut.service.create_user("Root", "root@x.com", "Admin", "password1")
+
+    assert user.role == "Admin"
+    assert sut.commit.calls == 1
