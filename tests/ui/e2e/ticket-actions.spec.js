@@ -56,42 +56,44 @@ test("SPEC-UI-34 a client sends a milestone (TC-UI-34b)", async ({ page }) => {
   expect(written(api, "POST", "/milestones")[0].body).toEqual({ content: "Gracias" });
 });
 
-test("SPEC-UI-35 the representative sees the start-work option (TC-UI-35a)", async ({ page }) => {
+test("SPEC-UI-216 the milestone form offers no start-work option (TC-UI-216a)", async ({
+  page,
+}) => {
   await openDetail(page, "Representative", "New");
-  await expect(milestoneForm(page).getByLabel("Comenzar a trabajar")).toBeVisible();
+  await expect(milestoneForm(page)).toBeVisible();
+  await expect(milestoneForm(page).locator("input[type=checkbox]")).toHaveCount(0);
+  await expect(milestoneForm(page)).not.toContainText("Comenzar a trabajar");
 });
 
-test("SPEC-UI-80 the client does not see the start-work option (TC-UI-80b)", async ({ page }) => {
+test("SPEC-UI-216 the client milestone form offers no start-work option (TC-UI-216a)", async ({
+  page,
+}) => {
   await openDetail(page, "Client", "New");
   await expect(milestoneForm(page)).toBeVisible();
-  await expect(page.getByLabel("Comenzar a trabajar")).toHaveCount(0);
-  await expect(page.locator("#app")).not.toContainText("Comenzar a trabajar");
+  await expect(milestoneForm(page).locator("input[type=checkbox]")).toHaveCount(0);
+  await expect(milestoneForm(page)).not.toContainText("Comenzar a trabajar");
 });
 
-test("SPEC-UI-81 sends start_progress true when the option is checked (TC-UI-81a)", async ({
+test("SPEC-UI-216 the representative sends the milestone without start_progress (TC-UI-216b)", async ({
   page,
 }) => {
   const api = await openDetail(page, "Representative", "New");
   api.on("POST", "/tickets/7/milestones", { status: 201, body: MILESTONE });
-  await milestoneForm(page).getByLabel("Mensaje").fill("Empiezo");
-  await milestoneForm(page).getByLabel("Comenzar a trabajar").check();
+  await milestoneForm(page).getByLabel("Mensaje").fill("Revisando");
   await button(page, "Agregar hito").click();
   await expect.poll(() => written(api, "POST", "/milestones").length).toBe(1);
-  expect(written(api, "POST", "/milestones")[0].body).toEqual({
-    content: "Empiezo",
-    start_progress: true,
-  });
+  expect(written(api, "POST", "/milestones")[0].body).toEqual({ content: "Revisando" });
 });
 
-test("SPEC-UI-81 omits start_progress when the option is not checked (TC-UI-81b)", async ({
+test("SPEC-UI-216 the client sends the milestone without start_progress (TC-UI-216b)", async ({
   page,
 }) => {
-  const api = await openDetail(page, "Representative", "New");
+  const api = await openDetail(page, "Client", "New");
   api.on("POST", "/tickets/7/milestones", { status: 201, body: MILESTONE });
-  await milestoneForm(page).getByLabel("Mensaje").fill("Sin empezar");
+  await milestoneForm(page).getByLabel("Mensaje").fill("Revisando");
   await button(page, "Agregar hito").click();
   await expect.poll(() => written(api, "POST", "/milestones").length).toBe(1);
-  expect(written(api, "POST", "/milestones")[0].body).not.toHaveProperty("start_progress");
+  expect(written(api, "POST", "/milestones")[0].body).toEqual({ content: "Revisando" });
 });
 
 async function closesTicket(page, role) {
@@ -187,7 +189,7 @@ test("SPEC-UI-40 the client only gets milestone, close and reopen (TC-UI-40a)", 
   await expect(page.locator("#app button")).toHaveCount(1);
 });
 
-test("SPEC-UI-21 shows the API conflict when closing is refused (TC-UI-21b)", async ({ page }) => {
+test("SPEC-UI-217 shows the API conflict when closing is refused (TC-UI-217b)", async ({ page }) => {
   const api = await openDetail(page, "Representative", "InProgress");
   api.on("POST", "/tickets/7/close", { status: 409, body: { error: "invalid_transition" } });
   await button(page, "Cerrar").click();
@@ -198,7 +200,7 @@ test("SPEC-UI-21 shows the API conflict when closing is refused (TC-UI-21b)", as
   await expect(button(page, "Cerrar")).toBeEnabled();
 });
 
-test("SPEC-UI-21 shows the API refusal for a milestone (TC-UI-21c)", async ({ page }) => {
+test("SPEC-UI-217 shows the API refusal for a milestone (TC-UI-217c)", async ({ page }) => {
   const api = await openDetail(page, "Client", "New");
   api.on("POST", "/tickets/7/milestones", { status: 403, body: { error: "forbidden" } });
   await milestoneForm(page).getByLabel("Mensaje").fill("Hola");
@@ -288,7 +290,6 @@ test("SPEC-UI-135 draws the three parallel reads released in reverse order (TC-U
   api.on("POST", "/tickets/7/milestones", { status: 201, body: MILESTONE });
   held = reads();
   await milestoneForm(page).getByLabel("Mensaje").fill("Nuevo mensaje");
-  await milestoneForm(page).getByLabel("Comenzar a trabajar").check();
   await button(page, "Agregar hito").click();
   await release(held, {
     ticket: withProducts("InProgress"),

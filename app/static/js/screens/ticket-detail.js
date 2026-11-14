@@ -130,28 +130,14 @@ export function mount({ root, params, user, request, showError, showStatus }) {
     return button;
   }
 
-  function milestoneForm(actions) {
+  function milestoneForm() {
     const content_ = el("textarea", { id: "milestone-content", name: "content", rows: "3", required: true });
-    const fields = [el("div", { class: "field" }, [el("label", { for: "milestone-content" }, ["Mensaje"]), content_])];
-    let startProgress = null;
-    if (actions.includes("startProgress")) {
-      startProgress = el("input", { type: "checkbox", id: "milestone-start", name: "start_progress" });
-      fields.push(
-        el("div", { class: "field" }, [
-          startProgress,
-          el("label", { for: "milestone-start" }, ["Comenzar a trabajar"]),
-        ]),
-      );
-    }
+    const field = el("div", { class: "field" }, [el("label", { for: "milestone-content" }, ["Mensaje"]), content_]);
     const submit = el("button", { type: "submit" }, ["Agregar hito"]);
-    const form = el("form", { "aria-label": "Agregar hito", novalidate: true }, [...fields, submit]);
+    const form = el("form", { "aria-label": "Agregar hito", novalidate: true }, [field, submit]);
     form.addEventListener("submit", (event) => {
       event.preventDefault();
-      const body = { content: content_.value };
-      if (startProgress?.checked) {
-        body.start_progress = true;
-      }
-      perform(submit, () => request("POST", `${base}/milestones`, body));
+      perform(submit, () => request("POST", `${base}/milestones`, { content: content_.value }));
     });
     return form;
   }
@@ -202,7 +188,7 @@ export function mount({ root, params, user, request, showError, showStatus }) {
   function actionSections(actions) {
     const sections = [];
     if (actions.includes("milestone")) {
-      sections.push(milestoneForm(actions));
+      sections.push(milestoneForm());
     }
     const buttons = [];
     for (const [action, label, path] of [
