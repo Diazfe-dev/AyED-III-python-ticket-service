@@ -98,6 +98,25 @@ test("SPEC-UI-55 shows no English word on any screen of the client (TC-UI-55a)",
   await walkScreens(page, "Client");
 });
 
+test("SPEC-UI-55 shows no English word in the onboarding dialogs and the New ticket detail (TC-UI-55a)", async ({
+  page,
+}) => {
+  const api = await seed(page, "Representative");
+  api.on("GET", "/tickets/7", { status: 200, body: ticket(7, "New", CREATED) });
+  await page.goto("/");
+  await expect(page.getByRole("navigation")).toBeVisible();
+  await goToHash(page, "#/tickets");
+  for (const name of ["Nuevo cliente", "Nuevo producto"]) {
+    await page.getByRole("button", { name, exact: true }).click();
+    await expect(page.getByRole("dialog", { name })).toBeVisible();
+    await expectSpanish(page);
+    await page.keyboard.press("Escape");
+  }
+  await goToHash(page, "#/tickets/7");
+  await expect(page.getByRole("button", { name: "Comenzar a trabajar", exact: true })).toBeVisible();
+  await expectSpanish(page);
+});
+
 test("SPEC-UI-55 shows no English word on the login, the load error and the inert screen (TC-UI-55a)", async ({
   page,
 }) => {
