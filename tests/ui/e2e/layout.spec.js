@@ -17,7 +17,7 @@ const ROLE_SCREENS = [
 ];
 const LISTINGS = [
   ...ROLE_SCREENS,
-  { id: 153, name: "tickets", role: "Representative", hash: "#/tickets", title: "Tickets", action: "Nuevo ticket" },
+  { id: 218, name: "tickets", role: "Representative", hash: "#/tickets", title: "Tickets" },
 ];
 
 async function open(page, { role, hash }) {
@@ -86,18 +86,27 @@ test("SPEC-UI-152 shows the products header with its h1 and primary button (TC-U
   await expectHeader(page, ROLE_SCREENS[2]);
 });
 
-test("SPEC-UI-153 shows Tickets and Nuevo ticket for a representative on both routes (TC-UI-153a)", async ({
+const PRIMARY_COLOR = "rgb(25, 118, 210)";
+
+test("SPEC-UI-218 shows the three header buttons for a representative on both routes (TC-UI-218a)", async ({
   page,
 }) => {
   for (const hash of ["#/tickets", "#/tickets/new"]) {
     await open(page, { role: "Representative", hash });
     const header = page.locator("main > .page-header");
     await expect(header.getByRole("heading", { level: 1 })).toHaveText("Tickets");
-    await expect(header.getByRole("button")).toHaveText(["Nuevo ticket"]);
+    const buttons = header.getByRole("button");
+    await expect(buttons).toHaveText(["Nuevo ticket", "Nuevo cliente", "Nuevo producto"]);
+    const colors = await buttons.evaluateAll((nodes) =>
+      nodes.map((node) => getComputedStyle(node).backgroundColor),
+    );
+    expect(colors[0], hash).toBe(PRIMARY_COLOR);
+    expect(colors[1], hash).not.toBe(PRIMARY_COLOR);
+    expect(colors[2], hash).not.toBe(PRIMARY_COLOR);
   }
 });
 
-test("SPEC-UI-153 gives an administrator and a client a header without an action (TC-UI-153b)", async ({
+test("SPEC-UI-218 gives an administrator and a client a header without an action (TC-UI-218b)", async ({
   page,
 }) => {
   for (const role of ["Admin", "Client"]) {
@@ -105,7 +114,10 @@ test("SPEC-UI-153 gives an administrator and a client a header without an action
     const header = page.locator("main > .page-header");
     await expect(header.getByRole("heading", { level: 1 })).toHaveText("Tickets");
     await expect(header.getByRole("button")).toHaveCount(0);
-    await expect(page.getByRole("main").getByRole("button", { name: "Nuevo ticket" })).toHaveCount(0);
+    const main = page.getByRole("main");
+    await expect(main.getByRole("button", { name: "Nuevo ticket" })).toHaveCount(0);
+    await expect(main.getByRole("button", { name: "Nuevo cliente" })).toHaveCount(0);
+    await expect(main.getByRole("button", { name: "Nuevo producto" })).toHaveCount(0);
   }
 });
 

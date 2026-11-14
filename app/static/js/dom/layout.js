@@ -1,13 +1,17 @@
 import { el } from "./render.js";
 
-export function pageHeader({ title, action = null }) {
+function headerButton(className, { label, onClick }) {
+  const button = el("button", { type: "button", class: className }, [label]);
+  button.addEventListener("click", () => onClick(button));
+  return button;
+}
+
+export function pageHeader({ title, action = null, secondary = [] }) {
   const heading = el("h1", {}, [title]);
-  const button = action === null ? null : el("button", { type: "button", class: "primary-action" }, [action.label]);
-  if (button !== null) {
-    button.addEventListener("click", () => action.onClick(button));
-  }
-  const children = button === null ? [heading] : [heading, button];
-  return { element: el("div", { class: "page-header" }, children), heading, button };
+  const button = action === null ? null : headerButton("primary-action", action);
+  const extras = secondary.map((entry) => headerButton("secondary-action", entry));
+  const children = [heading, ...(button === null ? [] : [button]), ...extras];
+  return { element: el("div", { class: "page-header" }, children), heading, button, secondary: extras };
 }
 
 export function surface({ toolbar, table }) {

@@ -551,6 +551,13 @@ button[type="submit"]:hover,
   box-shadow: var(--elevation-4);
 }
 
+.secondary-action {
+  padding: 6px 16px;
+  border: 1px solid var(--primary);
+  background: transparent;
+  color: var(--primary-dark);
+}
+
 .row-actions {
   display: flex;
   flex-wrap: wrap;

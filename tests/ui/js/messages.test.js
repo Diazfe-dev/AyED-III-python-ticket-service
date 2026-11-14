@@ -108,3 +108,11 @@ test("SPEC-UI-119 shows the generic message without marks for a list validation_
   assert.equal(result.message, "Ocurrió un error inesperado. Intente nuevamente.");
   assert.equal(result.fields, null);
 });
+
+test("SPEC-UI-221 the client creation message is the client created text (TC-UI-221a)", () => {
+  assert.equal(OWN_MESSAGES.clientCreated, "Cliente creado.");
+});
+
+test("SPEC-UI-224 the product creation message is the product created text (TC-UI-224a)", () => {
+  assert.equal(OWN_MESSAGES.productCreated, "Producto creado.");
+});
