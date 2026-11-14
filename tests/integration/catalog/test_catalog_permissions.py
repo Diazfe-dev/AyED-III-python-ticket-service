@@ -80,9 +80,8 @@ def test_client_cannot_change_the_catalog(
     assert snapshot(db_session) == before
 
 
-# (method, path, body); `{type}` and `{product}` are ids of the `products` fixture.
+# (method, path, body); `{product}` is the id of the product of the `products` fixture.
 PRODUCT_WRITE_ENDPOINTS = [
-    ("POST", "/products", {"name": "Optiplex", "product_type_id": "{type}"}),
     ("PATCH", "/products/{product}", {"name": "XPS 15"}),
     ("POST", "/products/{product}/deactivate", None),
 ]
@@ -115,8 +114,6 @@ def call_product_endpoint_as(
 ) -> Any:
     method, path, body = endpoint
     login_as(client, make_user(role=role))
-    if isinstance(body, dict) and body.get("product_type_id") == "{type}":
-        body = body | {"product_type_id": products["type"]}
     return client.open(path.format(**products), method=method, json=body)
 
 

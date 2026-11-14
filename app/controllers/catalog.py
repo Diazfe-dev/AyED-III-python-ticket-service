@@ -3,7 +3,7 @@
 from flask import Blueprint, request
 from flask.typing import ResponseReturnValue
 
-from app.auth import admin_required, login_required
+from app.auth import admin_required, authenticated_user, login_required
 from app.controllers.listing import listing_json
 from app.controllers.serializers import (
     json_body,
@@ -48,11 +48,13 @@ def list_product_types() -> ResponseReturnValue:
 
 
 @bp.post("/products")
-@admin_required
+@login_required
 def create_product() -> ResponseReturnValue:
     body = json_body()
     product = get_product_service().create_product(
-        name=body.get("name"), product_type_id=body.get("product_type_id")
+        name=body.get("name"),
+        product_type_id=body.get("product_type_id"),
+        actor=authenticated_user(),
     )
     return product_json(product), 201
 
