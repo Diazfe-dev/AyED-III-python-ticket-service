@@ -214,3 +214,5 @@ def test_retired_specs_are_not_required_to_be_cited():
     assert retired
     assert not set(retired) & set(current_spec_ids())
     assert {"SPEC-UI-49", "SPEC-UI-17"} <= set(retired)
+    assert {f"SPEC-UI-{n}" for n in (21, 35, 80, 81, 153)} <= set(retired)
+    assert len(retired) == 23

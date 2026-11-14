@@ -606,6 +606,24 @@ classDiagram
             +title(params) str
             +mount(context)
         }
+        class account_form {
+            <<screens>>
+            +accountFields(creating, user, options) list
+        }
+        class product_form {
+            <<screens>>
+            +typeOptions(productTypes) list
+            +productFields(productTypes, product) list
+            +writeBody(values) body
+        }
+        class client_create_dialog {
+            <<screens>>
+            +openClientDialog(options) dialog
+        }
+        class product_create_dialog {
+            <<screens>>
+            +openProductDialog(options) dialog
+        }
     }
 
 
@@ -628,6 +646,12 @@ classDiagram
     Screen --> dates
     Screen --> ticket_actions
     Screen --> forms
+    Screen --> account_form
+    Screen --> product_form
+    Screen --> client_create_dialog
+    Screen --> product_create_dialog
+    client_create_dialog --> account_form
+    product_create_dialog --> product_form
     listing --> paginator
     listing --> query
     listing --> messages
@@ -642,7 +666,8 @@ classDiagram
 
 ### Notas de la interfaz
 
-- `Screen` representa a cada módulo de `screens/`: `boot`, `login`, `not-found`, `account`, `tickets-list`, `ticket-detail`, `ticket-new`, `users`, `product-types` y `products`.
+- `Screen` representa a cada módulo de `screens/` con pantalla: `boot`, `login`, `not-found`, `account`, `tickets-list`, `ticket-detail`, `ticket-new`, `users`, `product-types` y `products`. Los otros módulos de `screens/` son auxiliares: `account-form.js` y `product-form.js` (campos y cuerpo de los formularios, compartidos por las pantallas de administración y por los diálogos del representante) y `client-create-dialog.js` y `product-create-dialog.js` (diálogos «Nuevo cliente», con `POST /users` y rol `Client` fijo, y «Nuevo producto», con `POST /products`; los abre `tickets-list` y `ticket-new` desde el encabezado, sin recargar el listado al crear).
+- `ticket-actions.js` suma la acción `startWork`: solo el representante y solo con el ticket en `New`. El detalle del ticket la dibuja como el botón «Comenzar a trabajar» del encabezado, que envía `POST /tickets/{id}/milestones` con el contenido fijo y `start_progress` verdadero; el formulario de hito ya no tiene la casilla.
 - `ui` es el único código de Python de esta área: `GET /` devuelve `index.html` con `send_static_file` (público, sin `login_required`); `/static/<path:filename>` lo registra `Flask(__name__)`.
 - `core/` es puro: no nombra `fetch`, `document` ni `window` y solo importa de `core/` (`session` → `routes`, `messages`). `net/api-client.js` recibe `fetch` por parámetro; solo `app.js` liga `window.fetch` y los eventos globales.
 - Dirección de las dependencias: `app.js` → todos; `screens` → `dom`, `core`; `dom` → `core`, `dom`; `core` → `core`. Ningún módulo de `core/`, `dom/` ni `screens/` importa `net/`: las pantallas reciben `request` en el contexto que arma `app.js`.
