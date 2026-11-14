@@ -2,7 +2,7 @@
 
 Cada test cita en su docstring la spec y el caso: `"""SPEC-NTF-08 · TC-NTF-08b"""`. Los casos que además verifican una decisión de [spec.md](spec.md) la citan como **(dec. N)**. Cubre las 19 specs (SPEC-NTF-01 a 19); todas tienen al menos un caso. Re-sincronizado el 2026-11-12 tras resolver G-01 a G-07: los casos reemplazados figuran en [Casos retirados](#casos-retirados) y sus IDs no se reutilizan.
 
-Fixtures existentes (`tests/conftest.py`): `app`, `client`, `schema`, `db_session`, `make_user` (suma `preferred_channel`, por defecto `"mail"`; T-NTF-13), `login_as`, `admin`, `admin_client`, `make_category`, `make_product_type`, `make_product` y `make_ticket` (abre el ticket con `Ticket.open`, sin notificaciones).
+Fixtures existentes (`tests/conftest.py`): `app`, `client`, `schema`, `db_session`, `make_user` (suma `preferred_channel`, por defecto `"mail"`; T-NTF-13), `login_as`, `admin`, `admin_client`, `make_product_type`, `make_product` y `make_ticket` (`make_category` hasta T-NTF-19, 2026-11-13: los productos de los datos se crean sin categoría) (abre el ticket con `Ticket.open`, sin notificaciones).
 
 Fixtures nuevos (`tests/integration/notifications/conftest.py`):
 - `world`: `ana` (cliente, `mail`), `wanda` (cliente, `whatsapp`), `raul` (representante, `mail`), el producto `xps` y el ticket de `ana` y `raul` creado con `make_ticket(ana, raul, [xps])` (estado `New`, sin notificaciones).

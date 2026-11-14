@@ -2,6 +2,8 @@
 
 Cada test cita en su docstring la spec y el caso: `"""SPEC-PRD-13 · TC-PRD-13a"""`.
 
+**Re-sincronización del 2026-11-13** (decisión 11: productos sin categoría): los casos de SPEC-PRD-07, 08, 15, 16 y 20 de la matriz original quedan solo como registro; los vigentes están en la sección [Productos sin categoría](#productos-sin-categoría-re-sincronización-del-2026-11-13), junto con la tabla de casos retirados. Los datos de referencia pasan a ser los tipos `"Notebook"`, `"Desktop"` e `"Impresora"`, sin categorías (T-PRD-45); los casos de otras specs que usaban `category_id` cambian sus datos en el lugar (marcados «datos ajustados 2026-11-13»).
+
 Fixtures existentes (`tests/conftest.py`): `app`, `client`, `schema`, `db_session`, `make_user`, `login_as`, `admin`, `admin_client`, `make_category` y `make_product_type` (ver [01-users](../01-users/test-plan.md) y [02-product-types](../02-product-types/test-plan.md)).
 
 Fixture nueva (`tests/conftest.py`):
@@ -23,9 +25,9 @@ Datos de referencia de los casos: la categoría `"Hardware"` con los tipos `"Not
 | Spec | Caso | Nivel | Datos / preparación | Resultado esperado | Archivo |
 |------|------|-------|---------------------|--------------------|---------|
 | PRD-01 | TC-PRD-01a | unit | `Product(name="XPS 13", product_type=notebook, is_active=True)` | `product.product_type is notebook` y el producto está en `notebook.products` | `tests/unit/catalog/test_products.py` |
-| PRD-01 | TC-PRD-01b | integration | `add(Product(name="XPS 13", product_type=notebook))` sin `is_active`, commit y `get(id)` en una sesión nueva | Devuelve el producto con el mismo nombre, su `product_type_id`, `product_type.category.name == "Hardware"` e `is_active is True` (default de la columna) | `tests/integration/catalog/test_product_repository.py` |
+| PRD-01 | TC-PRD-01b | integration | `add(Product(name="XPS 13", product_type=notebook))` sin `is_active`, commit y `get(id)` en una sesión nueva | Devuelve el producto con el mismo nombre, su `product_type_id`, `product_type.name == "Notebook"` e `is_active is True` (default de la columna) (datos ajustados 2026-11-13, T-PRD-45) | `tests/integration/catalog/test_product_repository.py` |
 | PRD-01 | TC-PRD-01c | unit | `create_product("XPS 13", notebook.id)` con fakes | Devuelve un `Product` con ese nombre, `product_type is notebook` e `is_active is True`, guardado en el repositorio, y `commit` se llamó una vez | `tests/unit/catalog/test_product_service.py` |
-| PRD-01 | TC-PRD-01d | integration | `admin_client` hace `POST /products` con `{"name": "XPS 13", "product_type_id": <notebook>}` | `201` `{"id": <int>, "name": "XPS 13", "is_active": true, "product_type": {"id": <notebook>, "name": "Notebook", "category_id": <hardware>}, "category": {"id": <hardware>, "name": "Hardware"}}` y la fila existe | `tests/integration/catalog/test_products_api.py` |
+| PRD-01 | TC-PRD-01d | integration | `admin_client` hace `POST /products` con `{"name": "XPS 13", "product_type_id": <notebook>}` | `201` `{"id": <int>, "name": "XPS 13", "is_active": true, "product_type": {"id": <notebook>, "name": "Notebook"}}` y la fila existe (cuerpo ajustado 2026-11-13: sin `category` ni `category_id`, T-PTY-46 y T-PRD-42) | `tests/integration/catalog/test_products_api.py` |
 | PRD-02 | TC-PRD-02a | unit | `create_product("XPS 13", 9999)` | Lanza `ProductTypeNotFoundError`; no se agrega nada y no hay commit | `tests/unit/catalog/test_product_service.py` |
 | PRD-02 | TC-PRD-02b | integration | `POST /products` con `product_type_id: 9999` | `404` `{"error": "product_type_not_found"}` y sin producto creado | `tests/integration/catalog/test_products_api.py` |
 | PRD-02 | TC-PRD-02c | integration | `POST /products` con `product_type_id: 9223372036854775808` (`2**63`) | `404` `{"error": "product_type_not_found"}` (no `500`) | `tests/integration/catalog/test_products_api.py` |
@@ -123,19 +125,19 @@ Datos de referencia: los de 07a (`"xps 13"` en `"Notebook"`, `"Optiplex"` inacti
 | PRD-24 | TC-PRD-24b | integration | Parametrizado: `POST /products/9999/activate` y `POST /products/9223372036854775808/activate` (`2**63`) | `404` `{"error": "product_not_found"}` en los dos (no `500`) | `tests/integration/catalog/test_products_api.py` |
 | PRD-25 | TC-PRD-25a | integration | Parametrizado por rol (`Representative`, `Client`); `POST /products/{id}/activate` sobre `"Optiplex"` | `403` `{"error": "forbidden"}`; el producto sigue inactivo | `tests/integration/catalog/test_catalog_permissions.py` |
 | PRD-26 | TC-PRD-26a | unit | Datos de referencia; `list_products(q="XPS")` y `list_products(q="xps", product_type_id=notebook.id, is_active="true")` | `"xps 13"` y `"XPS 15"` en orden; lo mismo con los filtros combinados (AND) | `tests/unit/catalog/test_product_service.py` |
-| PRD-26 | TC-PRD-26b | integration | Datos de referencia; `list_matching(q="CÁMARA")` y `list_matching(q="xps", category_id=hardware.id)` | `["Cámara IP"]` (mayúsculas fuera de ASCII contra `name_key`); `"xps 13"` y `"XPS 15"` | `tests/integration/catalog/test_product_repository.py` |
+| PRD-26 | TC-PRD-26b | integration | Datos de referencia; `list_matching(q="CÁMARA")` y `list_matching(q="xps", product_type_id=notebook.id)` (datos ajustados 2026-11-13, T-PRD-44) | `["Cámara IP"]` (mayúsculas fuera de ASCII contra `name_key`); `"xps 13"` y `"XPS 15"` | `tests/integration/catalog/test_product_repository.py` |
 | PRD-26 | TC-PRD-26c | integration | Datos de referencia; `list_matching(q="%")` y `list_matching(q="_")` | `["50% Toner"]` y `[]`: `%` y `_` literales (`autoescape`) | `tests/integration/catalog/test_product_repository.py` |
 | PRD-26 | TC-PRD-26d | unit | Datos de referencia; `list_available_products(q="o")` | Solo los activos que contienen `"o"` (`"50% Toner"`; `"Optiplex"` no, está inactivo) | `tests/unit/catalog/test_product_service.py` |
-| PRD-26 | TC-PRD-26e | integration | Sesión de un `Client`; `GET /products?q=XPS` y `GET /products?q=xps&category_id=<oficina>` | `200` con `"xps 13"` y `"XPS 15"`; `200` con `[]` (AND con la categoría) | `tests/integration/catalog/test_products_api.py` |
+| PRD-26 | TC-PRD-26e | integration | Sesión de un `Client`; `GET /products?q=XPS` y `GET /products?q=xps&product_type_id=<impresora>` (datos ajustados 2026-11-13, T-PRD-42) | `200` con `"xps 13"` y `"XPS 15"`; `200` con `[]` (AND con el tipo) | `tests/integration/catalog/test_products_api.py` |
 | PRD-26 | TC-PRD-26f | integration | Sesión de un `Representative`; `GET /products/available?q=xps` | `200` con `"xps 13"` y `"XPS 15"` | `tests/integration/catalog/test_products_api.py` |
 | PRD-26 | TC-PRD-26g | integration | `GET /products?q=` y `GET /products/available?q=%20%20` (SPEC-PLT-27) | `200` igual que sin `q` en cada listado | `tests/integration/catalog/test_products_api.py` |
-| PRD-27 | TC-PRD-27a | unit | Datos de referencia; `list_products(is_active="false")`, `list_products(is_active="true", category_id=hardware.id)` | `["Optiplex"]`; `"xps 13"` y `"XPS 15"` | `tests/unit/catalog/test_product_service.py` |
+| PRD-27 | TC-PRD-27a | unit | Datos de referencia; `list_products(is_active="false")`, `list_products(is_active="true", product_type_id=notebook.id)` (datos ajustados 2026-11-13, T-PRD-43) | `["Optiplex"]`; `"xps 13"` y `"XPS 15"` | `tests/unit/catalog/test_product_service.py` |
 | PRD-27 | TC-PRD-27b | integration | Datos de referencia; `list_matching(is_active=False)`, `list_matching(is_active=True)` y `list_matching()` | Solo `"Optiplex"`; los activos; todos | `tests/integration/catalog/test_product_repository.py` |
 | PRD-27 | TC-PRD-27c | integration | `GET /products?is_active=false` y `GET /products?is_active=true&q=xps` | `200` con `["Optiplex"]` (con `is_active: false`) y con `"xps 13"` y `"XPS 15"` | `tests/integration/catalog/test_products_api.py` |
-| PRD-28 | TC-PRD-28a | unit | Parametrizado: `list_products(is_active=v)` con `v` en `""`, `"yes"`, `"True"` y `"0"`; y `list_products(is_active="yes", category_id="abc")` | `ValidationError` con `{"is_active": "invalid"}`; con los dos, `{"is_active": "invalid", "category_id": "invalid"}` (juntos, antes de consultar) | `tests/unit/catalog/test_product_service.py` |
+| PRD-28 | TC-PRD-28a | unit | Parametrizado: `list_products(is_active=v)` con `v` en `""`, `"yes"`, `"True"` y `"0"`; y `list_products(is_active="yes", product_type_id="abc")` (datos ajustados 2026-11-13, T-PRD-43) | `ValidationError` con `{"is_active": "invalid"}`; con los dos, `{"is_active": "invalid", "product_type_id": "invalid"}` (juntos, antes de consultar) | `tests/unit/catalog/test_product_service.py` |
 | PRD-28 | TC-PRD-28b | integration | `GET /products?is_active=yes` y `GET /products?is_active=` | `400` `{"error": "validation_error", "fields": {"is_active": "invalid"}}` en los dos | `tests/integration/catalog/test_products_api.py` |
 | PRD-29 | TC-PRD-29a | unit | Datos de referencia; `list_products(page="1", page_size="2")` | `Page` con los 2 primeros por nombre, `page == 1`, `page_size == 2` y `total == 6` | `tests/unit/catalog/test_product_service.py` |
-| PRD-29 | TC-PRD-29b | unit | `list_products(page="0", category_id="x")` y `list_products(page_size="101")` | `ValidationError` con `{"page": "invalid", "category_id": "invalid"}` y con `{"page_size": "invalid"}` | `tests/unit/catalog/test_product_service.py` |
+| PRD-29 | TC-PRD-29b | unit | `list_products(page="0", product_type_id="x")` y `list_products(page_size="101")` (datos ajustados 2026-11-13, T-PRD-43) | `ValidationError` con `{"page": "invalid", "product_type_id": "invalid"}` y con `{"page_size": "invalid"}` | `tests/unit/catalog/test_product_service.py` |
 | PRD-29 | TC-PRD-29c | unit | Datos de referencia; `list_available_products(page_size="2")` | `Page` con `page == 1`, `page_size == 2` y `total` igual a la cantidad de activos (5) | `tests/unit/catalog/test_product_service.py` |
 | PRD-29 | TC-PRD-29d | integration | `GET /products?page=1&page_size=2` y `GET /products?page=2` | Objetos `{items, page, page_size, total}`: el primero con 2 ítems y `total` 6; el segundo con `page_size` 20 (por defecto), `items: []` y `total` 6 (los 6 productos entran en la página 1); sin `page` ni `page_size`, arreglo plano (TC-PRD-07d) | `tests/integration/catalog/test_products_api.py` |
 | PRD-29 | TC-PRD-29e | integration | Datos de referencia más `"XPS 13"` en `"Desktop"` (mismo `name_key` que `"xps 13"`); `list_matching(window=PageRequest(p, 2))` para `p` en 1 a 4 | La concatenación de las páginas es igual a `list_matching()`, sin solapes; el empate de nombre lo resuelve el `id` (SPEC-PLT-21) | `tests/integration/catalog/test_product_repository.py` |
@@ -143,7 +145,48 @@ Datos de referencia: los de 07a (`"xps 13"` en `"Notebook"`, `"Optiplex"` inacti
 | PRD-29 | TC-PRD-29g | integration | Sesión de un `Representative`; `GET /products/available?page=1&page_size=1` | `{"items": [<un producto activo>], "page": 1, "page_size": 1, "total": 5}` | `tests/integration/catalog/test_products_api.py` |
 | PRD-29 | TC-PRD-29h | integration | `GET /products?page=abc` y `GET /products/available?page_size=0` | `400` `validation_error` con `{"page": "invalid"}` y con `{"page_size": "invalid"}` | `tests/integration/catalog/test_products_api.py` |
 | PRD-30 | TC-PRD-30a | integration | `GET /products/available?is_active=false&category_id=abc&product_type_id=0&foo=1` | `200` con todos los productos activos, igual que sin parámetros: ni `400` ni filtro | `tests/integration/catalog/test_products_api.py` |
-| PRD-30 | TC-PRD-30b | integration | `GET /products/available?q=xps&category_id=<oficina>` | `200` con `"xps 13"` y `"XPS 15"`: `q` se aplica y `category_id` se ignora | `tests/integration/catalog/test_products_api.py` |
+| PRD-30 | TC-PRD-30b | integration | `GET /products/available?q=xps&category_id=1` (datos ajustados 2026-11-13, T-PRD-42: ya no existe `"Oficina"`) | `200` con `"xps 13"` y `"XPS 15"`: `q` se aplica y `category_id` se ignora | `tests/integration/catalog/test_products_api.py` |
+
+### Productos sin categoría (re-sincronización del 2026-11-13)
+
+Datos de referencia: los de 07a sin categorías (`"xps 13"` en `"Notebook"`, `"Optiplex"` inactivo en `"Desktop"`, `"LaserJet"` en `"Impresora"`).
+
+| Spec | Caso | Nivel | Datos / preparación | Resultado esperado | Archivo | Task |
+|------|------|-------|---------------------|--------------------|---------|------|
+| PRD-31 | TC-PRD-31a | unit | `list_products()` (antes 07a) | Devuelve los tres, incluido el inactivo | `tests/unit/catalog/test_product_service.py` | T-PRD-43 |
+| PRD-31 | TC-PRD-31b | integration | `list_matching()` (antes 07b) | Devuelve los tres; cada producto expone su `product_type` y su `is_active` | `tests/integration/catalog/test_product_repository.py` | T-PRD-44 |
+| PRD-31 | TC-PRD-31c | integration | 3 tipos con 2 productos cada uno; `count_statements` mientras se llama a `list_matching()` y se recorre el tipo de cada producto (antes 07c, que permitía 3) | Como máximo 2 sentencias (sin N+1 y sin cargar categorías) | `tests/integration/catalog/test_product_repository.py` | T-PRD-44 |
+| PRD-31 | TC-PRD-31d | integration | Sesión de un `Client`; `GET /products` (antes 07d) | `200`; cada ítem tiene exactamente las claves `id`, `name`, `is_active` y `product_type`, y `product_type` exactamente `id` y `name`; `"Optiplex"` con `is_active: false` | `tests/integration/catalog/test_products_api.py` | T-PRD-42 |
+| PRD-32 | TC-PRD-32a | unit | `list_products(product_type_id=notebook.id)` (antes 08b) | Solo `"xps 13"` | `tests/unit/catalog/test_product_service.py` | T-PRD-43 |
+| PRD-32 | TC-PRD-32b | integration | `list_matching(product_type_id=notebook.id)` (antes 08e) | Solo los productos de `"Notebook"` | `tests/integration/catalog/test_product_repository.py` | T-PRD-44 |
+| PRD-32 | TC-PRD-32c | integration | Sesión de un `Representative`; `GET /products?product_type_id=<notebook>` (antes la parte tipo de 08g) | `200` con `["xps 13"]` | `tests/integration/catalog/test_products_api.py` | T-PRD-42 |
+| PRD-32 | TC-PRD-32d | integration | `GET /products?category_id=abc`, `GET /products?category_id=9999` y `GET /products?category_id=1&product_type_id=<notebook>` | `200` con los tres productos en los dos primeros y con `["xps 13"]` en el tercero: `category_id` se ignora (decisión 11), sin `400` ni `404` | `tests/integration/catalog/test_products_api.py` | T-PRD-42 |
+| PRD-33 | TC-PRD-33a | unit | Igual que 15a (`product_type_id` mal formado en el alta) | Igual que 15a | `tests/unit/catalog/test_product_service.py` | T-PRD-43 |
+| PRD-33 | TC-PRD-33b | unit | Igual que 15b (ausente; con nombre vacío, los dos campos) | Igual que 15b | `tests/unit/catalog/test_product_service.py` | T-PRD-43 |
+| PRD-33 | TC-PRD-33c | unit | Igual que 15c (texto de dígitos aceptado) | Igual que 15c | `tests/unit/catalog/test_product_service.py` | T-PRD-43 |
+| PRD-33 | TC-PRD-33d | unit | Igual que 15d (modificación) | Igual que 15d | `tests/unit/catalog/test_product_service.py` | T-PRD-43 |
+| PRD-33 | TC-PRD-33e | unit | Parametrizado: `list_products(product_type_id=v)` con `v` en `"abc"`, `""`, `"-1"`, `"0"`, `"1.5"` y un texto de 5000 dígitos (antes la parte tipo de 15e) | `ValidationError` con `{"product_type_id": "invalid"}` (sin `ValueError`) | `tests/unit/catalog/test_product_service.py` | T-PRD-43 |
+| PRD-33 | TC-PRD-33f | integration | Igual que 15f (`POST /products`) | Igual que 15f | `tests/integration/catalog/test_products_api.py` | T-PRD-42 |
+| PRD-33 | TC-PRD-33g | integration | Igual que 15g (`PATCH /products/{id}`) | Igual que 15g | `tests/integration/catalog/test_products_api.py` | T-PRD-42 |
+| PRD-33 | TC-PRD-33h | integration | `GET /products?product_type_id=` y `GET /products?product_type_id=0` (antes la parte tipo de 15h) | `400` `validation_error` con `fields == {"product_type_id": "invalid"}` en los dos | `tests/integration/catalog/test_products_api.py` | T-PRD-42 |
+| PRD-34 | TC-PRD-34a | unit | `list_products(product_type_id=9999)` (antes 16b) | `ProductTypeNotFoundError` | `tests/unit/catalog/test_product_service.py` | T-PRD-43 |
+| PRD-34 | TC-PRD-34b | integration | `GET /products?product_type_id=9999` (antes la parte tipo de 16c) | `404` `{"error": "product_type_not_found"}` | `tests/integration/catalog/test_products_api.py` | T-PRD-42 |
+| PRD-34 | TC-PRD-34c | integration | `GET /products?product_type_id=99999999999999999999` (antes la parte tipo de 16d) | `404` `product_type_not_found` (no `500`) | `tests/integration/catalog/test_products_api.py` | T-PRD-42 |
+
+Los tests de 15a a 15d, 15f y 15g no cambian de datos: solo pasan a citar SPEC-PRD-33 con el ID nuevo.
+
+#### Casos retirados (2026-11-13)
+
+| Casos | Spec de origen | Destino | Task |
+|-------|----------------|---------|------|
+| TC-PRD-07d, 08g (parte tipo), 15f, 15g, 15h (parte tipo), 16c (parte tipo), 16d (parte tipo) | PRD-07, 08, 15, 16 | Re-trazados a 31d, 32c, 33f, 33g, 33h, 34b y 34c | T-PRD-42 |
+| TC-PRD-08g (parte categoría), 15h (partes con `category_id`), 16c y 16d (parte categoría), 20c | PRD-08, 15, 16, 20 | Eliminados | T-PRD-42 |
+| TC-PRD-07a, 08b, 15a, 15b, 15c, 15d, 15e (parte tipo), 16b | PRD-07, 08, 15, 16 | Re-trazados a 31a, 32a, 33a a 33e y 34a | T-PRD-43 |
+| TC-PRD-08a, 08c, 15e (partes con `category_id`), 16a, 20a | PRD-08, 15, 16, 20 | Eliminados | T-PRD-43 |
+| TC-PRD-07b, 07c, 08e | PRD-07, 08 | Re-trazados a 31b, 31c y 32b | T-PRD-44 |
+| TC-PRD-08d, 08f, 20b | PRD-08, 20 | Eliminados | T-PRD-44 |
+
+Casos borde nuevos: `category_id` válido, inexistente o mal formado en `GET /products`, solo o junto al tipo, se ignora (TC-PRD-32d); respuesta de producto sin categoría (TC-PRD-31d); listado sin N+1 con una sentencia menos (TC-PRD-31c). Los casos borde de abajo que citan 08, 15e, 15h, 16 o 20 son historial.
 
 ## SPEC-PTY-08 (de `02-product-types`, implementada en esta área)
 

@@ -43,7 +43,7 @@ Comportamiento técnico transversal que necesitan todas las demás áreas: confi
 
 ## Paginación opcional de listados
 
-Convención común. Cada área declara qué listados la admiten: usuarios (SPEC-USR-47), productos (SPEC-PRD-29) y tickets (SPEC-TKT-45). Los listados de categorías y de tipos de producto (SPEC-PTY-24), y los de hitos (SPEC-MLS-13) y de cambios de estado de un ticket (SPEC-TKT-47), son cortos y no se paginan.
+Convención común. Cada área declara qué listados la admiten: usuarios (SPEC-USR-47), productos (SPEC-PRD-29) y tickets (SPEC-TKT-45). El listado de tipos de producto (SPEC-PTY-33), y los de hitos (SPEC-MLS-13) y de cambios de estado de un ticket (SPEC-TKT-47), son cortos y no se paginan.
 
 | ID | Tipo | Especificación | Origen |
 |----|------|----------------|--------|
@@ -59,7 +59,7 @@ Convención común. Cada área declara qué listados la admiten: usuarios (SPEC-
 
 ## Búsqueda por texto en los listados
 
-Convención común para todo listado que admite `q`: usuarios, clientes y representantes (SPEC-USR-43 y 46), categorías y tipos de producto (SPEC-PTY-21 a 23), productos (SPEC-PRD-26) y tickets (SPEC-TKT-41).
+Convención común para todo listado que admite `q`: usuarios, clientes y representantes (SPEC-USR-43 y 46), tipos de producto (SPEC-PTY-32), productos (SPEC-PRD-26) y tickets (SPEC-TKT-41).
 
 | ID | Tipo | Especificación | Origen |
 |----|------|----------------|--------|
@@ -92,6 +92,10 @@ Aprobadas el 2026-11-12 (nueva área [07-ui](../07-ui/spec.md) y paginación opc
 Aprobadas el 2026-11-12 (validación de requerimientos de [07-ui](../07-ui/spec.md)):
 
 11. **`page` y `page_size` por defecto (SPEC-PLT-19, 24, 25 y 26)**: SPEC-PLT-19 agrupaba tres comportamientos; queda solo con la numeración desde 1 y el resto se separa en specs nuevas. `page` vale 1 si se omite (SPEC-PLT-24), `page_size` vale 20 si se omite (SPEC-PLT-25) y el máximo es 100 (SPEC-PLT-26). El comportamiento no cambia.
-12. **`q` vacío (SPEC-PLT-27)**: un `q` vacío o con solo espacios equivale a no enviar `q` en todos los listados con búsqueda (SPEC-USR-43 y 46, SPEC-PTY-21 a 23, SPEC-PRD-26, SPEC-TKT-41). Se define una sola vez acá y las demás áreas la referencian en sus decisiones.
-13. **Listados que no se paginan**: categorías y tipos de producto (SPEC-PTY-24, decisión del usuario), hitos de un ticket (SPEC-MLS-13) y cambios de estado de un ticket (SPEC-TKT-47). Ignoran `page` y `page_size` y siguen respondiendo el arreglo plano.
+12. **`q` vacío (SPEC-PLT-27)**: un `q` vacío o con solo espacios equivale a no enviar `q` en todos los listados con búsqueda (SPEC-USR-43 y 46, SPEC-PTY-32, SPEC-PRD-26, SPEC-TKT-41). Se define una sola vez acá y las demás áreas la referencian en sus decisiones.
+13. **Listados que no se paginan**: tipos de producto (SPEC-PTY-33, que reemplaza a SPEC-PTY-24; decisión del usuario), hitos de un ticket (SPEC-MLS-13) y cambios de estado de un ticket (SPEC-TKT-47). Ignoran `page` y `page_size` y siguen respondiendo el arreglo plano.
 14. **Rutas públicas (SPEC-USR-49 reemplaza a SPEC-USR-16)**: la lista de rutas sin sesión es cerrada: `POST /login`, `GET /`, `GET /static/<ruta>`, `GET /health`, `GET /docs` y `GET /openapi.json`. Cualquier otra ruta que expone la API responde `401` sin sesión.
+
+Aprobada el 2026-11-13 (eliminación de las categorías, ver [02-product-types](../02-product-types/spec.md) decisión 8):
+
+15. **Referencias a categorías**: el profesor pidió solo producto y tipo de producto; el tipo es el rubro. Esta área no cambia de comportamiento: se actualizan las referencias de la convención de listados sin paginar (SPEC-PTY-24 → 33) y de `q` (SPEC-PTY-21 a 23 → 32). No quedan listados de categorías.

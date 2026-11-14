@@ -2,7 +2,7 @@
 
 Cada test cita en su docstring la spec y el caso: `"""SPEC-MLS-05 · TC-MLS-05a"""`. Los casos de `04-tickets` que se completan o agregan acá citan su propia spec: `"""SPEC-TKT-09 · TC-TKT-09b"""`, `"""SPEC-TKT-27 · TC-TKT-27f"""`. Los casos que verifican una decisión de [spec.md](spec.md) la citan como **(dec. N)**.
 
-Fixtures existentes (`tests/conftest.py`): `app`, `client`, `schema`, `db_session`, `make_user`, `login_as`, `admin`, `admin_client`, `make_category`, `make_product_type`, `make_product` y `make_ticket` (ver [04-tickets](../04-tickets/test-plan.md)).
+Fixtures existentes (`tests/conftest.py`): `app`, `client`, `schema`, `db_session`, `make_user`, `login_as`, `admin`, `admin_client`, `make_product_type`, `make_product` y `make_ticket` (`make_category` hasta T-MLS-27, 2026-11-13: los productos de los datos se crean sin categoría) (ver [04-tickets](../04-tickets/test-plan.md)).
 
 Fixture nuevo (`tests/integration/milestones/conftest.py`):
 - `world`: `ana` y `beto` (clientes), `raul` y `rosa` (representantes), el producto `xps` y el ticket de `ana` y `raul` creado con `make_ticket(ana, raul, [xps])` (estado `New`, con su primer hito). Mismos datos que el `world` de `tests/integration/tickets/test_tickets_permissions.py`, sin importarlo.

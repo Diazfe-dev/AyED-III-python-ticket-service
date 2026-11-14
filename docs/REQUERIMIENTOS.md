@@ -8,7 +8,7 @@
 2. El sistema deberá listar usuarios de cualquier rol, incluido el de Administrador, distinguiéndolos explícitamente del rol de Representante a nivel de sistema, con búsqueda por nombre o email y filtro por estado.
 3. El sistema deberá gestionar representantes.
 4. El sistema deberá listar representantes, distinguiéndolos explícitamente del rol de Cliente a nivel de sistema.
-5. El sistema deberá contemplar un rol de Administrador, responsable de gestionar usuarios, categorías, tipos de producto y productos, y de consultar, solo en lectura, todos los tickets (RF 1.4.8).
+5. El sistema deberá contemplar un rol de Administrador, responsable de gestionar usuarios, tipos de producto y productos, y de consultar, solo en lectura, todos los tickets (RF 1.4.8).
 6. El sistema deberá permitir al Administrador reactivar usuarios inactivos.
 7. El sistema deberá permitir a cualquier usuario autenticado cambiar su propia contraseña, y al Administrador restablecer la de cualquier usuario sin conocer la anterior.
 8. El sistema deberá permitir a un usuario autenticado consultar su propia identidad (nombre, email y rol).
@@ -16,10 +16,10 @@
 
 ### 1.2 Gestión de tipos de producto
 
-1. El sistema deberá permitir la gestión (alta, baja y modificación) de tipos de producto.
-2. El sistema deberá listar los tipos de producto con el fin de clasificarlos por rubro.
-3. El sistema deberá permitir la gestión (alta, baja y modificación) de rubros (categorías).
-4. El sistema deberá permitir buscar rubros y tipos de producto por nombre.
+1. El sistema deberá permitir la gestión (alta, baja y modificación) de tipos de producto. El tipo de producto es el rubro (por ejemplo, línea blanca, cocina, electro o pequeños electrodomésticos) en el que se especializan los técnicos.
+2. El sistema deberá listar los tipos de producto; cada tipo representa un rubro.
+3. *Eliminado el 2026-11-13.* Los rubros no son una entidad aparte: el tipo de producto es el rubro (RF 1.2.1 y 1.2.2). El número se conserva para no renumerar las referencias.
+4. El sistema deberá permitir buscar tipos de producto por nombre.
 
 ### 1.3 Gestión de productos
 
@@ -27,7 +27,7 @@
 2. El sistema deberá permitir asociar tipos de producto a productos.
 3. El sistema deberá permitir listar productos.
 4. El sistema deberá permitir al Administrador reactivar productos inactivos.
-5. El sistema deberá permitir buscar productos por nombre y filtrar el listado por estado, además de por categoría y tipo de producto.
+5. El sistema deberá permitir buscar productos por nombre y filtrar el listado por estado, además de por tipo de producto.
 
 ### 1.4 Gestión del ciclo de vida del ticket
 
@@ -58,7 +58,7 @@
 
 1. El sistema deberá ofrecer una interfaz web para los tres roles (Representante, Administrador y Cliente), servida por la propia API.
 2. El sistema deberá ofrecer al Representante una pantalla para gestionar los tickets que tiene asignados: listarlos con filtros, ver su detalle con hitos e historial de estados, crear tickets eligiendo cliente y productos activos, registrar hitos, cerrar, reabrir y asociar o quitar productos.
-3. El sistema deberá ofrecer al Administrador pantallas para administrar usuarios (incluidas cuentas de Administrador), categorías, tipos de producto y productos, y para consultar todos los tickets en solo lectura.
+3. El sistema deberá ofrecer al Administrador pantallas para administrar usuarios (incluidas cuentas de Administrador), tipos de producto y productos, y para consultar todos los tickets en solo lectura.
 4. El sistema deberá ofrecer al Cliente un panel para listar y ver sus propios tickets (hitos y estados), responder, cerrarlos y reabrirlos.
 5. El sistema deberá permitir iniciar y cerrar sesión desde la interfaz, mostrar el acceso solo cuando hay sesión válida y permitir cambiar la contraseña propia.
 6. El sistema deberá mostrar todos los textos de la interfaz en español neutro y traducir los errores de la API a mensajes comprensibles para la persona usuaria.
