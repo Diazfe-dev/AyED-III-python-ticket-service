@@ -142,10 +142,10 @@ def make_category(db_session: Session) -> MakeCategory:
 
 @pytest.fixture
 def make_product_type(db_session: Session) -> MakeProductType:
-    """Persist and commit a product type of the category; names are unique unless given."""
+    """Persist and commit a product type; names are unique unless given."""
     sequence = itertools.count(1)
 
-    def make(category: Category, name: str | None = None) -> ProductType:
+    def make(category: Category | None = None, name: str | None = None) -> ProductType:
         product_type = ProductType(name=name or f"Type {next(sequence)}", category=category)
         db_session.add(product_type)
         db_session.commit()

@@ -189,7 +189,7 @@ def office(sut: ServiceUnderTest) -> Category:
     return category
 
 
-def add_type(sut: ServiceUnderTest, name: str, category: Category) -> ProductType:
+def add_type(sut: ServiceUnderTest, name: str, category: Category | None = None) -> ProductType:
     product_type = ProductType(name=name, category=category)
     sut.product_types.add(product_type)
     return product_type
@@ -413,11 +413,9 @@ def test_update_product_type_with_malformed_category_id_is_rejected(
     assert sut.commit.calls == 0
 
 
-def test_delete_product_type_removes_it_and_commits(
-    sut: ServiceUnderTest, hardware: Category
-) -> None:
+def test_delete_product_type_removes_it_and_commits(sut: ServiceUnderTest) -> None:
     """SPEC-PTY-07 · TC-PTY-07a"""
-    notebook = add_type(sut, "Notebook", hardware)
+    notebook = add_type(sut, "Notebook")
 
     sut.service.delete_product_type(notebook.id)
 
@@ -433,11 +431,9 @@ def test_delete_unknown_product_type_is_rejected(sut: ServiceUnderTest) -> None:
     assert sut.commit.calls == 0
 
 
-def test_delete_product_type_with_an_inactive_product_is_rejected(
-    sut: ServiceUnderTest, hardware: Category
-) -> None:
+def test_delete_product_type_with_an_inactive_product_is_rejected(sut: ServiceUnderTest) -> None:
     """SPEC-PTY-08 · TC-PTY-08a"""
-    notebook = add_type(sut, "Notebook", hardware)
+    notebook = add_type(sut, "Notebook")
     Product(name="XPS 13", product_type=notebook, is_active=False)
 
     with pytest.raises(ProductTypeInUseError):
