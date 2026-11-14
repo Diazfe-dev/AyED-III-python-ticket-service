@@ -12,7 +12,7 @@ from app.domain.errors import (
     ValidationError,
 )
 from app.domain.paging import Page
-from app.domain.products import Category, Product, ProductType
+from app.domain.products import Product, ProductType
 from app.domain.ticket import Ticket
 from app.domain.users import Admin, Client, Representative
 from app.services.ticket_service import TicketService
@@ -47,7 +47,7 @@ class Setup:
         return ticket
 
     def add_product(self, name: str) -> Product:
-        product_type = ProductType(name="Laptop", category=Category(name="Hardware"))
+        product_type = ProductType(name="Laptop")
         product = Product(name=name, product_type=product_type, is_active=True)
         self.products.add(product)
         return product
