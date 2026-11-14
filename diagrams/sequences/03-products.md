@@ -6,7 +6,7 @@ En todos los flujos de escritura, si `current_user` no es `Admin`, `admin_requir
 
 ## 1. Alta y modificación de producto
 
-Specs: SPEC-PRD-01, 02, 03, 04, 09, 11, 12, 13, 14, 15, 17, 19
+Specs: SPEC-PRD-01, 02, 03, 04, 09, 11, 12, 13, 14, 17, 19, 33
 
 ```mermaid
 sequenceDiagram
@@ -24,7 +24,7 @@ sequenceDiagram
         PC->>PS: create_product(name, product_type_id)
         alt nombre o product_type_id inválidos, se informan juntos
             PS-->>PC: raise ValidationError(fields)
-            PC-->>Admin: 400 validation_error (SPEC-PRD-03, 11, 15)
+            PC-->>Admin: 400 validation_error (SPEC-PRD-03, 11, 33)
         else campos válidos
             PS->>TR: get(product_type_id)
             TR-->>PS: ProductType o None
@@ -119,7 +119,7 @@ sequenceDiagram
 
 ## 4. Listados de productos
 
-Specs: SPEC-PRD-07, 08, 10, 15, 16, 20, 21, 26, 27, 28, 29, 30
+Specs: SPEC-PRD-10, 21, 26, 27, 28, 29, 30, 31, 32, 33, 34
 
 ```mermaid
 sequenceDiagram
@@ -127,31 +127,25 @@ sequenceDiagram
     actor U as Usuario autenticado
     participant PC as CatalogController
     participant PS as ProductService
-    participant CR as CategoryRepository
     participant TR as ProductTypeRepository
     participant PR as ProductRepository
 
     alt listado del catálogo
-        U->>PC: GET /products (category_id, product_type_id, q, is_active, page y page_size opcionales)
-        PC->>PS: list_products(category_id, product_type_id, q, is_active, page, page_size)
-        alt algún id no es un entero positivo, is_active no es true ni false o la paginación es inválida, se informan juntos
+        U->>PC: GET /products (product_type_id, q, is_active, page y page_size opcionales)
+        PC->>PS: list_products(product_type_id, q, is_active, page, page_size)
+        alt el product_type_id no es un entero positivo, is_active no es true ni false o la paginación es inválida, se informan juntos
             PS-->>PC: raise ValidationError(fields)
-            PC-->>U: 400 validation_error (SPEC-PRD-15, 28)
+            PC-->>U: 400 validation_error (SPEC-PRD-28, 33)
         else filtros válidos
-            opt con category_id
-                PS->>CR: get(category_id)
-                Note over PS: si no existe lanza CategoryNotFoundError y responde 404 (SPEC-PRD-16)
-            end
             opt con product_type_id
                 PS->>TR: get(product_type_id)
-                Note over PS: si no existe lanza ProductTypeNotFoundError y responde 404 (SPEC-PRD-16)
+                Note over PS: si no existe lanza ProductTypeNotFoundError y responde 404 (SPEC-PRD-34)
             end
-            PS->>PR: list_matching(category_id, product_type_id, is_active, q, window)
+            PS->>PR: list_matching(product_type_id, is_active, q, window)
             Note over PS: q se normaliza con search_text: vacío o solo espacios equivale a no enviarlo<br/>y window es None si no llegó page ni page_size
-            Note over PR: join con el tipo para la categoría, is_active exacto y q como subcadena literal de name_key (SPEC-PRD-26, 27),<br/>orden por name_key e id (SPEC-PRD-21) y selectinload de tipo y categoría, 3 consultas como máximo
-            PR-->>PS: lista, o Page con total si hay window, de productos que cumplen todos los filtros (SPEC-PRD-07, 08, 29)
-            Note over PS: un tipo que no pertenece a la categoría da una lista vacía (SPEC-PRD-20)
-            PC-->>U: 200 lista de Product, o Page con items, page, page_size y total
+            Note over PR: filtra por product_type_id, is_active exacto y q como subcadena literal de name_key (SPEC-PRD-26, 27),<br/>orden por name_key e id (SPEC-PRD-21) y selectinload del tipo (WITH_TYPE), 2 consultas como máximo
+            PR-->>PS: lista, o Page con total si hay window, de productos que cumplen todos los filtros (SPEC-PRD-31, 32, 29)
+            PC-->>U: 200 lista de Product con su tipo {id, name}, o Page con items, page, page_size y total (SPEC-PRD-31)
         end
     else productos para asociar a un ticket
         U->>PC: GET /products/available (q, page y page_size opcionales)
