@@ -1,6 +1,8 @@
-# 02 — Tipos de producto y rubros · Plan de implementación
+# 02 — Tipos de producto (rubros) · Plan de implementación
 
-Specs cubiertas: SPEC-PTY-01 a SPEC-PTY-24 ([spec.md](spec.md)). SPEC-PTY-09 está reemplazada por SPEC-PTY-22 (2026-11-12, mismo comportamiento sin `q`). RNF: 2 (autenticación y permisos), 7 (API documentada) y 10 (estos listados **no** se paginan, SPEC-PTY-24). SPEC-PTY-08 se verifica completa en `03-products` (decisión 3 de la spec).
+Specs cubiertas desde el 2026-11-13: SPEC-PTY-07, 08 y 25 a 35 ([spec.md](spec.md)). Eliminadas (sin reemplazo): SPEC-PTY-01, 02, 04, 10, 12, 13, 14, 17, 18, 20 y 21. Reemplazadas: 03 → 25, 05 → 26, 06 → 29, 11 → 34, 15 → 27, 16 → 30, 19 → 28, 22 → 31, 23 → 32 y 24 → 33 (SPEC-PTY-09 ya estaba reemplazada por 22). RNF: 2 (autenticación y permisos), 7 (API documentada) y 10 (el listado de tipos **no** se pagina, SPEC-PTY-33). SPEC-PTY-08 se verificó completa en `03-products` (decisión 3 de la spec).
+
+> **Re-sincronización del 2026-11-13** (decisión 8 de la spec: se elimina la entidad `Category`; el tipo de producto **es** el rubro): manda la sección [Eliminación de las categorías](#eliminación-de-las-categorías-2026-11-13) y las tasks T-PTY-42 a 54. Todo lo que las secciones anteriores dicen sobre `Category`, `categories`, `CategoryRepository`, `category_id`, `CategoryGroup` y los endpoints `/categories` queda como historial del diseño original.
 
 > **Re-sincronización del 2026-11-12** (nueva área [07-ui](../07-ui/spec.md)): búsqueda `q` en `GET /categories` y `GET /product-types`, sin paginación. Ver [Búsqueda por nombre](#búsqueda-por-nombre-2026-11-12) y las tasks T-PTY-34 a 41. Las secciones anteriores describen el diseño original; donde algo cambió, manda la sección nueva.
 
@@ -157,8 +159,82 @@ Sin cambios en el modelo de datos: `name_key` ya guarda `casefold()` del nombre.
 | El refactor de `CategoryGroup` cambia el JSON de `GET /product-types` sin que se note | TC-PTY-22d (antes 09d) y 10b comparan el cuerpo completo y siguen en verde sin cambios. |
 | Un `page_size` inválido termina en `400` por reutilizar el helper de paginación por error | TC-PTY-24a y 24b. |
 
+## Eliminación de las categorías (2026-11-13)
+
+Jerarquía final: `ProductType` → `Product`. No queda ninguna entidad, tabla, repositorio, ruta, campo, error ni fixture de categoría. Comportamiento que se conserva: baja física de tipos sin productos (SPEC-PTY-07) y rechazo con productos (SPEC-PTY-08), nombre recortado y sin distinguir mayúsculas, búsqueda `q` y listado sin paginar.
+
+### Componentes por capa (cambios)
+
+| Capa | Archivo | Cambio | Specs |
+|------|---------|--------|-------|
+| Dominio | `app/domain/products.py` | Se elimina `Category`. `ProductType` queda con `id`, `name` y `name_key` (mixin `CatalogName`), la relación `products` y `UniqueConstraint("name_key")`; sin `category_id` ni relación `category`. Paso intermedio (T-PTY-47): `category_id` nullable y `UNIQUE (name_key)`, para poder cambiar el camino de escritura sin romper el resto (ver decisiones) | PTY-25, 26, 28, 35 |
+| Dominio | `app/domain/errors.py` | Se eliminan `CategoryNotFoundError`, `DuplicateCategoryError` y `CategoryInUseError` (T-PTY-52) | PTY-35 |
+| Services | `app/services/catalog_service.py` | `CatalogService(product_type_repository, commit)`: `create_product_type(name)`, `update_product_type(product_type_id, name=None)`, `delete_product_type(product_type_id)` y `list_product_types(q=None) -> list[ProductType]`. Se eliminan `create_category`, `update_category`, `delete_category`, `list_categories`, `CategoryGroup`, el protocolo `CategoryRepository` y la validación de `category_id`. El duplicado se busca con `find_by_name(name)` en todo el catálogo | PTY-07, 08, 25 a 34 |
+| Repositories | `app/repositories/product_type_repository.py` | `list_all(q=None)` (lista plana por `name_key`, `id`; `q` contra `name_key` con `autoescape`) reemplaza a `search(q, category_id)`; `find_by_name(name)` reemplaza a `find_by_name_in_category`. `add`, `get`, `delete` y `has_products` sin cambios | PTY-26, 30, 31, 32 |
+| Repositories | `app/repositories/category_repository.py` | Se borra el módulo (T-PTY-52) | PTY-35 |
+| App | `app/wiring.py` | `get_catalog_service()` sin el repositorio de categorías (T-PTY-51); `get_product_service()` lo pierde en T-PRD-43 | — |
+| Controllers | `app/controllers/catalog.py` | Se quitan las 4 rutas `/categories` (T-PTY-43). `GET /product-types` lee solo `q` (un `category_id` se ignora); `POST` y `PATCH /product-types` pasan solo `name` (un `category_id` en el cuerpo se ignora) | PTY-25, 27, 29, 31 a 35 |
+| Controllers | `app/controllers/serializers.py` | `product_type_json` → `{"id", "name"}`; se borran `category_group_json` y, en T-PRD-42, `category_json` | PTY-31, 35 |
+| Controllers | `app/controllers/errors.py` | Se quitan las filas `CategoryNotFoundError`, `DuplicateCategoryError` y `CategoryInUseError` de `ERROR_RESPONSES` (T-PTY-52) | PTY-35 |
+| Contrato | `docs/openapi.json` | T-PTY-42: esquemas `ProductType` (`id`, `name`), `CreateProductTypeRequest` y `UpdateProductTypeRequest` (solo `name`), `GET /product-types` con respuesta arreglo plano de `ProductType` y sin el parámetro `category_id`, `PATCH /product-types/{id}` con `404` `ProductTypeNotFound` (sin `ProductTypeOrCategoryNotFound`), `DuplicateProductType` con unicidad global; se borran `CategoryWithProductTypes` y `ProductTypeOrCategoryNotFound`. T-PTY-43 borra, junto con los paths `/categories`, lo que solo ellos usan: `CategoryRequest`, `UpdateCategoryRequest`, el parámetro `CategoryId` y las respuestas `DuplicateCategory`, `CategoryNotFound` y `CategoryInUse`. El esquema `Category` lo borra T-PRD-41 junto con `Product.category` (su último uso) | RNF 7, PTY-35 |
+| Tests | `tests/conftest.py` | `make_product_type(category=None, name=None)` (paso intermedio, T-PTY-48) y después `make_product_type(name=None)`; se borran `make_category` y `MakeCategory` (T-PTY-52) | — |
+| Tests | `tests/unit/catalog/fakes.py` | `FakeProductTypeRepository` con `list_all(q)` y `find_by_name`; se borra `FakeCategoryRepository` (T-PTY-52) | — |
+| Tests | `tests/ui/e2e/server.py` | La siembra crea el tipo «Portátiles» sin categoría (T-PTY-49) | — |
+
+### Modelo de datos (final)
+
+Tabla `product_types`:
+
+| Columna | Tipo | Restricciones | Notas |
+|---------|------|---------------|-------|
+| `id` | `Integer` | PK | |
+| `name` | `String(120)` | `NOT NULL` | Sin espacios en los extremos (SPEC-PTY-28) |
+| `name_key` | `String(120)` | `NOT NULL`, `UNIQUE` (`uq_product_types_name_key`) | `normalize_name(name)`. Unicidad global sin distinguir mayúsculas (SPEC-PTY-26 y 30, decisión 9) |
+
+La tabla `categories` y la columna `product_types.category_id` (con su FK e índice) desaparecen. `products.product_type_id` FK `RESTRICT` no cambia (SPEC-PTY-08). Como no hay migraciones (`create_all`, AGENTS.md), una base local creada antes de T-PTY-52 conserva la tabla `categories` y la columna vieja: hay que recrearla con `init-db` (se anota en `MEMORY.md`).
+
+### Interfaz HTTP (final)
+
+| Método y ruta | Acceso | Éxito | Errores | Specs |
+|---------------|--------|-------|---------|-------|
+| `GET /product-types?q` | sesión | `200` arreglo plano de `{"id", "name"}` ordenado por nombre sin distinguir mayúsculas e `id`; ignora `page`, `page_size`, `category_id` y cualquier otro parámetro | `401` | PTY-31, 32, 33, 35 |
+| `POST /product-types` | admin | `201` `{"id", "name"}` | `400` (`name`), `401`, `403`, `409` `duplicate_product_type` | PTY-25, 26, 27, 28, 34, 35 |
+| `PATCH /product-types/{product_type_id}` | admin | `200` `{"id", "name"}` | `400`, `401`, `403`, `404` `product_type_not_found`, `409` `duplicate_product_type` | PTY-27, 28, 29, 30, 34 |
+| `DELETE /product-types/{product_type_id}` | admin | `204` | `401`, `403`, `404`, `409` `product_type_in_use` | PTY-07, 08, 34 |
+| `GET`, `POST /categories`, `PATCH`, `DELETE /categories/{id}` | — | — | `404` `{"error": "not_found"}` de ruteo (SPEC-PLT-15), con o sin sesión | PTY-35 |
+
+### Patrones aplicados
+
+- Los mismos del área (capas, Repository, constructor DI, registro de errores en `ERROR_RESPONSES`). La eliminación no agrega patrones: **quita** un nivel del agregado y una dependencia del constructor de `CatalogService`.
+- **Expandir y contraer** para cambiar el esquema sin dejar la suite en rojo entre tasks: primero se quitan los consumidores de la categoría (rutas, listado agrupado, serialización, filtros de productos y cargas anticipadas de tickets), después el camino de escritura deja de pedirla (con la columna nullable) y al final se borra la entidad.
+
+### Decisiones técnicas
+
+| Decisión | Motivo y alternativas descartadas |
+|----------|-----------------------------------|
+| Orden de afuera hacia adentro (contrato → rutas → listado → serialización → esquema intermedio → escritura → services → limpieza final), con las tasks de 03, 04, 05 y 06 intercaladas antes de la limpieza | `Category` la usan el dominio, dos repositorios, dos services, los serializadores, la carga anticipada de tickets y los fixtures de cinco áreas. Borrarla primero obligaría a una task gigante que toca todo. Así cada task es un ciclo TDD chico y la suite queda en verde al terminar cada una. Se descartó una sola task «quitar categorías» (no entra en un ciclo ni en un PR razonable). |
+| Paso intermedio en T-PTY-47: `product_types.category_id` nullable y `UNIQUE (name_key)` global | Permite que el alta y la modificación dejen de pedir la categoría (T-PTY-49 y 50) mientras la relación todavía existe para el código que se limpia después. Es transitorio: T-PTY-52 borra la columna. Se descartó cambiar el esquema y el camino de escritura en la misma task (dominio, repositorio, service, controller y fixtures a la vez). Riesgo y mitigación abajo. |
+| La quita de los paths `/categories` del contrato va en la misma task que la quita de las rutas (T-PTY-43), no en T-PTY-42 | La paridad SPEC-PLT-23 (TC-PLT-23a y 23b) compara rutas y paths en los dos sentidos: quitar los paths antes que las rutas deja la suite en rojo entre dos tasks. Es el mismo criterio que el área usó al agregar endpoints (contrato y ruta en el mismo ciclo). Los esquemas y parámetros que cambian (sin `category_id`) sí van antes, en T-PTY-42, como pide el ciclo de un cambio. |
+| Un `category_id` (query o cuerpo) se ignora sin error | Decisión 10 de la spec y decisión aprobada del 2026-11-13. El controller simplemente no lo lee, igual que cualquier parámetro o clave desconocida (`PATCH` parcial). TC-PTY-35b y 35e. |
+| `/categories` cae en el `404` genérico de ruteo | Decisión 10 de la spec. No hace falta código: al borrar las rutas, `HTTP_ERROR_RESPONSES` (SPEC-PLT-15) responde `{"error": "not_found"}`, también sin sesión porque el ruteo corre antes que `login_required`. TC-PTY-35a. |
+| `list_all(q=None)` reemplaza a `search(q, category_id)` y a `CategoryRepository.list_with_product_types` | Una sola consulta sobre `product_types`, sin relaciones que cargar: no hay N+1 posible y no hace falta `selectinload`. Mismo filtro `contains(q.casefold(), autoescape=True)` sobre `name_key`. |
+| `find_by_name(name)` global reemplaza a `find_by_name_in_category` | SPEC-PTY-26 y 30 (decisión 9). El service sigue buscando el duplicado **antes** de asignar, y `add` sigue traduciendo el `IntegrityError` del `UNIQUE` a `DuplicateProductTypeError`. Renombrar a su propio nombre con otras mayúsculas sigue permitido (se ignora al dueño). |
+| Los casos de las specs reemplazadas se re-trazan con IDs nuevos y los de las eliminadas se borran con sus tests | Convención de AGENTS.md («los tests de la spec reemplazada se actualizan o se eliminan en el mismo PR») y de este test-plan con SPEC-PTY-09. Los IDs viejos quedan como registro en la tabla de casos retirados del [test-plan](test-plan.md). |
+| El cierre (T-PTY-54) actualiza la estructura de `AGENTS.md` | `AGENTS.md` nombra `category_repository.py`, `CategoryInUseError` y `Category` en la estructura del proyecto; tiene que coincidir con el código (la sección de memoria no se toca: es inmutable). |
+
+### Riesgos
+
+| Riesgo | Mitigación |
+|--------|------------|
+| Al pasar a `UNIQUE (name_key)` global (T-PTY-47), algún test de otra área crea dos tipos con el mismo nombre en categorías distintas y falla | El criterio de terminado de T-PTY-47 es la suite completa en verde; los casos de 02 que lo hacían a propósito (TC-PTY-05b, 05d, 16b) son de specs reemplazadas y se borran en esa task. Si aparece otro, se renombra el dato en la misma task. |
+| La columna nullable del paso intermedio deja tipos sin categoría que el listado de productos todavía lee (`product.product_type.category`) | Las tasks de 03 que quitan la categoría de la respuesta y de los filtros (T-PRD-42 a 44) van antes de que un fixture cree tipos sin categoría en esos tests (T-PRD-45 depende de ellas). El paso intermedio dura solo hasta T-PTY-52. |
+| Entre el PR de la API y el de la interfaz, la pantalla `#/product-types` pide `GET /categories` (ya `404`) y agrupa por categoría | Los PR de la interfaz (T-UI-47 a 53 y T-UI-56) van inmediatamente después y se mergean antes de liberar; las pruebas de Playwright usan API simulada, así que el CI no lo ve: se anota en el PR. La pantalla de productos queda **mejor** con el listado plano (hoy arma el selector de tipos sobre la respuesta agrupada). |
+| Una base local vieja conserva `categories` y `product_types.category_id NOT NULL`, y el alta de tipos falla | `MEMORY.md` lo anota en «Limitaciones conocidas»: recrear la base con `init-db` (no hay migraciones). |
+| Quitar `category_json` o `CategoryRepository` antes de tiempo rompe a 03 | `category_json` lo borra T-PRD-42 (su último usuario es `product_json`); el módulo `category_repository.py` y el protocolo los borra T-PTY-52, que depende de T-PRD-43 (último consumidor: `ProductService`). |
+
 ## Dependencias con otras áreas
 
+- **Desde el 2026-11-13** (eliminación de las categorías): la limpieza final T-PTY-52 espera a que 03 quite la categoría de `ProductService`, del repositorio de productos y de `product_json` (T-PRD-42 a 45), a que 04 deje de cargarla con los tickets y de usar `make_category` (T-PRD-44 y T-TKT-53), y a que 05 y 06 dejen de usar `make_category` (T-MLS-27 y T-NTF-19). El contrato sigue la cadena T-PTY-42 → T-PTY-43 → T-PRD-41 (`docs/openapi.json`); ninguna task posterior lo edita. La interfaz (T-UI-47 a 56 de 07) consume el listado plano y la ausencia de `/categories`. `00-platform` solo cambia un dato de prueba (T-PLT-25).
 - Usa de `00-platform`: `create_app`, `get_session()`, `Base`, `create_schema`, el contrato `docs/openapi.json` y su test de sincronización (SPEC-PLT-14).
 - Usa de `01-users`: `login_required`, `admin_required`, `ERROR_RESPONSES` y `register_error_handlers`, `json_body()`, `ValidationError(fields)`, los helpers de validación (extraídos a `services/validation.py`), los fixtures `schema`, `db_session`, `make_user`, `login_as` y `admin_client`, `CommitSpy` (movido a `tests/unit/fakes.py`) y el test de guarda TC-USR-16d, que cubre los 8 endpoints nuevos sin cambios.
 - `03-products` agrega `Product` a `app/domain/products.py`, la relación `ProductType.products`, `ProductTypeRepository.has_products`, el chequeo en `delete_product_type`, `ProductTypeInUseError` y los casos TC-PTY-08a a 08c. Usa `ProductTypeRepository.get` para validar el tipo de un producto (SPEC-PRD-02).

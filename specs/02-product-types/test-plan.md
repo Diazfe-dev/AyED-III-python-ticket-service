@@ -18,6 +18,8 @@ Las colecciones `Category.product_types` se mantienen solas en objetos transitor
 
 Para los tests que verifican "sin cambios", se relee la fila con `db_session.expire_all()` después del request, igual que en `01-users`.
 
+**Re-sincronización del 2026-11-13** (eliminación de `Category`, decisión 8 de la spec): la matriz vigente es la de la sección [Eliminación de las categorías](#eliminación-de-las-categorías-re-sincronización-del-2026-11-13), junto con los casos de SPEC-PTY-07 y 08 de la matriz original. Las filas de la matriz original y de la búsqueda del 2026-11-12 que trazan specs eliminadas o reemplazadas quedan **solo como registro** (los IDs no se reutilizan): la tabla de casos retirados dice qué pasó con cada una. Los fixtures `make_category` y `make_product_type(category, ...)` de abajo también son historial: desde T-PTY-48 `make_product_type(category=None, name=None)` y desde T-PTY-52 `make_product_type(name=None)`, sin `make_category`.
+
 Re-sincronización del 2026-11-12: SPEC-PTY-09 está reemplazada por SPEC-PTY-22; sus casos se re-trazan como TC-PTY-22a a 22d (T-PTY-34) sin cambiar datos ni resultados. Casos nuevos para SPEC-PTY-21, 22 (`q` vacío), 23 y 24 en la sección [Búsqueda por nombre](#búsqueda-por-nombre-re-sincronización-del-2026-11-12).
 
 ## Matriz spec → casos
@@ -149,7 +151,90 @@ Datos de referencia: las categorías `"Redes"` (tipos `"Router"` y `"Access poin
 | PTY-24 | TC-PTY-24a | integration | Mismos datos que TC-PTY-21c; `GET /categories?page=0&page_size=abc` y `GET /categories?page=1&page_size=1` | `200` con el arreglo plano de todas las categorías en los dos, en orden `"50% off"`, `"audio"`, `"Electrónica"`, `"Redes"` (por `name_key`, el nombre en `casefold`, y luego `id`) (ni `400` ni objeto `{items, ...}`) | `tests/integration/catalog/test_categories_api.py` |
 | PTY-24 | TC-PTY-24b | integration | `GET /product-types?page=abc`, `GET /product-types?page=1&page_size=1` y `GET /product-types?q=UTE&page=2` | `200` con el arreglo plano de grupos en los tres; el último, filtrado por `q` como TC-PTY-23f (`"Hardware"` con `"Ruteador USB"` y `"Redes"` con `"Router"`, no una página vacía) | `tests/integration/catalog/test_product_types_api.py` |
 
+### Eliminación de las categorías (re-sincronización del 2026-11-13)
+
+Datos de referencia: tipos `"Router"`, `"Ruteador USB"`, `"Notebook"`, `"access point"`, `"Cámara"` y `"50% off"`, sin categorías. Fakes: `FakeProductTypeRepository.list_all(q)` (filtra por `q.casefold() in name_key` y ordena por `(name_key, id)`) y `find_by_name(name)` (por `normalize_name`). Fixture: `make_product_type(name=...)`.
+
+| Spec | Caso | Nivel | Datos / preparación | Resultado esperado | Archivo | Task |
+|------|------|-------|---------------------|--------------------|---------|------|
+| PTY-25 | TC-PTY-25a | unit | `create_product_type("Notebook")` con fakes (antes 03a) | Devuelve un `ProductType` `"Notebook"` guardado en el repositorio; `commit` una vez | `tests/unit/catalog/test_catalog_service.py` | T-PTY-49 |
+| PTY-25 | TC-PTY-25b | unit | `ProductType(name=" Notebook ")` (antes 03b, sin categoría) | `name == "Notebook"` y `name_key == "notebook"` | `tests/unit/catalog/test_products.py` | T-PTY-48 |
+| PTY-25 | TC-PTY-25c | integration | `add(ProductType(name="Notebook"))` sin categoría, commit y `get(id)` en una sesión nueva (antes 03c) | Devuelve el tipo con el mismo nombre (hoy falla: `category_id NOT NULL`) | `tests/integration/catalog/test_product_type_repository.py` | T-PTY-47 |
+| PTY-25 | TC-PTY-25d | integration | `admin_client` hace `POST /product-types` con `{"name": "Notebook"}` (antes 03d) | `201` con exactamente `{"id": <int>, "name": "Notebook"}` y la fila existe | `tests/integration/catalog/test_product_types_api.py` | T-PTY-49 |
+| PTY-26 | TC-PTY-26a | unit | Existe `"Notebook"`; `create_product_type(" NOTEBOOK ")` (antes 05a) | `DuplicateProductTypeError`; no se agrega nada y no hay commit | `tests/unit/catalog/test_catalog_service.py` | T-PTY-49 |
+| PTY-26 | TC-PTY-26b | integration | Existe `"Notebook"`; `find_by_name(" notebook ")` y `find_by_name("Otro")` | Devuelve `"Notebook"` y `None` (búsqueda global) | `tests/integration/catalog/test_product_type_repository.py` | T-PTY-47 |
+| PTY-26 | TC-PTY-26c | integration | Dos `add` con `"Notebook"` y `"notebook"`, sin categoría y sin pasar por el service (antes 05c) | El primero se guarda; el segundo lanza `DuplicateProductTypeError` (no `IntegrityError`) | `tests/integration/catalog/test_product_type_repository.py` | T-PTY-47 |
+| PTY-26 | TC-PTY-26d | integration | Existe `"Notebook"`; `POST /product-types` con `{"name": "NOTEBOOK"}` (antes 05e) | `409` `{"error": "duplicate_product_type"}` y sigue habiendo un solo tipo | `tests/integration/catalog/test_product_types_api.py` | T-PTY-49 |
+| PTY-26 | TC-PTY-26e | unit | `normalize_name("  Notebook ")` y `normalize_name("ÁUDIO")` (antes 02a) | `"notebook"` y `"áudio"` | `tests/unit/catalog/test_products.py` | T-PTY-48 |
+| PTY-26 | TC-PTY-26f | integration | Existe el tipo `"áudio"`; `add(ProductType(name="ÁUDIO"))` y `find_by_name("ÁUDIO")` (antes 02e, ahora sobre tipos) | `add` lanza `DuplicateProductTypeError` y `find_by_name` devuelve `"áudio"` (la base compara con `casefold`, no con el `lower()` ASCII de SQLite) | `tests/integration/catalog/test_product_type_repository.py` | T-PTY-47 |
+| PTY-27 | TC-PTY-27a | unit | Parametrizado: `create_product_type(v)` con `v` en `None`, `""`, `"   "` y `7` (antes 15d) | `ValidationError` con `fields == {"name": "required"}` (los tres primeros) y `{"name": "invalid"}`; no se agrega nada y no hay commit | `tests/unit/catalog/test_catalog_service.py` | T-PTY-49 |
+| PTY-27 | TC-PTY-27b | unit | `update_product_type(id, name="   ")` y `update_product_type(id, name=["x"])` (antes 15e) | `required` e `invalid`; el tipo no cambia y no hay commit | `tests/unit/catalog/test_catalog_service.py` | T-PTY-50 |
+| PTY-27 | TC-PTY-27c | integration | `POST /product-types` con `{"name": 123}`, con `{}` y con el cuerpo vacío (antes 15h) | `400` `validation_error` con `fields.name` en `"invalid"`, `"required"` y `"required"`; sin tipo creado | `tests/integration/catalog/test_product_types_api.py` | T-PTY-49 |
+| PTY-27 | TC-PTY-27d | integration | `PATCH /product-types/{id}` con `{"name": ""}` (antes 15i) | `400` con `fields == {"name": "required"}` y la fila no cambia | `tests/integration/catalog/test_product_types_api.py` | T-PTY-50 |
+| PTY-28 | TC-PTY-28a | unit | `ProductType(name=" Notebook ")` y después `name = "  Ultrabook "` (antes 19b) | `"Notebook"` y luego `"Ultrabook"`, con `name_key` acompañando | `tests/unit/catalog/test_products.py` | T-PTY-48 |
+| PTY-28 | TC-PTY-28b | integration | `POST /product-types` con `{"name": "  Notebook "}` | `201` con `name == "Notebook"` y la fila guardada con `"Notebook"` | `tests/integration/catalog/test_product_types_api.py` | T-PTY-49 |
+| PTY-28 | TC-PTY-28c | integration | `PATCH /product-types/{id}` con `{"name": "  Ultrabook "}` (antes 19d) | `200` con `name == "Ultrabook"` y la fila guardada así | `tests/integration/catalog/test_product_types_api.py` | T-PTY-50 |
+| PTY-29 | TC-PTY-29a | unit | `update_product_type(id, name="Ultrabook")` (antes 06a) | El nombre cambia y hay un commit | `tests/unit/catalog/test_catalog_service.py` | T-PTY-50 |
+| PTY-29 | TC-PTY-29b | unit | `update_product_type(id, name="NOTEBOOK")` sobre `"Notebook"` (antes 06c) | No lanza y el nombre queda `"NOTEBOOK"` (el dueño del nombre se ignora) | `tests/unit/catalog/test_catalog_service.py` | T-PTY-50 |
+| PTY-29 | TC-PTY-29c | unit | `update_product_type(9999, name="X")` (antes 06d) | `ProductTypeNotFoundError` y no hay commit | `tests/unit/catalog/test_catalog_service.py` | T-PTY-50 |
+| PTY-29 | TC-PTY-29d | integration | `PATCH /product-types/{id}` con `{"name": "Ultrabook", "category_id": 9999, "id": 99}` (antes 06e) | `200` con exactamente `{"id": <id>, "name": "Ultrabook"}`; el `id` no cambia (hoy responde `404` `category_not_found`) | `tests/integration/catalog/test_product_types_api.py` | T-PTY-50 |
+| PTY-29 | TC-PTY-29e | integration | `PATCH /product-types/9999` con un nombre válido (antes 06f) | `404` `{"error": "product_type_not_found"}` | `tests/integration/catalog/test_product_types_api.py` | T-PTY-50 |
+| PTY-29 | TC-PTY-29f | integration | `SqlAlchemyProductTypeRepository.get(2**63)` (antes 06g) | `None` sin `OverflowError` | `tests/integration/catalog/test_product_type_repository.py` | T-PTY-47 |
+| PTY-30 | TC-PTY-30a | unit | Existen `"Notebook"` y `"Router"`; `update_product_type(router.id, name=" NOTEBOOK ")` (antes 16c) | `DuplicateProductTypeError`; el nombre no cambia y no hay commit (unicidad global) | `tests/unit/catalog/test_catalog_service.py` | T-PTY-50 |
+| PTY-30 | TC-PTY-30b | integration | Existen A y B; `PATCH /product-types/{B}` con el nombre de A en minúsculas (antes 16e) | `409` `{"error": "duplicate_product_type"}` y B no cambia | `tests/integration/catalog/test_product_types_api.py` | T-PTY-50 |
+| PTY-31 | TC-PTY-31a | unit | Datos de referencia con fakes; `list_product_types()` | Lista plana de `ProductType`: `"50% off"`, `"access point"`, `"Cámara"`, `"Notebook"`, `"Router"`, `"Ruteador USB"` (por `name_key` e `id`) | `tests/unit/catalog/test_catalog_service.py` | T-PTY-45 |
+| PTY-31 | TC-PTY-31b | integration | Datos de referencia insertados desordenados; `list_all()` | El mismo orden que 31a; una sola sentencia SQL (`count_statements`) | `tests/integration/catalog/test_product_type_repository.py` | T-PTY-44 |
+| PTY-31 | TC-PTY-31c | integration | Sesión de un `Client`; `GET /product-types` | `200` con un arreglo plano de objetos `{"id", "name"}` en el orden de 31a | `tests/integration/catalog/test_product_types_api.py` | T-PTY-45 |
+| PTY-32 | TC-PTY-32a | unit | Datos de referencia; `list_product_types(q="UTE")` y `list_product_types(q="zzz")` | `["Router", "Ruteador USB"]` y `[]` | `tests/unit/catalog/test_catalog_service.py` | T-PTY-45 |
+| PTY-32 | TC-PTY-32b | integration | Datos de referencia; `list_all(q="CÁM")`, `list_all(q="%")` y `list_all(q="_")` | `["Cámara"]` (mayúsculas fuera de ASCII); `["50% off"]` y `[]` (`%` y `_` literales) | `tests/integration/catalog/test_product_type_repository.py` | T-PTY-44 |
+| PTY-32 | TC-PTY-32c | integration | Sesión de un `Representative`; `GET /product-types?q=ute` | `200` con `[{"id", "name": "Router"}, {"id", "name": "Ruteador USB"}]` | `tests/integration/catalog/test_product_types_api.py` | T-PTY-45 |
+| PTY-32 | TC-PTY-32d | integration | `GET /product-types?q=` y `GET /product-types?q=%20` (SPEC-PLT-27) | `200` igual que sin `q` (los 6 tipos) | `tests/integration/catalog/test_product_types_api.py` | T-PTY-45 |
+| PTY-33 | TC-PTY-33a | integration | `GET /product-types?page=abc`, `?page=1&page_size=1` y `?q=UTE&page=2` (antes 24b) | `200` con el arreglo plano en los tres (ni `400` ni `{items, ...}`); el último filtrado por `q` como 32c | `tests/integration/catalog/test_product_types_api.py` | T-PTY-45 |
+| PTY-34 | TC-PTY-34a | integration | Parametrizado por los 3 endpoints de escritura (`POST /product-types`, `PATCH` y `DELETE /product-types/{id}`) con la sesión de un `Representative` (antes 11a) | `403` `{"error": "forbidden"}` en todos y la base no cambia | `tests/integration/catalog/test_catalog_permissions.py` | T-PTY-43 |
+| PTY-34 | TC-PTY-34b | integration | Igual que 34a con un `Client` (antes 11b) | `403` en todos y la base no cambia | `tests/integration/catalog/test_catalog_permissions.py` | T-PTY-43 |
+| PTY-35 | TC-PTY-35a | integration | Parametrizado: `GET /categories`, `POST /categories`, `PATCH /categories/1` y `DELETE /categories/1`, con `admin_client` y sin sesión | `404` `{"error": "not_found"}` en todos (ruteo, SPEC-PLT-15) | `tests/integration/catalog/test_product_types_api.py` | T-PTY-43 |
+| PTY-35 | TC-PTY-35b | integration | `GET /product-types?category_id=abc` y `GET /product-types?category_id=9999` | `200` con el listado completo, igual que sin el parámetro (se ignora, decisión 10) | `tests/integration/catalog/test_product_types_api.py` | T-PTY-45 |
+| PTY-35 | TC-PTY-35c | integration | Respuestas de `GET /product-types`, `POST /product-types` y `PATCH /product-types/{id}` | Cada tipo tiene exactamente las claves `id` y `name` (sin `category_id`) | `tests/integration/catalog/test_product_types_api.py` | T-PTY-46 |
+| PTY-35 | TC-PTY-35d | integration | `inspect(engine)` sobre el esquema creado con `create_schema` | No existe la tabla `categories`; las columnas de `product_types` son `{id, name, name_key}` y hay un `UNIQUE` sobre `name_key` | `tests/integration/catalog/test_product_type_repository.py` | T-PTY-52 |
+| PTY-35 | TC-PTY-35e | integration | `POST /product-types` con `{"name": "Notebook", "category_id": "abc"}` | `201` con `{"id", "name": "Notebook"}` (el campo se ignora, sin `400`) | `tests/integration/catalog/test_product_types_api.py` | T-PTY-49 |
+| PTY-35 | TC-PTY-35f | integration | Lee `docs/openapi.json` | Ningún path empieza con `/categories`; no hay esquemas, respuestas ni parámetros cuyo nombre empiece con `Category`; `ProductType`, `CreateProductTypeRequest` y `UpdateProductTypeRequest` no tienen `category_id`; `GET /product-types` no declara el parámetro `category_id`. (La parte de esquemas `Category` pasa a verde recién con T-PRD-41, que borra el esquema `Category`: hasta entonces el test excluye ese nombre y T-PRD-41 quita la excepción) | `tests/integration/catalog/test_catalog_contract.py` | T-PTY-43 |
+
+TC-PTY-07a a 07e y 08a a 08d siguen vigentes con datos sin categoría (T-PTY-48); TC-PTY-07c pasa a esperar solo `None` (sin «la categoría sigue existiendo»).
+
+#### Casos retirados (2026-11-13)
+
+Los IDs quedan reservados. «Eliminado»: se borra el test (su spec fue eliminada o contradice la spec nueva). «Re-trazado»: el test pasa a citar el caso nuevo.
+
+| Casos | Spec de origen | Destino | Task que borra o re-traza |
+|-------|----------------|---------|---------------------------|
+| TC-PTY-01c, 02h, 02i, 12d, 12e, 13d, 13e, 14e, 15f, 15g, 17c, 19c, 21c, 21d, 24a | PTY-01, 02, 12, 13, 14, 15, 17, 19, 21, 24 (`/categories`) | Eliminados | T-PTY-43 |
+| TC-PTY-11a, 11b | PTY-11 | Re-trazados a 34a y 34b | T-PTY-43 |
+| TC-PTY-09a a 09d (ya en 22a a 22d), 10a, 10b, 18a, 18c, 18e, 20e, 20h, 22a a 22e, 23a a 23g | PTY-09, 10, 18, 20, 22, 23 | Eliminados (listado agrupado o filtro por categoría) | T-PTY-45 |
+| TC-PTY-24b | PTY-24 | Re-trazado a 33a | T-PTY-45 |
+| TC-PTY-03c, 05c, 06g | PTY-03, 05, 06 | Re-trazados a 25c, 26c y 29f | T-PTY-47 |
+| TC-PTY-05d | PTY-05 | Eliminado (mismo nombre en categorías distintas) | T-PTY-47 |
+| TC-PTY-02a, 03b, 19b | PTY-02, 03, 19 | Re-trazados a 26e, 25b y 28a | T-PTY-48 |
+| TC-PTY-03a, 03d, 05a, 05e, 15d, 15h | PTY-03, 05, 15 | Re-trazados a 25a, 25d, 26a, 26d, 27a y 27c | T-PTY-49 |
+| TC-PTY-04a, 04c, 05b, 20a, 20b, 20c, 20f | PTY-04, 05, 20 | Eliminados | T-PTY-49 |
+| TC-PTY-06a, 06c, 06d, 06e, 06f, 15e, 15i, 16c, 16e, 19d | PTY-06, 15, 16, 19 | Re-trazados a 29a, 29b, 29c, 29d, 29e, 27b, 27d, 30a, 30b y 28c | T-PTY-50 |
+| TC-PTY-06b, 16a, 16b, 16d, 20d, 20g | PTY-06, 16, 20 | Eliminados (mover de categoría) | T-PTY-50 |
+| TC-PTY-01a, 02c, 02d, 12a, 12b, 12c, 13a, 13b, 14a, 15a, 15b, 15c, 17b, 21a | PTY-01, 02, 12, 13, 14, 15, 17, 21 (service) | Eliminados | T-PTY-51 |
+| TC-PTY-01b, 02b, 02e, 02f, 02g, 13c, 14b, 14c, 14d, 17a, 18d, 19a, 21b | PTY-01, 02, 13, 14, 17, 18, 19, 21 (dominio y repositorio de `Category`) | Eliminados (02e ya re-trazado como 26f sobre tipos) | T-PTY-52 |
+
 ## Casos borde
+
+Desde el 2026-11-13 rigen estos (la lista siguiente queda como historial):
+
+- Nombre repetido con otras mayúsculas y espacios, también entre tipos que antes eran de categorías distintas: TC-PTY-26a, 26c, 26d y 30a.
+- Mayúsculas no ASCII (`"ÁUDIO"` / `"áudio"`): TC-PTY-26e, 26f y 32b.
+- Renombrar un tipo a su propio nombre con otras mayúsculas: TC-PTY-29b.
+- `category_id` enviado en el listado, en el alta o en la modificación (válido, inexistente o mal formado): se ignora, TC-PTY-35b, 35e y 29d.
+- Rutas `/categories` con y sin sesión: TC-PTY-35a.
+- `q` con `%`, `_`, vacío o solo espacios: TC-PTY-32b y 32d. `page` y `page_size` ignorados: TC-PTY-33a.
+- Nombre ausente, vacío, solo espacios o que no es texto: TC-PTY-27a a 27d. Espacios en los extremos: TC-PTY-28a a 28c.
+- Id fuera del rango de `INTEGER`: TC-PTY-29f. Ids inexistentes: TC-PTY-29c, 29e, 07b y 07e.
+
+Historial (antes del 2026-11-13):
 
 - Nombre duplicado con otra combinación de mayúsculas y espacios alrededor: TC-PTY-02c, 02f, 02h y 05a.
 - Mayúsculas no ASCII (`"ÁUDIO"` / `"áudio"`), que el `lower()` de SQLite no resuelve: TC-PTY-02a y 02e.
@@ -180,3 +265,5 @@ Datos de referencia: las categorías `"Redes"` (tipos `"Router"` y `"Access poin
 | RNF 2 (autenticación y permisos) | TC-PTY-11a y 11b (`403` para no admins en los 6 endpoints de escritura), TC-USR-16d (`401` sin sesión en los 8 endpoints; hoy TC-USR-49a), y TC-PTY-09d (hoy 22d), 10b, 17c, 21c y 23f (las lecturas solo piden sesión) |
 | RNF 7 (documentación de la API) | TC-PLT-14a y 14b en cada task de endpoint (T-PTY-21 a 28); TC-PLT-23a y 23b en T-PTY-39 |
 | RNF 10 (listados; estos no se paginan por decisión del usuario) | TC-PTY-24a y 24b |
+
+Desde el 2026-11-13: RNF 2 → TC-PTY-34a y 34b (`403` en los 3 endpoints de escritura), TC-USR-49a (`401` sin sesión, recorre `app.url_map`), TC-PTY-31c y 32c (las lecturas solo piden sesión); RNF 7 → TC-PLT-23a y 23b en T-PTY-42, 43 y T-PRD-41, y TC-PTY-35f (el contrato no expone categorías); RNF 10 → TC-PTY-33a.

@@ -42,7 +42,7 @@ Cada área es una carpeta `NN-<área>/`. `spec.md` existe siempre. Los demás ar
 |------|-------------|----|------|------|-------|-----------|
 | [00-platform/](00-platform/spec.md) | Plataforma: configuración, base de datos, sesión, comandos y documentación de la API | RNF 1, 2, 7 | ✅ | ✅ | ✅ | ✅ |
 | [01-users/](01-users/spec.md) | Gestión de usuarios y accesos | 1.1 | ✅ | ✅ | ✅ | ✅ |
-| [02-product-types/](02-product-types/spec.md) | Gestión de tipos de producto y rubros | 1.2 | ✅ | ✅ | ✅ | ✅ |
+| [02-product-types/](02-product-types/spec.md) | Gestión de tipos de producto (rubros) | 1.2 | ✅ | ✅ | ✅ | ✅ |
 | [03-products/](03-products/spec.md) | Gestión de productos | 1.3 | ✅ | ✅ | ✅ | ✅ |
 | [04-tickets/](04-tickets/spec.md) | Ciclo de vida del ticket | 1.4 | ✅ | ✅ | ✅ | ✅ |
 | [05-milestones/](05-milestones/spec.md) | Gestión de hitos | 1.5 | ✅ | ✅ | ✅ | ✅ |
@@ -51,6 +51,6 @@ Cada área es una carpeta `NN-<área>/`. `spec.md` existe siempre. Los demás ar
 
 ## Actores
 
-- **Administrador** (rol `Admin`, RF 1.1.5): gestiona usuarios, categorías, tipos de producto y productos, y consulta todos los tickets en solo lectura (RF 1.4.8).
+- **Administrador** (rol `Admin`, RF 1.1.5): gestiona usuarios, tipos de producto y productos, y consulta todos los tickets en solo lectura (RF 1.4.8).
 - **Representante**: crea y gestiona tickets de sus clientes.
 - **Cliente**: consulta e interactúa solo con sus propios tickets.
