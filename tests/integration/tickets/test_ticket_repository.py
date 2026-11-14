@@ -13,7 +13,6 @@ from app.domain.users import User
 from app.repositories.ticket_repository import SqlAlchemyTicketRepository
 from tests.conftest import (
     DEFAULT_TICKET_TIME,
-    MakeCategory,
     MakeProduct,
     MakeProductType,
     MakeTicket,
@@ -69,7 +68,6 @@ def test_get_visible_loads_everything_the_detail_needs_in_few_statements(
     app: Flask,
     db_session: Session,
     make_user: MakeUser,
-    make_category: MakeCategory,
     make_product_type: MakeProductType,
     make_product: MakeProduct,
     make_ticket: MakeTicket,
@@ -77,8 +75,8 @@ def test_get_visible_loads_everything_the_detail_needs_in_few_statements(
     """SPEC-TKT-28 · TC-TKT-28d"""
     ana = make_user("Client", name="Ana")
     raul = make_user("Representative", name="Raul")
-    notebook = make_product_type(make_category("Hardware"), "Notebook")
-    editor = make_product_type(make_category("Software"), "Editor")
+    notebook = make_product_type(name="Notebook")
+    editor = make_product_type(name="Editor")
     products = [
         make_product(notebook, "XPS 13"),
         make_product(notebook, "ThinkPad"),
@@ -95,14 +93,13 @@ def test_get_visible_loads_everything_the_detail_needs_in_few_statements(
             assert ticket.representative.name == "Raul"
             assert [p.product_type.name for p in ticket.products]
 
-        assert len(statements) <= 6
+        assert len(statements) <= 5
 
 
 def test_get_finds_any_ticket_without_a_participant_filter(
     app: Flask,
     db_session: Session,
     make_user: MakeUser,
-    make_category: MakeCategory,
     make_product_type: MakeProductType,
     make_product: MakeProduct,
     make_ticket: MakeTicket,
@@ -110,8 +107,8 @@ def test_get_finds_any_ticket_without_a_participant_filter(
     """SPEC-TKT-34 · TC-TKT-34b"""
     ana = make_user("Client", name="Ana")
     raul = make_user("Representative", name="Raul")
-    notebook = make_product_type(make_category("Hardware"), "Notebook")
-    editor = make_product_type(make_category("Software"), "Editor")
+    notebook = make_product_type(name="Notebook")
+    editor = make_product_type(name="Editor")
     products = [
         make_product(notebook, "XPS 13"),
         make_product(notebook, "ThinkPad"),
@@ -128,7 +125,7 @@ def test_get_finds_any_ticket_without_a_participant_filter(
             assert found.client.name == "Ana"
             assert found.representative.name == "Raul"
             assert [p.product_type.name for p in found.products]
-        assert len(statements) <= 6
+        assert len(statements) <= 5
 
         assert repository.get(9999) is None
         assert repository.get(2**63) is None
@@ -266,7 +263,6 @@ def test_search_by_client_loads_everything_in_few_statements(
     app: Flask,
     db_session: Session,
     make_user: MakeUser,
-    make_category: MakeCategory,
     make_product_type: MakeProductType,
     make_product: MakeProduct,
     make_ticket: MakeTicket,
@@ -274,8 +270,8 @@ def test_search_by_client_loads_everything_in_few_statements(
     """SPEC-TKT-17 · TC-TKT-17c"""
     ana = make_user("Client", name="Ana")
     kinds = [
-        make_product_type(make_category("Hardware"), "Notebook"),
-        make_product_type(make_category("Software"), "Editor"),
+        make_product_type(name="Notebook"),
+        make_product_type(name="Editor"),
     ]
     for index in range(3):
         representative = make_user("Representative", name=f"Rep {index}")
@@ -287,14 +283,13 @@ def test_search_by_client_loads_everything_in_few_statements(
         with count_statements(session) as statements:
             _walk_ticket_graph(SqlAlchemyTicketRepository(session).search(client_id=ana_id))
 
-        assert len(statements) <= 6
+        assert len(statements) <= 5
 
 
 def test_search_by_representative_loads_everything_in_few_statements(
     app: Flask,
     db_session: Session,
     make_user: MakeUser,
-    make_category: MakeCategory,
     make_product_type: MakeProductType,
     make_product: MakeProduct,
     make_ticket: MakeTicket,
@@ -302,8 +297,8 @@ def test_search_by_representative_loads_everything_in_few_statements(
     """SPEC-TKT-18 · TC-TKT-18c"""
     raul = make_user("Representative", name="Raul")
     kinds = [
-        make_product_type(make_category("Hardware"), "Notebook"),
-        make_product_type(make_category("Software"), "Editor"),
+        make_product_type(name="Notebook"),
+        make_product_type(name="Editor"),
     ]
     for index in range(3):
         client = make_user("Client", name=f"Client {index}")
@@ -317,14 +312,13 @@ def test_search_by_representative_loads_everything_in_few_statements(
                 SqlAlchemyTicketRepository(session).search(representative_id=raul_id)
             )
 
-        assert len(statements) <= 6
+        assert len(statements) <= 5
 
 
 def test_search_with_text_and_window_loads_everything_in_few_statements(
     app: Flask,
     db_session: Session,
     make_user: MakeUser,
-    make_category: MakeCategory,
     make_product_type: MakeProductType,
     make_product: MakeProduct,
     make_ticket: MakeTicket,
@@ -332,8 +326,8 @@ def test_search_with_text_and_window_loads_everything_in_few_statements(
     """SPEC-TKT-45 · TC-TKT-45g"""
     ana = make_user("Client", name="Ana")
     kinds = [
-        make_product_type(make_category("Hardware"), "Notebook"),
-        make_product_type(make_category("Software"), "Editor"),
+        make_product_type(name="Notebook"),
+        make_product_type(name="Editor"),
     ]
     for index in range(3):
         representative = make_user("Representative", name=f"Rep {index}")
@@ -345,7 +339,7 @@ def test_search_with_text_and_window_loads_everything_in_few_statements(
         with count_statements(session) as statements:
             _walk_ticket_graph(repository.search(q="ana"))
 
-        assert len(statements) <= 6
+        assert len(statements) <= 5
 
         with count_statements(session) as statements:
             page = repository.search(window=PageRequest(1, 2))

@@ -9,7 +9,6 @@ from app.domain.products import Product
 from app.domain.ticket import Ticket
 from tests.conftest import (
     DEFAULT_TICKET_TIME,
-    MakeCategory,
     MakeProduct,
     MakeProductType,
     MakeTicket,
@@ -20,7 +19,6 @@ from tests.conftest import (
 def test_ticket_keeps_client_and_representative_apart(
     db_session: Session,
     make_user: MakeUser,
-    make_category: MakeCategory,
     make_product_type: MakeProductType,
     make_product: MakeProduct,
     make_ticket: MakeTicket,
@@ -28,7 +26,7 @@ def test_ticket_keeps_client_and_representative_apart(
     """SPEC-TKT-01 · TC-TKT-01b"""
     ana = make_user("Client", name="Ana")
     raul = make_user("Representative", name="Raul")
-    xps = make_product(make_product_type(make_category()), name="XPS 13")
+    xps = make_product(make_product_type(), name="XPS 13")
     ticket = make_ticket(ana, raul, [xps])
     ticket_id, ana_id, raul_id, xps_id = ticket.id, ana.id, raul.id, xps.id
     db_session.close()
@@ -65,13 +63,12 @@ def test_first_milestone_is_saved_with_its_author_and_utc_date(
 def test_ticket_products_are_stored_in_the_association_table_ordered_by_name(
     db_session: Session,
     make_user: MakeUser,
-    make_category: MakeCategory,
     make_product_type: MakeProductType,
     make_product: MakeProduct,
     make_ticket: MakeTicket,
 ):
     """SPEC-TKT-07 · TC-TKT-07b"""
-    product_type = make_product_type(make_category())
+    product_type = make_product_type()
     zeta = make_product(product_type, name="Zeta")
     alpha = make_product(product_type, name="Alpha")
     ticket = make_ticket(make_user("Client"), make_user("Representative"), [zeta, alpha])
@@ -127,13 +124,12 @@ def test_closed_state_change_is_read_back_in_utc(
 def test_removed_product_leaves_the_association_and_stays_in_the_catalog(
     db_session: Session,
     make_user: MakeUser,
-    make_category: MakeCategory,
     make_product_type: MakeProductType,
     make_product: MakeProduct,
     make_ticket: MakeTicket,
 ):
     """SPEC-TKT-21 · TC-TKT-21b"""
-    xps = make_product(make_product_type(make_category()), name="XPS 13")
+    xps = make_product(make_product_type(), name="XPS 13")
     ticket = make_ticket(make_user("Client"), make_user("Representative"), [xps])
     ticket_id, xps_id = ticket.id, xps.id
     ticket.remove_product(xps)
@@ -152,13 +148,12 @@ def test_removed_product_leaves_the_association_and_stays_in_the_catalog(
 def test_duplicate_association_is_rejected_by_the_composite_primary_key(
     db_session: Session,
     make_user: MakeUser,
-    make_category: MakeCategory,
     make_product_type: MakeProductType,
     make_product: MakeProduct,
     make_ticket: MakeTicket,
 ):
     """SPEC-TKT-25 · TC-TKT-25d"""
-    xps = make_product(make_product_type(make_category()))
+    xps = make_product(make_product_type())
     ticket = make_ticket(make_user("Client"), make_user("Representative"), [xps])
     params = {"ticket_id": ticket.id, "product_id": xps.id}
 
