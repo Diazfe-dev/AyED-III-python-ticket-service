@@ -2,11 +2,11 @@
 
 from sqlalchemy import exists, select
 from sqlalchemy.exc import IntegrityError
-from sqlalchemy.orm import Session, selectinload
+from sqlalchemy.orm import Session
 
 from app.db import fits_integer_column
 from app.domain.errors import DuplicateProductTypeError, ProductTypeInUseError
-from app.domain.products import Category, Product, ProductType, normalize_name
+from app.domain.products import Product, ProductType, normalize_name
 
 
 class SqlAlchemyProductTypeRepository:
@@ -49,18 +49,14 @@ class SqlAlchemyProductTypeRepository:
         except IntegrityError as error:
             raise ProductTypeInUseError() from error
 
-    def search(self, q: str, category_id: int | None = None) -> list[ProductType]:
-        """Types whose name contains `q` ignoring case, with their category loaded.
+    def list_all(self, q: str | None = None) -> list[ProductType]:
+        """Every type ordered by name and id; with `q`, only names containing it ignoring case.
 
-        `%` and `_` in `q` are literal. Ordered by category name and id, then type name and id.
+        `%` and `_` in `q` are literal.
         """
-        statement = (
-            select(ProductType)
-            .join(ProductType.category)
-            .where(ProductType.name_key.contains(q.casefold(), autoescape=True))
-            .options(selectinload(ProductType.category))
-            .order_by(Category.name_key, Category.id, ProductType.name_key, ProductType.id)
-        )
-        if category_id is not None:
-            statement = statement.where(ProductType.category_id == category_id)
+        statement = select(ProductType).order_by(ProductType.name_key, ProductType.id)
+        if q is not None:
+            statement = statement.where(
+                ProductType.name_key.contains(q.casefold(), autoescape=True)
+            )
         return list(self._session.scalars(statement).all())

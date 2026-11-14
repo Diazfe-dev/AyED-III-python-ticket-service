@@ -1,7 +1,6 @@
 """Catalog use cases: categories and product types, their changes and listings."""
 
 from collections.abc import Callable
-from dataclasses import dataclass
 from typing import Any, Protocol
 
 from app.domain.errors import (
@@ -17,14 +16,6 @@ from app.services.listing import search_text
 from app.services.validation import id_error, parse_id, provided, raise_if_invalid, text_error
 
 
-@dataclass(frozen=True)
-class CategoryGroup:
-    """A category with its product types, already ordered by name."""
-
-    category: Category
-    product_types: list[ProductType]
-
-
 class CategoryRepository(Protocol):
     def add(self, category: Category) -> None: ...
 
@@ -33,8 +24,6 @@ class CategoryRepository(Protocol):
     def find_by_name(self, name: str) -> Category | None: ...
 
     def list_all(self, q: str | None = None) -> list[Category]: ...
-
-    def list_with_product_types(self) -> list[Category]: ...
 
     def has_product_types(self, category_id: int) -> bool: ...
 
@@ -50,7 +39,7 @@ class ProductTypeRepository(Protocol):
 
     def has_products(self, product_type_id: int) -> bool: ...
 
-    def search(self, q: str, category_id: int | None = None) -> list[ProductType]: ...
+    def list_all(self, q: str | None = None) -> list[ProductType]: ...
 
     def delete(self, product_type: ProductType) -> None: ...
 
@@ -132,37 +121,9 @@ class CatalogService:
         self._product_types.delete(product_type)
         self._commit()
 
-    def list_product_types(
-        self, category_id: Any = None, q: str | None = None
-    ) -> list[CategoryGroup]:
-        """Product types grouped by category: every category, or only the requested one.
-
-        With `q`, only the types whose name contains it, and categories without matches are omitted.
-        """
-        text = search_text(q)
-        if category_id is None:
-            wanted = None
-        else:
-            raise_if_invalid({"category_id": id_error(category_id)})
-            wanted = self._get_category(parse_id(category_id)).id
-        if text is not None:
-            return self._group(self._product_types.search(text, category_id=wanted))
-        if wanted is None:
-            categories = self._categories.list_with_product_types()
-        else:
-            categories = [self._get_category(wanted)]
-        return [CategoryGroup(c, list(c.product_types)) for c in categories]
-
-    @staticmethod
-    def _group(product_types: list[ProductType]) -> list[CategoryGroup]:
-        """Group types already ordered by category, keeping that order."""
-        groups: dict[int, CategoryGroup] = {}
-        for product_type in product_types:
-            category = product_type.category
-            groups.setdefault(category.id, CategoryGroup(category, [])).product_types.append(
-                product_type
-            )
-        return list(groups.values())
+    def list_product_types(self, q: str | None = None) -> list[ProductType]:
+        """Every product type ordered by name without case; with `q`, only names containing it."""
+        return self._product_types.list_all(q=search_text(q))
 
     def _get_product_type(self, product_type_id: int) -> ProductType:
         product_type = self._product_types.get(product_type_id)
