@@ -57,13 +57,9 @@ class FakeProductTypeRepository:
     def get(self, product_type_id: int) -> ProductType | None:
         return self.product_types.get(product_type_id)
 
-    def find_by_name_in_category(self, name: str, category_id: int) -> ProductType | None:
+    def find_by_name(self, name: str) -> ProductType | None:
         wanted = normalize_name(name)
-        found = (
-            t
-            for t in self.product_types.values()
-            if t.category.id == category_id and t.name_key == wanted
-        )
+        found = (t for t in self.product_types.values() if t.name_key == wanted)
         return next(found, None)
 
     def has_products(self, product_type_id: int) -> bool:
@@ -76,7 +72,8 @@ class FakeProductTypeRepository:
 
     def delete(self, product_type: ProductType) -> None:
         del self.product_types[product_type.id]
-        product_type.category.product_types.remove(product_type)
+        if product_type.category is not None:
+            product_type.category.product_types.remove(product_type)
 
 
 class FakeProductRepository:

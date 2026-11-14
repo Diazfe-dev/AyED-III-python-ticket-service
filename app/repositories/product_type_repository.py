@@ -29,11 +29,9 @@ class SqlAlchemyProductTypeRepository:
             return None
         return self._session.get(ProductType, product_type_id)
 
-    def find_by_name_in_category(self, name: str, category_id: int) -> ProductType | None:
-        statement = select(ProductType).where(
-            ProductType.category_id == category_id,
-            ProductType.name_key == normalize_name(name),
-        )
+    def find_by_name(self, name: str) -> ProductType | None:
+        """The type with this name in the whole catalog, compared without case."""
+        statement = select(ProductType).where(ProductType.name_key == normalize_name(name))
         return self._session.scalars(statement).one_or_none()
 
     def has_products(self, product_type_id: int) -> bool:
