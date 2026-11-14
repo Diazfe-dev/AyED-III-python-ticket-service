@@ -6,9 +6,9 @@ from sqlalchemy.orm import Session
 from app.db import EXTENSION_KEY
 from app.domain.errors import DuplicateProductError
 from app.domain.paging import Page, PageRequest
-from app.domain.products import Category, Product, ProductType
+from app.domain.products import Product, ProductType
 from app.repositories.product_repository import SqlAlchemyProductRepository
-from tests.conftest import MakeCategory, MakeProduct, MakeProductType
+from tests.conftest import MakeProduct, MakeProductType
 from tests.integration.catalog.queries import count_statements
 
 
@@ -17,13 +17,8 @@ def new_session(app: Flask) -> Session:
 
 
 @pytest.fixture
-def hardware(make_category: MakeCategory) -> Category:
-    return make_category("Hardware")
-
-
-@pytest.fixture
-def notebook(hardware: Category, make_product_type: MakeProductType) -> ProductType:
-    return make_product_type(hardware, "Notebook")
+def notebook(make_product_type: MakeProductType) -> ProductType:
+    return make_product_type(name="Notebook")
 
 
 def test_added_product_is_active_by_default_and_keeps_its_type(
@@ -40,7 +35,7 @@ def test_added_product_is_active_by_default_and_keeps_its_type(
         assert found is not None
         assert found.name == "XPS 13"
         assert found.product_type_id == notebook.id
-        assert found.product_type.category.name == "Hardware"
+        assert found.product_type.name == "Notebook"
         assert found.is_active is True
 
 
@@ -52,8 +47,8 @@ def test_product_repository_has_no_way_to_delete_products(db_session: Session) -
 
 
 @pytest.fixture
-def desktop(hardware: Category, make_product_type: MakeProductType) -> ProductType:
-    return make_product_type(hardware, "Desktop")
+def desktop(make_product_type: MakeProductType) -> ProductType:
+    return make_product_type(name="Desktop")
 
 
 def test_adding_a_duplicate_name_in_the_type_raises_domain_error(
@@ -87,20 +82,15 @@ def test_get_with_an_id_beyond_sqlite_integers_finds_nothing(db_session: Session
 
 
 @pytest.fixture
-def catalog(
-    make_category: MakeCategory, make_product_type: MakeProductType, make_product: MakeProduct
-) -> dict[str, int]:
-    """`xps 13` (Notebook), inactive `Optiplex` (Desktop) and `LaserJet` (Impresora, Oficina)."""
-    hardware, office = make_category("Hardware"), make_category("Oficina")
-    notebook = make_product_type(hardware, "Notebook")
-    desktop = make_product_type(hardware, "Desktop")
-    printer = make_product_type(office, "Impresora")
+def catalog(make_product_type: MakeProductType, make_product: MakeProduct) -> dict[str, int]:
+    """`xps 13` (Notebook), inactive `Optiplex` (Desktop) and `LaserJet` (Impresora)."""
+    notebook = make_product_type(name="Notebook")
+    desktop = make_product_type(name="Desktop")
+    printer = make_product_type(name="Impresora")
     make_product(notebook, "xps 13")
     make_product(desktop, "Optiplex", is_active=False)
     make_product(printer, "LaserJet")
     return {
-        "hardware": hardware.id,
-        "office": office.id,
         "notebook": notebook.id,
         "desktop": desktop.id,
     }
@@ -127,18 +117,13 @@ def test_list_matching_exposes_type_and_state_of_every_product(
 
 
 def test_list_matching_loads_types_without_n_plus_one(
-    db_session: Session,
-    make_category: MakeCategory,
-    make_product_type: MakeProductType,
-    make_product: MakeProduct,
+    db_session: Session, make_product_type: MakeProductType, make_product: MakeProduct
 ) -> None:
     """SPEC-PRD-31 · TC-PRD-31c"""
-    for category in [make_category(), make_category()]:
-        make_product(make_product_type(category))
-        make_product(make_product_type(category))
-    third_type = make_product_type(category)
-    make_product(third_type)
-    make_product(third_type)
+    for _ in range(3):
+        product_type = make_product_type()
+        make_product(product_type)
+        make_product(product_type)
     db_session.expire_all()
 
     with count_statements(db_session) as statements:
