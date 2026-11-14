@@ -372,15 +372,15 @@ test("SPEC-UI-163 shows field marks and the API message inside the open dialog a
 test("SPEC-UI-163 shows the API error inside the dialog of every other form (TC-UI-163b)", async ({
   page,
 }) => {
-  const api = await openScreen(page, SCREENS[1]);
-  api.on("POST", "/categories", { status: 409, body: { error: "duplicate_category" } });
-  await mainButton(page, "Nueva categoría").click();
-  await dialogOf(page).getByLabel("Nombre").fill("Computación");
+  const api = await openScreen(page, SCREENS[2]);
+  api.on("POST", "/product-types", { status: 409, body: { error: "duplicate_product_type" } });
+  await mainButton(page, "Nuevo tipo de producto").click();
+  await dialogOf(page).getByLabel("Nombre").fill("Notebook");
   await dialogOf(page).getByRole("button", { name: "Crear" }).click();
   await expect(dialogOf(page).getByRole("alert")).toHaveText(
-    "Ya existe una categoría con ese nombre.",
+    "Ya existe un tipo de producto con ese nombre.",
   );
-  await expect(dialogOf(page).getByLabel("Nombre")).toHaveValue("Computación");
+  await expect(dialogOf(page).getByLabel("Nombre")).toHaveValue("Notebook");
 
   const productsApi = await openScreen(page, SCREENS[3]);
   productsApi.on("POST", "/products", { status: 409, body: { error: "duplicate_product" } });

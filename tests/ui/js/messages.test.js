@@ -17,10 +17,7 @@ const EXPECTED = {
   duplicate_email: "Ya existe un usuario con ese email.",
   self_deactivation: "No puede darse de baja a sí mismo.",
   user_not_found: "El usuario no existe.",
-  duplicate_category: "Ya existe una categoría con ese nombre.",
-  category_in_use: "La categoría tiene tipos de producto asociados y no se puede eliminar.",
-  category_not_found: "La categoría no existe.",
-  duplicate_product_type: "Ya existe un tipo de producto con ese nombre en la categoría.",
+  duplicate_product_type: "Ya existe un tipo de producto con ese nombre.",
   product_type_in_use: "El tipo de producto tiene productos asociados y no se puede eliminar.",
   product_type_not_found: "El tipo de producto no existe.",
   duplicate_product: "Ya existe un producto con ese nombre en el tipo de producto.",
@@ -46,8 +43,8 @@ test("SPEC-UI-10 shows the generic invalid credentials message for a 401 (TC-UI-
   assert.equal(result.fields, null);
 });
 
-test("SPEC-UI-56 maps each of the 20 API error codes to its exact text (TC-UI-56a)", () => {
-  assert.equal(Object.keys(API_ERROR_MESSAGES).length, 20);
+test("SPEC-UI-56 maps each of the 17 API error codes to its exact text (TC-UI-56a)", () => {
+  assert.equal(Object.keys(API_ERROR_MESSAGES).length, 17);
   for (const [code, text] of Object.entries(EXPECTED)) {
     assert.equal(API_ERROR_MESSAGES[code], text, code);
     assert.equal(translateError(reply(409, { error: code })).message, text, code);
