@@ -2,9 +2,8 @@ import { expect, test } from "@playwright/test";
 import { installFakeApi, loginAs } from "./support/fake-api.js";
 import { CLIENT, REP, page as pageOf, ticket } from "./support/fixtures.js";
 
-const CATEGORY = { id: 2, name: "Hardware" };
-const TYPE = { id: 3, name: "Redes", category: CATEGORY };
-const product = (id, name) => ({ id, name, is_active: true, product_type: TYPE, category: CATEGORY });
+const TYPE = { id: 3, name: "Redes" };
+const product = (id, name) => ({ id, name, is_active: true, product_type: TYPE });
 const ROUTER = product(3, "Router X");
 const SWITCH = product(4, "Switch Y");
 const MODEM = product(5, "Modem Z");

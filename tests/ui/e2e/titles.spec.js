@@ -10,7 +10,6 @@ const goToHash = (page, hash) =>
 
 const ADMIN_SCREENS = [
   ["#/users", "Usuarios"],
-  ["#/categories", "Categorías"],
   ["#/product-types", "Tipos de producto"],
   ["#/products", "Productos"],
   ["#/tickets", "Tickets"],
