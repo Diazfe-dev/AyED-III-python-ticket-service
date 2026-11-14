@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { installFakeApi, loginAs } from "./support/fake-api.js";
+import { ABORT, installFakeApi, loginAs } from "./support/fake-api.js";
 import { REP, ticket } from "./support/fixtures.js";
 
 const CREATED = "2026-01-01T12:00:00+00:00";
@@ -109,4 +109,49 @@ test("SPEC-UI-214 disables the button while the request is pending (TC-UI-214b)"
   pending.release(201, STARTED);
   await expect(page.locator(".ticket-state")).toHaveText("En curso");
   expect(posts(api)).toHaveLength(1);
+});
+
+async function expectsUnchanged(page, api, reads, message) {
+  await expect(page.locator("#alert")).toContainText(message);
+  await expect(page.locator(".ticket-state")).toHaveText("Nuevo");
+  await expect(page.locator("ol.milestones > li")).toHaveCount(0);
+  await expect(startButton(page)).toBeEnabled();
+  expect(api.requests.length).toBe(reads);
+  expect(posts(api)).toHaveLength(1);
+}
+
+const FAILURES = [
+  [409, { error: "invalid_transition", message: "Invalid transition" }, "Esa acción no está permitida en el estado actual del ticket."],
+  [403, { error: "forbidden", message: "Forbidden" }, "No tiene permiso para realizar esta acción."],
+  [500, { error: "internal_error", message: "Internal error" }, "Ocurrió un error inesperado. Intente nuevamente."],
+];
+
+async function failsWith(page, [status, body, message]) {
+  const api = await openDetail(page, "Representative", "New");
+  api.on("POST", "/tickets/7/milestones", { status, body });
+  const reads = api.requests.length + 1;
+  await startButton(page).click();
+  await expectsUnchanged(page, api, reads, message);
+}
+
+test("SPEC-UI-215 shows the conflict error and keeps the ticket (TC-UI-215a)", async ({ page }) => {
+  await failsWith(page, FAILURES[0]);
+});
+
+test("SPEC-UI-215 shows the forbidden error and keeps the ticket (TC-UI-215a)", async ({ page }) => {
+  await failsWith(page, FAILURES[1]);
+});
+
+test("SPEC-UI-215 shows the server error and keeps the ticket (TC-UI-215a)", async ({ page }) => {
+  await failsWith(page, FAILURES[2]);
+});
+
+test("SPEC-UI-215 shows the connection error and keeps the ticket (TC-UI-215b)", async ({
+  page,
+}) => {
+  const api = await openDetail(page, "Representative", "New");
+  api.on("POST", "/tickets/7/milestones", ABORT);
+  const reads = api.requests.length + 1;
+  await startButton(page).click();
+  await expectsUnchanged(page, api, reads, "No se pudo conectar con el servidor. Intente nuevamente.");
 });
