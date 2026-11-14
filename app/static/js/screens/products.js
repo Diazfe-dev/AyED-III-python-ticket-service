@@ -5,6 +5,7 @@ import { createFields } from "../dom/form.js";
 import { pageHeader, surface, toolbar } from "../dom/layout.js";
 import { createListing, searchField, selectField } from "../dom/listing.js";
 import { el } from "../dom/render.js";
+import { productFields, typeOptions, writeBody } from "./product-form.js";
 
 const COLUMNS = ["Nombre", "Tipo", "Estado", "Acciones"];
 const ALL_OPTION = { value: "", label: "Todos" };
@@ -20,27 +21,6 @@ export function title() {
 
 function optionNodes(options) {
   return options.map((option) => el("option", { value: String(option.value) }, [option.label]));
-}
-
-function typeOptions(productTypes) {
-  return productTypes.map((type) => ({ value: type.id, label: type.name }));
-}
-
-function productFields(productTypes, product) {
-  return [
-    { name: "name", label: "Nombre", value: product?.name ?? "" },
-    {
-      name: "product_type_id",
-      label: "Tipo",
-      options: typeOptions(productTypes).map((option) => ({ ...option, value: String(option.value) })),
-      placeholder: "Seleccione un tipo",
-      value: product === undefined ? "" : String(product.product_type.id),
-    },
-  ];
-}
-
-function writeBody(values) {
-  return { name: values.name, product_type_id: Number(values.product_type_id) };
 }
 
 export function mount({ root, request, showError, showStatus }) {
