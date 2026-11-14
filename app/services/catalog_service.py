@@ -8,23 +8,9 @@ from app.domain.errors import (
     ProductTypeInUseError,
     ProductTypeNotFoundError,
 )
-from app.domain.products import Category, ProductType
+from app.domain.products import ProductType
 from app.services.listing import search_text
 from app.services.validation import raise_if_invalid, text_error
-
-
-class CategoryRepository(Protocol):
-    def add(self, category: Category) -> None: ...
-
-    def get(self, category_id: int) -> Category | None: ...
-
-    def find_by_name(self, name: str) -> Category | None: ...
-
-    def list_all(self, q: str | None = None) -> list[Category]: ...
-
-    def has_product_types(self, category_id: int) -> bool: ...
-
-    def delete(self, category: Category) -> None: ...
 
 
 class ProductTypeRepository(Protocol):

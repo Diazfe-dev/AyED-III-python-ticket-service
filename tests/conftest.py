@@ -12,13 +12,12 @@ from app import create_app
 from app.auth import USER_ID_KEY
 from app.db import EXTENSION_KEY, create_schema, get_engine
 from app.domain.base import Base
-from app.domain.products import Category, Product, ProductType
+from app.domain.products import Product, ProductType
 from app.domain.ticket import Ticket
 from app.domain.users import ROLE_CLASSES, Client, Representative, User
 from app.services.passwords import WerkzeugPasswordHasher
 
 MakeUser = Callable[..., User]
-MakeCategory = Callable[..., Category]
 MakeProductType = Callable[..., ProductType]
 MakeProduct = Callable[..., Product]
 MakeTicket = Callable[..., Ticket]
@@ -127,26 +126,12 @@ def admin_client(client: FlaskClient, admin: User) -> FlaskClient:
 
 
 @pytest.fixture
-def make_category(db_session: Session) -> MakeCategory:
-    """Persist and commit a category; names are unique unless given."""
-    sequence = itertools.count(1)
-
-    def make(name: str | None = None) -> Category:
-        category = Category(name=name or f"Category {next(sequence)}")
-        db_session.add(category)
-        db_session.commit()
-        return category
-
-    return make
-
-
-@pytest.fixture
 def make_product_type(db_session: Session) -> MakeProductType:
     """Persist and commit a product type; names are unique unless given."""
     sequence = itertools.count(1)
 
-    def make(category: Category | None = None, name: str | None = None) -> ProductType:
-        product_type = ProductType(name=name or f"Type {next(sequence)}", category=category)
+    def make(name: str | None = None) -> ProductType:
+        product_type = ProductType(name=name or f"Type {next(sequence)}")
         db_session.add(product_type)
         db_session.commit()
         return product_type

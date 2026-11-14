@@ -1,4 +1,4 @@
-"""Product catalog: categories, their product types and the products of each type."""
+"""Product catalog: product types (the trade, or rubro) and the products of each type."""
 
 from sqlalchemy import ForeignKey, String, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship, validates
@@ -25,20 +25,6 @@ class CatalogName:
         return name.strip()
 
 
-class Category(CatalogName, Base):
-    """A category (rubro) that groups product types."""
-
-    __tablename__ = "categories"
-    __table_args__ = (UniqueConstraint("name_key", name="uq_categories_name"),)
-
-    id: Mapped[int] = mapped_column(primary_key=True)
-    product_types: Mapped[list["ProductType"]] = relationship(
-        back_populates="category",
-        order_by="(ProductType.name_key, ProductType.id)",
-        passive_deletes="all",
-    )
-
-
 class ProductType(CatalogName, Base):
     """A kind of product: the trade (rubro) that technicians specialize in."""
 
@@ -46,10 +32,6 @@ class ProductType(CatalogName, Base):
     __table_args__ = (UniqueConstraint("name_key", name="uq_product_types_name_key"),)
 
     id: Mapped[int] = mapped_column(primary_key=True)
-    category_id: Mapped[int | None] = mapped_column(
-        ForeignKey("categories.id", ondelete="RESTRICT"), index=True
-    )
-    category: Mapped[Category | None] = relationship(back_populates="product_types")
     products: Mapped[list["Product"]] = relationship(
         back_populates="product_type", passive_deletes="all"
     )
