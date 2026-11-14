@@ -21,7 +21,7 @@ CLIENT_VIEWS: dict[str, Callable[[User], dict[str, Any]]] = {
 
 
 @bp.post("/users")
-@admin_required
+@login_required
 def create_user() -> ResponseReturnValue:
     body = json_body()
     user = get_user_service().create_user(
@@ -30,6 +30,7 @@ def create_user() -> ResponseReturnValue:
         role=body.get("role"),
         password=body.get("password"),
         preferred_channel=body.get("preferred_channel"),
+        actor=authenticated_user(),
     )
     return user_json(user), 201
 
