@@ -231,8 +231,8 @@ test("SPEC-UI-128 every transition that shows the login replaces the hash (TC-UI
 });
 
 test("SPEC-UI-132 does not replace the hash when the screen is allowed (TC-UI-132a)", () => {
-  const result = transition(pending("initial"), meOk("Admin", "#/categories"));
-  assert.deepEqual(result.effects, [render("categories")]);
+  const result = transition(pending("initial"), meOk("Admin", "#/product-types"));
+  assert.deepEqual(result.effects, [render("product-types")]);
 });
 
 const open = (role = "Client", route = "#/tickets", epoch = 0) => ({

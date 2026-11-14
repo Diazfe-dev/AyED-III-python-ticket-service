@@ -1,6 +1,5 @@
 import * as account from "./account.js";
 import * as boot from "./boot.js";
-import * as categories from "./categories.js";
 import * as login from "./login.js";
 import * as notFound from "./not-found.js";
 import * as productTypes from "./product-types.js";
@@ -19,7 +18,6 @@ export const screens = {
   "ticket-detail": ticketDetail,
   "ticket-new": ticketNew,
   users,
-  categories,
   "product-types": productTypes,
   products,
 };

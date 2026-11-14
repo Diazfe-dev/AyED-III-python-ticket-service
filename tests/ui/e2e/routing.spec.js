@@ -52,6 +52,19 @@ test("SPEC-UI-20 shows not found with a link to the role home (TC-UI-20b)", asyn
   await expect.poll(() => currentHash(page)).toBe("#/users");
 });
 
+test("SPEC-UI-20 shows not found for the removed categories route without API calls (TC-UI-20d)", async ({
+  page,
+}) => {
+  const api = await installFakeApi(page);
+  await loginAs(page, api, "Admin");
+  await expect(heading(page, "Usuarios")).toBeVisible();
+  const before = apiRequests(api).length;
+  await goToHash(page, "#/categories");
+  await expect(heading(page, "Página no encontrada")).toBeVisible();
+  await expect(page.getByRole("main").getByRole("link")).toBeVisible();
+  expect(apiRequests(api)).toHaveLength(before);
+});
+
 test("SPEC-UI-97 shows not found for an invalid ticket id without API calls (TC-UI-97b)", async ({
   page,
 }) => {
