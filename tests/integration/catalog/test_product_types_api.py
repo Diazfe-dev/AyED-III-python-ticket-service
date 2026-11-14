@@ -9,12 +9,9 @@ from app.domain.products import ProductType
 from tests.conftest import LoginAs, MakeProduct, MakeProductType, MakeUser
 
 
-def stored_types(db_session: Session) -> list[tuple[str, int]]:
+def stored_types(db_session: Session) -> list[str]:
     db_session.expire_all()
-    rows = db_session.execute(
-        select(ProductType.name, ProductType.category_id).order_by(ProductType.id)
-    )
-    return [tuple(row) for row in rows]
+    return list(db_session.scalars(select(ProductType.name).order_by(ProductType.id)))
 
 
 def create_type(client: FlaskClient, **body: Any) -> Any:
@@ -57,7 +54,7 @@ def test_admin_creates_a_product_type(admin_client: FlaskClient, db_session: Ses
     body = response.get_json()
     assert isinstance(body["id"], int)
     assert body == {"id": body["id"], "name": "Notebook"}
-    assert stored_types(db_session) == [("Notebook", None)]
+    assert stored_types(db_session) == ["Notebook"]
 
 
 def test_create_product_type_with_a_taken_name_is_a_conflict(
@@ -70,7 +67,7 @@ def test_create_product_type_with_a_taken_name_is_a_conflict(
 
     assert response.status_code == 409
     assert response.get_json() == {"error": "duplicate_product_type"}
-    assert stored_types(db_session) == [("Notebook", None)]
+    assert stored_types(db_session) == ["Notebook"]
 
 
 @pytest.mark.parametrize(
@@ -95,7 +92,7 @@ def test_create_product_type_stores_the_name_without_surrounding_spaces(
 
     assert response.status_code == 201
     assert response.get_json()["name"] == "Notebook"
-    assert stored_types(db_session) == [("Notebook", None)]
+    assert stored_types(db_session) == ["Notebook"]
 
 
 def test_create_product_type_ignores_category_id(admin_client: FlaskClient) -> None:
@@ -122,7 +119,7 @@ def test_admin_renames_a_product_type_ignoring_other_keys(
 
     assert response.status_code == 200
     assert response.get_json() == {"id": notebook.id, "name": "Ultrabook"}
-    assert stored_types(db_session) == [("Ultrabook", None)]
+    assert stored_types(db_session) == ["Ultrabook"]
 
 
 def test_update_unknown_product_type_is_not_found(admin_client: FlaskClient) -> None:
@@ -141,7 +138,7 @@ def test_rename_product_type_to_an_empty_name_is_rejected(
 
     assert response.status_code == 400
     assert response.get_json()["fields"] == {"name": "required"}
-    assert stored_types(db_session) == [("Notebook", None)]
+    assert stored_types(db_session) == ["Notebook"]
 
 
 def test_rename_product_type_stores_the_name_without_surrounding_spaces(
@@ -152,7 +149,7 @@ def test_rename_product_type_stores_the_name_without_surrounding_spaces(
 
     assert response.status_code == 200
     assert response.get_json()["name"] == "Ultrabook"
-    assert stored_types(db_session) == [("Ultrabook", None)]
+    assert stored_types(db_session) == ["Ultrabook"]
 
 
 def test_rename_product_type_to_the_name_of_another_is_a_conflict(
@@ -168,7 +165,7 @@ def test_rename_product_type_to_the_name_of_another_is_a_conflict(
 
     assert response.status_code == 409
     assert response.get_json() == {"error": "duplicate_product_type"}
-    assert stored_types(db_session) == [("Notebook", None), ("Router", None)]
+    assert stored_types(db_session) == ["Notebook", "Router"]
 
 
 def test_admin_deletes_a_product_type(admin_client: FlaskClient, notebook: ProductType) -> None:
@@ -201,7 +198,7 @@ def test_delete_product_type_with_products_is_a_conflict(
 
     assert response.status_code == 409
     assert response.get_json() == {"error": "product_type_in_use"}
-    assert stored_types(db_session) == [("Notebook", None)]
+    assert stored_types(db_session) == ["Notebook"]
 
 
 @pytest.fixture

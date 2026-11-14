@@ -8,10 +8,7 @@ from flask.typing import ResponseReturnValue
 from werkzeug.exceptions import HTTPException, InternalServerError, MethodNotAllowed, NotFound
 
 from app.domain.errors import (
-    CategoryInUseError,
-    CategoryNotFoundError,
     DomainError,
-    DuplicateCategoryError,
     DuplicateProductError,
     DuplicateProductTypeError,
     DuplicateUserError,
@@ -40,7 +37,6 @@ ERROR_RESPONSES: dict[type[DomainError], tuple[int, str]] = {
     InvalidCurrentPasswordError: (400, "invalid_current_password"),
     InvalidProductError: (400, "invalid_product"),
     UserNotFoundError: (404, "user_not_found"),
-    CategoryNotFoundError: (404, "category_not_found"),
     ProductTypeNotFoundError: (404, "product_type_not_found"),
     ProductNotFoundError: (404, "product_not_found"),
     TicketNotFoundError: (404, "ticket_not_found"),
@@ -49,8 +45,6 @@ ERROR_RESPONSES: dict[type[DomainError], tuple[int, str]] = {
     TicketClosedError: (409, "ticket_closed"),
     DuplicateUserError: (409, "duplicate_email"),
     SelfDeactivationError: (409, "self_deactivation"),
-    DuplicateCategoryError: (409, "duplicate_category"),
-    CategoryInUseError: (409, "category_in_use"),
     DuplicateProductTypeError: (409, "duplicate_product_type"),
     DuplicateProductError: (409, "duplicate_product"),
     ProductTypeInUseError: (409, "product_type_in_use"),
