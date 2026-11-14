@@ -29,7 +29,6 @@ def get_product_service() -> ProductService:
     return ProductService(
         SqlAlchemyProductRepository(db_session),
         SqlAlchemyProductTypeRepository(db_session),
-        SqlAlchemyCategoryRepository(db_session),
         db_session.commit,
     )
 

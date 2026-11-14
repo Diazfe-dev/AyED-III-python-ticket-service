@@ -110,7 +110,6 @@ class FakeProductRepository:
 
     def list_matching(
         self,
-        category_id: int | None = None,
         product_type_id: int | None = None,
         is_active: bool | None = None,
         q: str | None = None,
@@ -120,8 +119,7 @@ class FakeProductRepository:
         matching = [
             p
             for p in self.products.values()
-            if category_id in (None, p.product_type.category.id)
-            and product_type_id in (None, p.product_type.id)
+            if product_type_id in (None, p.product_type.id)
             and is_active in (None, p.is_active)
             and wanted in p.name_key
         ]

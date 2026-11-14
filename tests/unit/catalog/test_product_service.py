@@ -4,7 +4,6 @@ from typing import Any
 import pytest
 
 from app.domain.errors import (
-    CategoryNotFoundError,
     DuplicateProductError,
     ProductNotFoundError,
     ProductTypeNotFoundError,
@@ -14,7 +13,6 @@ from app.domain.paging import Page
 from app.domain.products import Category, Product, ProductType
 from app.services.product_service import ProductService
 from tests.unit.catalog.fakes import (
-    FakeCategoryRepository,
     FakeProductRepository,
     FakeProductTypeRepository,
 )
@@ -26,7 +24,6 @@ class ServiceUnderTest:
     service: ProductService
     products: FakeProductRepository
     product_types: FakeProductTypeRepository
-    categories: FakeCategoryRepository
     commit: CommitSpy
     hardware: Category
     office: Category
@@ -44,21 +41,18 @@ class ServiceUnderTest:
 def sut() -> ServiceUnderTest:
     """`Hardware` with `Notebook` (id 1) and `Desktop`; `Oficina` with `Impresora`."""
     products, product_types = FakeProductRepository(), FakeProductTypeRepository()
-    categories, commit = FakeCategoryRepository(), CommitSpy()
+    commit = CommitSpy()
     hardware, office = Category(name="Hardware"), Category(name="Oficina")
-    categories.add(hardware)
-    categories.add(office)
     notebook = ProductType(name="Notebook", category=hardware)
     desktop = ProductType(name="Desktop", category=hardware)
     printer = ProductType(name="Impresora", category=office)
     for product_type in (notebook, desktop, printer):
         product_types.add(product_type)
-    service = ProductService(products, product_types, categories, commit)
+    service = ProductService(products, product_types, commit)
     return ServiceUnderTest(
         service,
         products,
         product_types,
-        categories,
         commit,
         hardware,
         office,
@@ -110,7 +104,7 @@ def test_create_product_with_non_text_name_is_rejected(sut: ServiceUnderTest, na
 def test_create_product_with_malformed_product_type_id_is_rejected(
     sut: ServiceUnderTest, product_type_id: Any
 ) -> None:
-    """SPEC-PRD-15 · TC-PRD-15a"""
+    """SPEC-PRD-33 · TC-PRD-33a"""
     assert sut.notebook.id == 1
 
     with pytest.raises(ValidationError) as raised:
@@ -130,7 +124,7 @@ def test_create_product_with_malformed_product_type_id_is_rejected(
 def test_create_product_without_product_type_id_is_rejected_with_the_name(
     sut: ServiceUnderTest, name: str, fields: dict[str, str]
 ) -> None:
-    """SPEC-PRD-15 · TC-PRD-15b"""
+    """SPEC-PRD-33 · TC-PRD-33b"""
     with pytest.raises(ValidationError) as raised:
         sut.service.create_product(name, None)
 
@@ -141,7 +135,7 @@ def test_create_product_without_product_type_id_is_rejected_with_the_name(
 def test_create_product_accepts_a_product_type_id_written_with_digits(
     sut: ServiceUnderTest,
 ) -> None:
-    """SPEC-PRD-15 · TC-PRD-15c"""
+    """SPEC-PRD-33 · TC-PRD-33c"""
     product = sut.service.create_product("XPS 13", "1")
 
     assert product.product_type is sut.notebook
@@ -282,7 +276,7 @@ def test_rename_product_to_the_name_of_an_inactive_sibling_is_rejected(
 def test_update_product_with_malformed_product_type_id_is_rejected(
     sut: ServiceUnderTest, product_type_id: Any
 ) -> None:
-    """SPEC-PRD-15 · TC-PRD-15d"""
+    """SPEC-PRD-33 · TC-PRD-33d"""
     product = sut.add_product("XPS 13", sut.notebook)
 
     with pytest.raises(ValidationError) as raised:
@@ -367,44 +361,15 @@ def names(products: list[Product]) -> list[str]:
 
 
 def test_list_products_returns_every_product_including_inactive(listed: ServiceUnderTest) -> None:
-    """SPEC-PRD-07 · TC-PRD-07a"""
+    """SPEC-PRD-31 · TC-PRD-31a"""
     assert set(names(listed.service.list_products())) == {"xps 13", "Optiplex", "LaserJet"}
 
 
-def test_list_products_by_category(listed: ServiceUnderTest) -> None:
-    """SPEC-PRD-08 · TC-PRD-08a"""
-    products = listed.service.list_products(category_id=listed.hardware.id)
-
-    assert names(products) == ["Optiplex", "xps 13"]
-
-
 def test_list_products_by_product_type(listed: ServiceUnderTest) -> None:
-    """SPEC-PRD-08 · TC-PRD-08b"""
+    """SPEC-PRD-32 · TC-PRD-32a"""
     products = listed.service.list_products(product_type_id=listed.notebook.id)
 
     assert names(products) == ["xps 13"]
-
-
-def test_list_products_by_category_and_type_returns_the_intersection(
-    listed: ServiceUnderTest,
-) -> None:
-    """SPEC-PRD-08 · TC-PRD-08c"""
-    products = listed.service.list_products(
-        category_id=listed.hardware.id, product_type_id=listed.notebook.id
-    )
-
-    assert names(products) == ["xps 13"]
-
-
-def test_list_products_with_a_type_outside_the_category_is_empty(
-    listed: ServiceUnderTest,
-) -> None:
-    """SPEC-PRD-20 · TC-PRD-20a"""
-    products = listed.service.list_products(
-        category_id=listed.office.id, product_type_id=listed.notebook.id
-    )
-
-    assert products == []
 
 
 def test_product_listings_are_ordered_alphabetically_ignoring_case(
@@ -418,34 +383,19 @@ def test_product_listings_are_ordered_alphabetically_ignoring_case(
 MALFORMED_FILTERS = ["abc", "", "-1", "0", "1.5", "9" * 5000]
 
 
-@pytest.mark.parametrize("field", ["category_id", "product_type_id"])
 @pytest.mark.parametrize("value", MALFORMED_FILTERS)
-def test_list_products_with_a_malformed_filter_is_rejected(
-    listed: ServiceUnderTest, field: str, value: str
+def test_list_products_with_a_malformed_type_filter_is_rejected(
+    listed: ServiceUnderTest, value: str
 ) -> None:
-    """SPEC-PRD-15 · TC-PRD-15e"""
+    """SPEC-PRD-33 · TC-PRD-33e"""
     with pytest.raises(ValidationError) as raised:
-        listed.service.list_products(**{field: value})
+        listed.service.list_products(product_type_id=value)
 
-    assert raised.value.fields == {field: "invalid"}
-
-
-def test_list_products_reports_both_malformed_filters(listed: ServiceUnderTest) -> None:
-    """SPEC-PRD-15 · TC-PRD-15e"""
-    with pytest.raises(ValidationError) as raised:
-        listed.service.list_products(category_id="abc", product_type_id="0")
-
-    assert raised.value.fields == {"category_id": "invalid", "product_type_id": "invalid"}
-
-
-def test_list_products_of_unknown_category_is_not_found(listed: ServiceUnderTest) -> None:
-    """SPEC-PRD-16 · TC-PRD-16a"""
-    with pytest.raises(CategoryNotFoundError):
-        listed.service.list_products(category_id=9999)
+    assert raised.value.fields == {"product_type_id": "invalid"}
 
 
 def test_list_products_of_unknown_product_type_is_not_found(listed: ServiceUnderTest) -> None:
-    """SPEC-PRD-16 · TC-PRD-16b"""
+    """SPEC-PRD-34 · TC-PRD-34a"""
     with pytest.raises(ProductTypeNotFoundError):
         listed.service.list_products(product_type_id=9999)
 
@@ -490,8 +440,10 @@ def test_list_products_filters_by_state(searchable: ServiceUnderTest) -> None:
     service = searchable.service
 
     assert names(service.list_products(is_active="false")) == ["Optiplex"]
-    active_hardware = service.list_products(is_active="true", category_id=searchable.hardware.id)
-    assert names(active_hardware) == ["xps 13", "XPS 15"]
+    active_notebooks = service.list_products(
+        is_active="true", product_type_id=searchable.notebook.id
+    )
+    assert names(active_notebooks) == ["xps 13", "XPS 15"]
 
 
 @pytest.mark.parametrize("value", ["", "yes", "True", "0"])
@@ -510,17 +462,17 @@ def test_list_products_reports_a_malformed_state_with_a_malformed_filter(
 ) -> None:
     """SPEC-PRD-28 · TC-PRD-28a"""
     with pytest.raises(ValidationError) as raised:
-        searchable.service.list_products(is_active="yes", category_id="abc")
+        searchable.service.list_products(is_active="yes", product_type_id="abc")
 
-    assert raised.value.fields == {"is_active": "invalid", "category_id": "invalid"}
+    assert raised.value.fields == {"is_active": "invalid", "product_type_id": "invalid"}
 
 
-def test_list_products_validates_the_query_before_looking_up_the_category(
+def test_list_products_validates_the_query_before_looking_up_the_type(
     searchable: ServiceUnderTest,
 ) -> None:
     """SPEC-PRD-28 · TC-PRD-28a"""
     with pytest.raises(ValidationError) as raised:
-        searchable.service.list_products(category_id=9999, is_active="yes")
+        searchable.service.list_products(product_type_id=9999, is_active="yes")
 
     assert raised.value.fields == {"is_active": "invalid"}
 
@@ -539,15 +491,15 @@ def test_list_products_reports_bad_pagination_together_with_the_filters(
 ) -> None:
     """SPEC-PRD-29 · TC-PRD-29b"""
     with pytest.raises(ValidationError) as raised:
-        searchable.service.list_products(page="0", category_id="x")
-    assert raised.value.fields == {"page": "invalid", "category_id": "invalid"}
+        searchable.service.list_products(page="0", product_type_id="x")
+    assert raised.value.fields == {"page": "invalid", "product_type_id": "invalid"}
 
     with pytest.raises(ValidationError) as raised:
         searchable.service.list_products(page_size="101")
     assert raised.value.fields == {"page_size": "invalid"}
 
     with pytest.raises(ValidationError) as raised:
-        searchable.service.list_products(category_id=9999, page="0")
+        searchable.service.list_products(product_type_id=9999, page="0")
     assert raised.value.fields == {"page": "invalid"}
 
 
