@@ -35,6 +35,8 @@ class ProductTypeRepository(Protocol):
 
     def get(self, product_type_id: int) -> ProductType | None: ...
 
+    def find_by_name(self, name: str) -> ProductType | None: ...
+
     def find_by_name_in_category(self, name: str, category_id: int) -> ProductType | None: ...
 
     def has_products(self, product_type_id: int) -> bool: ...
@@ -86,12 +88,12 @@ class CatalogService:
         """Every category ordered by name without case; with `q`, only names containing it."""
         return self._categories.list_all(q=search_text(q))
 
-    def create_product_type(self, name: Any, category_id: Any) -> ProductType:
-        """Create a product type in an existing category, with a name unique inside it."""
-        raise_if_invalid({"name": text_error(name), "category_id": id_error(category_id)})
-        category = self._get_category(parse_id(category_id))
-        self._ensure_type_name_is_free(name, category)
-        product_type = ProductType(name=name, category=category)
+    def create_product_type(self, name: Any) -> ProductType:
+        """Create a product type; its name is unique in the whole catalog."""
+        raise_if_invalid({"name": text_error(name)})
+        if self._product_types.find_by_name(name) is not None:
+            raise DuplicateProductTypeError()
+        product_type = ProductType(name=name)
         self._product_types.add(product_type)
         self._commit()
         return product_type

@@ -21,10 +21,7 @@ PRODUCT_KEYS = ("name", "product_type_id")
 @bp.post("/product-types")
 @admin_required
 def create_product_type() -> ResponseReturnValue:
-    body = json_body()
-    product_type = get_catalog_service().create_product_type(
-        name=body.get("name"), category_id=body.get("category_id")
-    )
+    product_type = get_catalog_service().create_product_type(json_body().get("name"))
     return product_type_json(product_type), 201
 
 
