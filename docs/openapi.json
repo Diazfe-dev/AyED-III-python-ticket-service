@@ -281,7 +281,7 @@
       },
       "post": {
         "summary": "Create a user",
-        "description": "Admin only. Creates an active user with the given role. The email is stored without surrounding spaces and in lowercase, and must not belong to any other user, active or not.",
+        "description": "Creates an active user. An `Admin` creates users of any role; a `Representative` only with `role: \"Client\"` (any other valid role is rejected with `403`); a `Client` creates none. The request is validated first (`400` `validation_error`, including an unknown role), then the permission (`403` `forbidden`), then the email is checked (`409` `duplicate_email`). The email is stored without surrounding spaces and in lowercase, and must not belong to any other user, active or not.",
         "operationId": "createUser",
         "tags": [
           "users"
@@ -314,7 +314,17 @@
             "$ref": "#/components/responses/AuthenticationRequired"
           },
           "403": {
-            "$ref": "#/components/responses/Forbidden"
+            "description": "The session user may not create a user with this role (`forbidden`): a `Representative` may only create `Client` users and a `Client` none. Returned after the `400` and before the `409`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "error": "forbidden"
+                }
+              }
+            }
           },
           "409": {
             "$ref": "#/components/responses/DuplicateEmail"
