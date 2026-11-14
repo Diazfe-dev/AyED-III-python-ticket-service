@@ -6,7 +6,6 @@ import {
   PAGE_SIZE_OPTIONS,
   applyFilter,
   changePageSize,
-  flattenProductTypes,
   hasNext,
   hasPrevious,
   lastValidPage,
@@ -185,26 +184,6 @@ test('SPEC-UI-143 slices the full array into the visible page (TC-UI-143a)', () 
   assert.equal(memoryPage(items, 1, 10).items.length, 10);
   assert.equal(memoryPage(items, 1, 50).items.length, 50);
   assert.deepEqual(memoryPage([], 1, 20), { items: [], page: 1, pageSize: 20, total: 0 });
-});
-
-test('SPEC-UI-144 flattens the product types into one row per type in API order (TC-UI-144a)', () => {
-  const categories = [
-    { id: 3, name: 'Computación' },
-    { id: 5, name: 'Redes' },
-  ];
-  const types = [
-    { id: 6, name: 'Router', category_id: 5 },
-    { id: 4, name: 'Notebook', category_id: 3 },
-    { id: 7, name: 'Switch', category_id: 5 },
-  ];
-  assert.deepEqual(flattenProductTypes(types, categories), [
-    { id: 6, name: 'Router', category_id: 5, category: 'Redes' },
-    { id: 4, name: 'Notebook', category_id: 3, category: 'Computación' },
-    { id: 7, name: 'Switch', category_id: 5, category: 'Redes' },
-  ]);
-  assert.deepEqual(flattenProductTypes([{ id: 1, name: 'Suelto', category_id: 99 }], categories), [
-    { id: 1, name: 'Suelto', category_id: 99, category: '' },
-  ]);
 });
 
 test('SPEC-UI-145 moves between in-memory pages and sizes without touching the list (TC-UI-145a)', () => {

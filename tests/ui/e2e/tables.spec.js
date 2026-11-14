@@ -21,7 +21,6 @@ const typesOf = (count) =>
   Array.from({ length: count }, (_, i) => ({
     id: i + 1,
     name: `Tipo ${String(i + 1).padStart(3, "0")}`,
-    category_id: i % 2 === 0 ? 3 : 5,
   }));
 
 const SERVER_PAGED = [
@@ -83,7 +82,6 @@ async function openMemory(page, screen, count = 45) {
   await page.goto("about:blank");
   const api = await installFakeApi(page);
   api.on("GET", "/me", { status: 200, body: USERS.Admin });
-  api.on("GET", /^\/categories(\?|$)/, { status: 200, body: [COMPUTING, NETWORKS] });
   api.on("GET", /^\/product-types(\?|$)/, { status: 200, body: typesOf(count) });
   await page.goto(`/${screen.hash}`);
   await expect(page.locator(".loading")).toHaveCount(0);
@@ -208,28 +206,6 @@ test("SPEC-UI-142 shows 0 de 0 for an empty listing (TC-UI-142d)", async ({ page
   await expect(footer(page)).toContainText("0 de 0");
 });
 
-test("SPEC-UI-144 flattens the product types into rows with a category column in API order (TC-UI-144b)", async ({
-  page,
-}) => {
-  const api = await openMemory(page, IN_MEMORY[0], 5);
-  const typeCalls = calls(api, "/product-types");
-  expect(new URL(typeCalls[0].url).search).toBe("");
-  const table = page.getByRole("table", { name: "Tipos de producto", exact: true });
-  await expect(table.locator("thead th")).toHaveText(["Nombre", "Categoría", "Acciones"]);
-  await expect(bodyRows(page)).toHaveCount(5);
-  const rows = await bodyRows(page).evaluateAll((nodes) =>
-    nodes.map((n) => [...n.querySelectorAll("td")].slice(0, 2).map((c) => c.textContent)),
-  );
-  expect(rows).toEqual([
-    ["Tipo 001", "Computación"],
-    ["Tipo 002", "Redes"],
-    ["Tipo 003", "Computación"],
-    ["Tipo 004", "Redes"],
-    ["Tipo 005", "Computación"],
-  ]);
-  await expect(page.locator("fieldset.category-group")).toHaveCount(0);
-});
-
 test("SPEC-UI-144 paginates the flat product type list like the categories (TC-UI-144c)", async ({
   page,
 }) => {
@@ -303,13 +279,4 @@ test("SPEC-UI-120 reloads the current page with the chosen page_size after an ac
   const params = lastParams(api, "/users");
   expect(params.get("page")).toBe("2");
   expect(params.get("page_size")).toBe("10");
-});
-
-test("SPEC-UI-50 shows the product types in the table with their category (TC-UI-50b)", async ({
-  page,
-}) => {
-  const api = await openMemory(page, IN_MEMORY[0], 2);
-  await expect(page.getByRole("row").filter({ hasText: "Tipo 001" })).toContainText("Computación");
-  await expect(page.getByRole("row").filter({ hasText: "Tipo 002" })).toContainText("Redes");
-  expect(calls(api, "/product-types").length).toBeGreaterThan(0);
 });

@@ -1,4 +1,3 @@
-import { flattenProductTypes } from "../core/query.js";
 import { translateError } from "../core/messages.js";
 import { confirmAction } from "../dom/confirm.js";
 import { openFormDialog } from "../dom/dialog.js";
@@ -8,9 +7,8 @@ import { createMemoryListing, searchField } from "../dom/listing.js";
 import { el } from "../dom/render.js";
 
 const CONFIRM_MESSAGE = "Esta acción no se puede deshacer. ¿Eliminar el tipo de producto";
-const COLUMNS = ["Nombre", "Categoría", "Acciones"];
+const COLUMNS = ["Nombre", "Acciones"];
 const LIST_KEY = "list";
-const CATEGORIES_KEY = "categories";
 
 export function title() {
   return "Tipos de producto";
@@ -20,21 +18,12 @@ function listPath(query) {
   return query === "" ? "/product-types" : `/product-types?q=${encodeURIComponent(query)}`;
 }
 
-function typeFields(categories, type) {
-  return [
-    { name: "name", label: "Nombre", value: type?.name ?? "" },
-    {
-      name: "category_id",
-      label: "Categoría",
-      options: categories.map((category) => ({ value: String(category.id), label: category.name })),
-      value: type === undefined ? undefined : String(type.category_id),
-    },
-  ];
+function typeFields(type) {
+  return [{ name: "name", label: "Nombre", value: type?.name ?? "" }];
 }
 
 export function mount({ root, request, showError, showStatus }) {
   let header = null;
-  let categories = [];
   const fallback = () => header.button;
   const clearMessages = () => {
     showError("");
@@ -42,16 +31,11 @@ export function mount({ root, request, showError, showStatus }) {
   };
 
   async function fetchItems(query) {
-    const [typesResponse, categoriesResponse] = await Promise.all([
-      request("GET", listPath(query), undefined, LIST_KEY),
-      request("GET", "/categories", undefined, CATEGORIES_KEY),
-    ]);
-    const failed = [typesResponse, categoriesResponse].find((response) => !response.ok);
-    if (failed) {
-      return { ok: false, message: translateError(failed).message };
+    const response = await request("GET", listPath(query), undefined, LIST_KEY);
+    if (!response.ok) {
+      return { ok: false, message: translateError(response).message };
     }
-    categories = categoriesResponse.body;
-    return { ok: true, items: flattenProductTypes(typesResponse.body, categories) };
+    return { ok: true, items: response.body };
   }
 
   const listing = createMemoryListing({
@@ -67,10 +51,6 @@ export function mount({ root, request, showError, showStatus }) {
     dialog.refocus();
   }
 
-  function categoryBody(values) {
-    return { name: values.name, category_id: Number(values.category_id) };
-  }
-
   function openCreate(opener) {
     clearMessages();
     openFormDialog({
@@ -80,10 +60,10 @@ export function mount({ root, request, showError, showStatus }) {
       submitLabel: "Crear",
       opener,
       fallback,
-      form: createFields("product-type-create", typeFields(categories)),
+      form: createFields("product-type-create", typeFields()),
       onSubmit: async (values, dialog) => {
         clearMessages();
-        const response = await dialog.send(request("POST", "/product-types", categoryBody(values)));
+        const response = await dialog.send(request("POST", "/product-types", { name: values.name }));
         if (response) {
           await reloadAfter(dialog);
         }
@@ -100,11 +80,11 @@ export function mount({ root, request, showError, showStatus }) {
       submitLabel: "Guardar",
       opener,
       fallback,
-      form: createFields(`product-type-edit-${type.id}`, typeFields(categories, type)),
+      form: createFields(`product-type-edit-${type.id}`, typeFields(type)),
       onSubmit: async (values, dialog) => {
         clearMessages();
         const response = await dialog.send(
-          request("PATCH", `/product-types/${type.id}`, categoryBody(values)),
+          request("PATCH", `/product-types/${type.id}`, { name: values.name }),
         );
         if (response) {
           await reloadAfter(dialog);
@@ -134,7 +114,7 @@ export function mount({ root, request, showError, showStatus }) {
     ]);
     edit.addEventListener("click", () => openEdit(type, edit));
     remove.addEventListener("click", () => removeType(type));
-    return [type.name, type.category, el("div", { class: "row-actions" }, [edit, remove])];
+    return [type.name, el("div", { class: "row-actions" }, [edit, remove])];
   }
 
   const searchForm = searchField({

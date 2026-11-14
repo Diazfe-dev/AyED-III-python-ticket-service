@@ -13,8 +13,8 @@ const account = (id, name, role, channel = "mail") => ({
 const LUIS = account(5, "Luis Mora", "Client");
 const COMPUTING = { id: 3, name: "Computación" };
 const NETWORKS = { id: 5, name: "Redes" };
-const LAPTOP = { id: 4, name: "Notebook", category_id: 3 };
-const ROUTER = { id: 6, name: "Router", category_id: 5 };
+const LAPTOP = { id: 4, name: "Notebook" };
+const ROUTER = { id: 6, name: "Router" };
 const LENOVO = {
   id: 9,
   name: "Lenovo T14",
@@ -160,7 +160,7 @@ test("SPEC-UI-157 opens the edit dialog with the values of the row as field text
   await page.goto("/#/product-types");
   await rowOf(page, "Router").getByRole("button", { name: "Editar" }).click();
   await expect(dialogOf(page).getByLabel("Nombre")).toHaveValue("Router");
-  await expect(dialogOf(page).getByLabel("Categoría")).toHaveValue("5");
+  await expect(dialogOf(page).getByLabel("Categoría")).toHaveCount(0);
   await page.keyboard.press("Escape");
 
   await page.goto("/#/products");

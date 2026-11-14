@@ -79,13 +79,3 @@ export function memoryPage(items, page, pageSize) {
   const start = (shown - 1) * pageSize;
   return { items: items.slice(start, start + pageSize), page: shown, pageSize, total };
 }
-
-export function flattenProductTypes(types, categories) {
-  const names = new Map(categories.map((category) => [category.id, category.name]));
-  return types.map((type) => ({
-    id: type.id,
-    name: type.name,
-    category_id: type.category_id,
-    category: names.get(type.category_id) ?? '',
-  }));
-}
