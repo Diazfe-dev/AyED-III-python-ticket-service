@@ -102,7 +102,6 @@ def test_representative_creates_a_ticket_for_a_client(
                 "name": "XPS 13",
                 "is_active": True,
                 "product_type": {"id": notebook.id, "name": "Notebook"},
-                "category": {"id": notebook.category_id, "name": "Hardware"},
             }
         ],
         "created_at": body["created_at"],
