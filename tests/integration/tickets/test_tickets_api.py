@@ -17,7 +17,6 @@ from app.repositories.ticket_repository import SqlAlchemyTicketRepository
 from tests.conftest import (
     DEFAULT_TICKET_TIME,
     LoginAs,
-    MakeCategory,
     MakeProduct,
     MakeProductType,
     MakeTicket,
@@ -41,8 +40,8 @@ def rosa(make_user: MakeUser) -> Representative:
 
 
 @pytest.fixture
-def notebook(make_category: MakeCategory, make_product_type: MakeProductType) -> ProductType:
-    return make_product_type(make_category("Hardware"), "Notebook")
+def notebook(make_product_type: MakeProductType) -> ProductType:
+    return make_product_type(name="Notebook")
 
 
 @pytest.fixture

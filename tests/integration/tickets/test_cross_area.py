@@ -8,7 +8,6 @@ from app.domain.state_change import StateChange
 from app.domain.ticket import Ticket, ticket_products
 from tests.conftest import (
     LoginAs,
-    MakeCategory,
     MakeProduct,
     MakeProductType,
     MakeTicket,
@@ -70,7 +69,6 @@ def test_deactivated_product_stays_in_its_tickets_and_cannot_be_associated_again
     db_session: Session,
     make_user: MakeUser,
     make_ticket: MakeTicket,
-    make_category: MakeCategory,
     make_product_type: MakeProductType,
     make_product: MakeProduct,
     login_as: LoginAs,
@@ -78,7 +76,7 @@ def test_deactivated_product_stays_in_its_tickets_and_cannot_be_associated_again
     """SPEC-PRD-06 · TC-PRD-06d"""
     ana = make_user("Client", name="Ana", email="ana@x.com")
     raul = make_user("Representative", name="Raúl", email="raul@x.com")
-    notebook = make_product_type(make_category("Computers"), "Notebook")
+    notebook = make_product_type(name="Notebook")
     xps = make_product(notebook, "XPS 13")
     ticket_id = make_ticket(ana, raul, [xps]).id
     other_ticket_id = make_ticket(ana, raul).id

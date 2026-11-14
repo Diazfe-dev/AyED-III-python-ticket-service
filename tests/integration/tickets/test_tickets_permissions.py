@@ -18,7 +18,6 @@ from app.domain.users import User
 from tests.conftest import (
     DEFAULT_TICKET_TIME,
     LoginAs,
-    MakeCategory,
     MakeProduct,
     MakeProductType,
     MakeTicket,
@@ -79,7 +78,6 @@ TICKET_ENDPOINT_IDS = [f"{method} {path}" for method, path, _ in TICKET_ENDPOINT
 def world(
     db_session: Session,
     make_user: MakeUser,
-    make_category: MakeCategory,
     make_product_type: MakeProductType,
     make_product: MakeProduct,
     make_ticket: MakeTicket,
@@ -90,7 +88,7 @@ def world(
     beto = make_user("Client", name="Beto")
     raul = make_user("Representative", name="Raul")
     rosa = make_user("Representative", name="Rosa")
-    xps = make_product(make_product_type(make_category("Hardware"), "Notebook"), "XPS 13")
+    xps = make_product(make_product_type(name="Notebook"), "XPS 13")
     ticket = make_ticket(ana, raul, [xps])
     return SimpleNamespace(ana=ana, beto=beto, raul=raul, rosa=rosa, xps=xps, ticket=ticket)
 
