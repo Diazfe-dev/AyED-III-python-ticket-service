@@ -7,11 +7,11 @@ from sqlalchemy.orm import Session, selectinload
 from app.db import fits_integer_column
 from app.domain.errors import DuplicateProductError
 from app.domain.paging import Page, PageRequest
-from app.domain.products import Product, ProductType, normalize_name
+from app.domain.products import Product, normalize_name
 from app.repositories.paging import fetch
 
 BY_NAME = (Product.name_key, Product.id)
-WITH_TYPE_AND_CATEGORY = selectinload(Product.product_type).selectinload(ProductType.category)
+WITH_TYPE = selectinload(Product.product_type)
 
 
 class SqlAlchemyProductRepository:
@@ -43,10 +43,7 @@ class SqlAlchemyProductRepository:
         if not wanted:
             return []
         statement = (
-            select(Product)
-            .options(WITH_TYPE_AND_CATEGORY)
-            .where(Product.id.in_(wanted))
-            .order_by(Product.id)
+            select(Product).options(WITH_TYPE).where(Product.id.in_(wanted)).order_by(Product.id)
         )
         return list(self._session.scalars(statement))
 
@@ -59,7 +56,6 @@ class SqlAlchemyProductRepository:
 
     def list_matching(
         self,
-        category_id: int | None = None,
         product_type_id: int | None = None,
         is_active: bool | None = None,
         q: str | None = None,
@@ -67,15 +63,10 @@ class SqlAlchemyProductRepository:
     ) -> list[Product] | Page[Product]:
         """Products matching every given filter, ordered by name without case.
 
-        The category of a product is the one of its type, so that filter joins the type.
         `q` matches as a literal substring of the name key, so it ignores case.
         With a `window` it returns that `Page`; the order always ends in the id.
         """
-        statement = select(Product).options(WITH_TYPE_AND_CATEGORY).order_by(*BY_NAME)
-        if category_id is not None:
-            statement = statement.join(Product.product_type).where(
-                ProductType.category_id == category_id
-            )
+        statement = select(Product).options(WITH_TYPE).order_by(*BY_NAME)
         if product_type_id is not None:
             statement = statement.where(Product.product_type_id == product_type_id)
         if is_active is not None:

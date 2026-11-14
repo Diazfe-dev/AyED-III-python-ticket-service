@@ -93,7 +93,7 @@ def test_get_visible_loads_everything_the_detail_needs_in_few_statements(
             assert ticket is not None
             assert ticket.client.name == "Ana"
             assert ticket.representative.name == "Raul"
-            assert [p.product_type.category.name for p in ticket.products]
+            assert [p.product_type.name for p in ticket.products]
 
         assert len(statements) <= 6
 
@@ -127,7 +127,7 @@ def test_get_finds_any_ticket_without_a_participant_filter(
             assert found is not None
             assert found.client.name == "Ana"
             assert found.representative.name == "Raul"
-            assert [p.product_type.category.name for p in found.products]
+            assert [p.product_type.name for p in found.products]
         assert len(statements) <= 6
 
         assert repository.get(9999) is None
@@ -259,7 +259,7 @@ def _walk_ticket_graph(tickets: list[Ticket]) -> None:
         assert ticket.client.name
         assert ticket.representative.name
         for product in ticket.products:
-            assert product.product_type.category.name
+            assert product.product_type.name
 
 
 def test_search_by_client_loads_everything_in_few_statements(
