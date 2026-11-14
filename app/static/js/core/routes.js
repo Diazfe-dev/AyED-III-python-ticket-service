@@ -13,7 +13,6 @@ const ROUTES = {
   "#/tickets": { screen: "tickets-list", roles: ALL_ROLES },
   "#/tickets/new": { screen: "ticket-new", roles: ["Representative"] },
   "#/users": { screen: "users", roles: ["Admin"] },
-  "#/categories": { screen: "categories", roles: ["Admin"] },
   "#/product-types": { screen: "product-types", roles: ["Admin"] },
   "#/products": { screen: "products", roles: ["Admin"] },
   "#/account": { screen: "account", roles: ALL_ROLES },
@@ -30,7 +29,6 @@ const NAV = {
   ],
   Admin: [
     { label: "Usuarios", route: "#/users" },
-    { label: "Categorías", route: "#/categories" },
     { label: "Tipos de producto", route: "#/product-types" },
     { label: "Productos", route: "#/products" },
     { label: "Tickets", route: "#/tickets" },
