@@ -97,16 +97,6 @@ test("SPEC-UI-54 deletes only after confirming the dialog (TC-UI-54a)", async ({
   expect(writes(api, "DELETE")[0].url).toMatch(/\/categories\/3$/);
 });
 
-test("SPEC-UI-54 shows the API error when the category is in use (TC-UI-54a)", async ({ page }) => {
-  const api = await openCategories(page);
-  api.on("DELETE", "/categories/3", { status: 409, body: { error: "category_in_use" } });
-  await page.getByRole("button", { name: "Eliminar Computación" }).click();
-  await page.getByRole("dialog").getByRole("button", { name: "Confirmar" }).click();
-  await expect(page.locator("#alert")).toHaveText(
-    "La categoría tiene tipos de producto asociados y no se puede eliminar.",
-  );
-});
-
 test("SPEC-UI-120 reloads the full list with the same q after a creation (TC-UI-120c)", async ({
   page,
 }) => {

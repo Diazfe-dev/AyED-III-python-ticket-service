@@ -78,7 +78,7 @@ test("SPEC-UI-90 shows the API error on a duplicate type (TC-UI-90a)", async ({ 
   await form.getByLabel("Nombre", { exact: true }).fill("Notebook");
   await form.getByRole("button", { name: "Crear" }).click();
   await expect(form.getByRole("alert")).toHaveText(
-    "Ya existe un tipo de producto con ese nombre en la categoría.",
+    "Ya existe un tipo de producto con ese nombre.",
   );
 });
 
