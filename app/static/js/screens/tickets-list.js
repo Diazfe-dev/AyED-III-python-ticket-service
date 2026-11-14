@@ -48,7 +48,7 @@ const LIST_ROUTE = "tickets-list";
 const CREATE_ROUTE = "ticket-new";
 const LIST_HASH = "#/tickets";
 
-export function mount({ root, user, request, showError, navigate, replaceHash, route = LIST_ROUTE }) {
+export function mount({ root, user, request, showError, showStatus, navigate, replaceHash, route = LIST_ROUTE }) {
   let current = route;
   let dialog = null;
   let header = null;
@@ -130,7 +130,14 @@ export function mount({ root, user, request, showError, navigate, replaceHash, r
       ? [
           {
             label: "Nuevo cliente",
-            onClick: (opener) => openClientDialog({ root, opener, fallback: () => header.button }),
+            onClick: (opener) => openClientDialog({
+                root,
+                request,
+                showError,
+                showStatus,
+                opener,
+                fallback: () => header.button,
+              }),
           },
           {
             label: "Nuevo producto",
