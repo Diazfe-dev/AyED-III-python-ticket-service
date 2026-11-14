@@ -3,21 +3,18 @@ import { installFakeApi } from "./support/fake-api.js";
 import { page as pageOf, USERS } from "./support/fixtures.js";
 
 const PRODUCTS_PATH = "/products";
-const COMPUTING = { id: 3, name: "Computación" };
-const NETWORKS = { id: 5, name: "Redes" };
-const LAPTOP_TYPE = { id: 4, name: "Notebook", category_id: 3 };
-const ROUTER_TYPE = { id: 6, name: "Router", category_id: 5 };
+const LAPTOP_TYPE = { id: 4, name: "Notebook" };
+const ROUTER_TYPE = { id: 6, name: "Router" };
 
-const product = (id, name, type, category, isActive = true) => ({
+const product = (id, name, type, isActive = true) => ({
   id,
   name,
   is_active: isActive,
   product_type: type,
-  category,
 });
 
-const LENOVO = product(9, "Lenovo T14", LAPTOP_TYPE, COMPUTING);
-const ARCHER = product(10, "Archer AX", ROUTER_TYPE, NETWORKS, false);
+const LENOVO = product(9, "Lenovo T14", LAPTOP_TYPE);
+const ARCHER = product(10, "Archer AX", ROUTER_TYPE, false);
 
 const productCalls = (api) =>
   api.requests.filter((r) => r.method === "GET" && new URL(r.url).pathname === PRODUCTS_PATH);
@@ -38,7 +35,6 @@ const openCreateDialog = (page) =>
 async function openProducts(page, listing = { status: 200, body: pageOf([LENOVO, ARCHER]) }) {
   const api = await installFakeApi(page);
   api.on("GET", "/me", { status: 200, body: USERS.Admin });
-  api.on("GET", /^\/categories(\?|$)/, { status: 200, body: [COMPUTING, NETWORKS] });
   api.on("GET", "/product-types", { status: 200, body: [LAPTOP_TYPE, ROUTER_TYPE] });
   api.on("GET", PRODUCTS_PATH, listing);
   await page.goto("/#/products");
@@ -46,18 +42,32 @@ async function openProducts(page, listing = { status: 200, body: pageOf([LENOVO,
   return api;
 }
 
-test("SPEC-UI-51 shows name, type, category and state of each product (TC-UI-51a)", async ({
+test("SPEC-UI-203 shows Nombre, Tipo, Estado and Acciones for each product (TC-UI-203a)", async ({
   page,
 }) => {
   await openProducts(page);
+  const table = page.getByRole("table", { name: "Productos", exact: true });
+  await expect(table.locator("thead th")).toHaveText(["Nombre", "Tipo", "Estado", "Acciones"]);
   const active = rowFor(page, "Lenovo T14");
   await expect(active).toContainText("Notebook");
-  await expect(active).toContainText("Computación");
   await expect(active).toContainText("Activo");
   const inactive = rowFor(page, "Archer AX");
   await expect(inactive).toContainText("Router");
-  await expect(inactive).toContainText("Redes");
   await expect(inactive).toContainText("Inactivo");
+});
+
+test("SPEC-UI-203 has no category filter and never asks for categories (TC-UI-203b)", async ({
+  page,
+}) => {
+  const api = await openProducts(page);
+  await expect(rowFor(page, "Lenovo T14")).toBeVisible();
+  await expect(page.getByLabel("Categoría", { exact: true })).toHaveCount(0);
+  expect(api.requests.filter((r) => /\/categories/.test(r.url))).toHaveLength(0);
+  await expect(page.locator("#filter-type").getByRole("option")).toHaveText([
+    "Todos",
+    "Notebook",
+    "Router",
+  ]);
 });
 
 test("SPEC-UI-26 requests GET /products with page and page_size 20 (TC-UI-26d)", async ({
@@ -89,17 +99,6 @@ test("SPEC-UI-93 requests the listing with is_active (TC-UI-93a)", async ({ page
   expect(lastCall(api).get("is_active")).toBe("false");
 });
 
-test("SPEC-UI-94 requests the listing with category_id from the category selector (TC-UI-94a)", async ({
-  page,
-}) => {
-  const api = await openProducts(page);
-  await expect(rowFor(page, "Lenovo T14")).toBeVisible();
-  api.on("GET", PRODUCTS_PATH, { status: 200, body: pageOf([ARCHER]) });
-  await page.getByLabel("Categoría", { exact: true }).selectOption({ label: "Redes" });
-  await expect(rowFor(page, "Lenovo T14")).toHaveCount(0);
-  expect(lastCall(api).get("category_id")).toBe("5");
-});
-
 test("SPEC-UI-95 requests the listing with product_type_id from the type selector (TC-UI-95a)", async ({
   page,
 }) => {
@@ -115,7 +114,7 @@ test("SPEC-UI-52 creates a product with the type chosen in the selector (TC-UI-5
   page,
 }) => {
   const api = await openProducts(page);
-  api.on("POST", PRODUCTS_PATH, { status: 201, body: product(11, "Dell", LAPTOP_TYPE, COMPUTING) });
+  api.on("POST", PRODUCTS_PATH, { status: 201, body: product(11, "Dell", LAPTOP_TYPE) });
   await openCreateDialog(page);
   await createForm(page).getByLabel("Nombre").fill("Dell");
   await createForm(page).getByLabel("Tipo").selectOption({ label: "Notebook" });
@@ -149,7 +148,7 @@ test("SPEC-UI-53 deactivates an active product (TC-UI-53a)", async ({ page }) =>
 test("SPEC-UI-111 reactivates an inactive product (TC-UI-111a)", async ({ page }) => {
   const api = await openProducts(page, {
     status: 200,
-    body: pageOf([product(9, "Lenovo T14", LAPTOP_TYPE, COMPUTING, false)]),
+    body: pageOf([product(9, "Lenovo T14", LAPTOP_TYPE, false)]),
   });
   api.on("POST", "/products/9/activate", { status: 200, body: LENOVO });
   await expect(rowFor(page, "Lenovo T14").getByRole("button", { name: "Dar de baja" })).toHaveCount(
@@ -159,11 +158,11 @@ test("SPEC-UI-111 reactivates an inactive product (TC-UI-111a)", async ({ page }
   await expect.poll(() => writes(api, "POST", "/products/9/activate").length).toBe(1);
 });
 
-test("SPEC-UI-120 reloads the current page with the same filters after a create (TC-UI-120b)", async ({
+test("SPEC-UI-205 reloads the current page with the same filters after a create (TC-UI-205b)", async ({
   page,
 }) => {
   const api = await openProducts(page, byPage([LENOVO], 45));
-  api.on("POST", PRODUCTS_PATH, { status: 201, body: product(11, "Dell", LAPTOP_TYPE, COMPUTING) });
+  api.on("POST", PRODUCTS_PATH, { status: 201, body: product(11, "Dell", LAPTOP_TYPE) });
   await page.getByLabel("Estado", { exact: true }).selectOption({ label: "Activo" });
   await page.getByLabel("Buscar", { exact: true }).fill("len");
   await page.getByRole("button", { name: "Buscar" }).click();
