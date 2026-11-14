@@ -207,6 +207,7 @@ classDiagram
         +list_clients(is_active, q, page, page_size)
         +list_representatives(is_active, q, page, page_size)
     }
+    note for UserController "POST /users usa login_required y pasa actor al servicio; modificar, baja, reactivación y restablecimiento usan admin_required"
     class auth {
         <<module>>
         +get_user_service() UserService
@@ -264,7 +265,8 @@ classDiagram
         +UserRepository repository
         +PasswordHasher hasher
         +Callable commit
-        +create_user(name, email, role, password, preferred_channel) User
+        +CREATABLE_ROLES dict
+        +create_user(name, email, role, password, preferred_channel, actor) User
         +update_user(user_id, name, email, preferred_channel) User
         +deactivate_user(user_id, actor) User
         +authenticate(email, password) User

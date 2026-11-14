@@ -10,41 +10,47 @@ Convenciones comunes a todos los diagramas:
 
 ## 1. Alta de usuario
 
-Specs: SPEC-USR-01, 02, 03, 04, 05, 06, 18, 19, 23
+Specs: SPEC-USR-01, 02, 03, 04, 05, 06, 19, 23, 51, 52, 54
 
 ```mermaid
 sequenceDiagram
     autonumber
-    actor Admin
+    actor U as Admin, Representative o Client
     participant UC as UserController
     participant US as UserService
     participant H as PasswordHasher
     participant UR as UserRepository
 
-    Admin->>UC: POST /users (name, email, role, password, preferred_channel?)
-    alt sin sesión o current_user no es Admin
-        UC-->>Admin: 401 authentication_required o 403 forbidden (SPEC-USR-16, 18)
-    else current_user es Admin
-        UC->>US: create_user(name, email, role, password, preferred_channel)
-        alt datos faltantes o inválidos, password con menos de 8 caracteres o canal desconocido
+    U->>UC: POST /users (name, email, role, password, preferred_channel?)
+    alt sin sesión
+        UC-->>U: 401 authentication_required (SPEC-USR-49)
+    else con sesión (login_required)
+        UC->>US: create_user(name, email, role, password, preferred_channel, actor=current_user)
+        alt datos faltantes o inválidos (incluido un rol inexistente), password con menos de 8 caracteres o canal desconocido
             US-->>UC: raise ValidationError(fields)
-            UC-->>Admin: 400 validation_error con fields (SPEC-USR-05, 19, 23)
+            UC-->>U: 400 validation_error con fields, antes del 403 (SPEC-USR-05, 19, 23, 52, 54)
         else datos válidos
-            US->>UR: find_by_email(email)
-            Note over UR: Compara el email normalizado, strip y lower (SPEC-USR-03)
-            UR-->>US: User o None
-            alt el email ya existe (activo o inactivo)
-                US-->>UC: raise DuplicateUserError
-                UC-->>Admin: 409 duplicate_email (SPEC-USR-04)
-            else email libre
-                US->>H: hash(password)
-                H-->>US: password_hash (SPEC-USR-02)
-                US->>US: user = ROLE_CLASSES[role](is_active=True, preferred_channel o "mail") (SPEC-USR-06)
-                US->>UR: add(user)
-                Note over UR: add hace flush. Un IntegrityError por UNIQUE(email)<br/>se traduce a DuplicateUserError
-                US->>US: commit()
-                US-->>UC: user
-                UC-->>Admin: 201 Created con el User, sin password_hash (SPEC-USR-01)
+            alt role no está en CREATABLE_ROLES[actor.role]
+                Note over US: Admin crea cualquier rol, Representative solo Client,<br/>Client ninguno (SPEC-USR-51, 52, 54)
+                US-->>UC: raise PermissionDeniedError
+                UC-->>U: 403 forbidden, antes de consultar el email (SPEC-USR-52, 54)
+            else el rol está permitido
+                US->>UR: find_by_email(email)
+                Note over UR: Compara el email normalizado, strip y lower (SPEC-USR-03)
+                UR-->>US: User o None
+                alt el email ya existe (activo o inactivo)
+                    US-->>UC: raise DuplicateUserError
+                    UC-->>U: 409 duplicate_email (SPEC-USR-04)
+                else email libre
+                    US->>H: hash(password)
+                    H-->>US: password_hash (SPEC-USR-02)
+                    US->>US: user = ROLE_CLASSES[role](is_active=True, preferred_channel o "mail") (SPEC-USR-06)
+                    US->>UR: add(user)
+                    Note over UR: add hace flush. Un IntegrityError por UNIQUE(email)<br/>se traduce a DuplicateUserError
+                    US->>US: commit()
+                    US-->>UC: user
+                    UC-->>U: 201 Created con el User, sin password_hash (SPEC-USR-01, 51)
+                end
             end
         end
     end
@@ -105,7 +111,7 @@ sequenceDiagram
 
 ## 3. Baja lógica de usuario
 
-Specs: SPEC-USR-09, 10, 18, 21
+Specs: SPEC-USR-09, 10, 21, 53
 
 ```mermaid
 sequenceDiagram
@@ -117,7 +123,7 @@ sequenceDiagram
 
     Admin->>UC: POST /users/{id}/deactivate
     alt sin sesión o current_user no es Admin
-        UC-->>Admin: 401 authentication_required o 403 forbidden (SPEC-USR-16, 18)
+        UC-->>Admin: 401 authentication_required o 403 forbidden (SPEC-USR-16, 53)
     else current_user es Admin
         UC->>US: deactivate_user(user_id, actor=current_user)
         alt user_id es el del propio admin
@@ -156,7 +162,7 @@ sequenceDiagram
     Note over Op,CLI: No existe la opción --password, click la rechaza con No such option
     CLI->>Op: click.prompt pide la contraseña dos veces, sin mostrarla
     Op->>CLI: password
-    CLI->>US: create_user(name, email, role="Admin", password)
+    CLI->>US: create_user(name, email, role="Admin", password) sin actor, no se chequea el permiso (SPEC-USR-20)
     Note over US: Aplica las mismas validaciones que el alta normal<br/>(email único, password de 8 caracteres o más)
     alt datos inválidos o email existente
         US-->>CLI: raise ValidationError o DuplicateUserError
@@ -189,7 +195,7 @@ sequenceDiagram
 
 ## 6. Reactivación de usuario
 
-Specs: SPEC-USR-18, 28, 29, 30
+Specs: SPEC-USR-28, 29, 30, 53
 
 ```mermaid
 sequenceDiagram
@@ -201,7 +207,7 @@ sequenceDiagram
 
     Admin->>UC: POST /users/{id}/activate
     alt sin sesión o current_user no es Admin
-        UC-->>Admin: 401 authentication_required o 403 forbidden (SPEC-USR-18, 49)
+        UC-->>Admin: 401 authentication_required o 403 forbidden (SPEC-USR-53, 49)
     else current_user es Admin
         UC->>US: activate_user(user_id)
         US->>UR: get(user_id)
@@ -258,7 +264,7 @@ sequenceDiagram
 
 ## 8. Restablecimiento de la contraseña de otro usuario
 
-Specs: SPEC-USR-18, 39, 40, 41, 42
+Specs: SPEC-USR-39, 40, 41, 42, 53
 
 ```mermaid
 sequenceDiagram
@@ -271,7 +277,7 @@ sequenceDiagram
 
     Admin->>UC: POST /users/{id}/password (new_password)
     alt sin sesión o current_user no es Admin
-        UC-->>Admin: 401 authentication_required o 403 forbidden (SPEC-USR-18, 49)
+        UC-->>Admin: 401 authentication_required o 403 forbidden (SPEC-USR-53, 49)
     else current_user es Admin
         UC->>US: reset_password(user_id, new_password)
         US->>UR: get(user_id)
