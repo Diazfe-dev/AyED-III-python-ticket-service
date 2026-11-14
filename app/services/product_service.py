@@ -5,15 +5,19 @@ from typing import Any, Protocol
 
 from app.domain.errors import (
     DuplicateProductError,
+    PermissionDeniedError,
     ProductNotFoundError,
     ProductTypeNotFoundError,
     ValidationError,
 )
 from app.domain.paging import Page, PageRequest
 from app.domain.products import Product, ProductType
+from app.domain.users import User
 from app.services.catalog_service import ProductTypeRepository
 from app.services.listing import bool_query_error, page_request, parse_bool_query, search_text
 from app.services.validation import id_error, parse_id, provided, raise_if_invalid, text_error
+
+PRODUCT_CREATORS = frozenset({"Admin", "Representative"})
 
 
 class ProductRepository(Protocol):
@@ -43,9 +47,17 @@ class ProductService:
         self._product_types = product_types
         self._commit = commit
 
-    def create_product(self, name: Any, product_type_id: Any) -> Product:
-        """Create an active product of an existing type; input is validated here."""
+    def create_product(
+        self, name: Any, product_type_id: Any, *, actor: User | None = None
+    ) -> Product:
+        """Create an active product of an existing type; input is validated here.
+
+        Order: format, the actor's role, the type, the free name. Without an actor (system
+        calls) the role is not checked.
+        """
         raise_if_invalid({"name": text_error(name), "product_type_id": id_error(product_type_id)})
+        if actor is not None and actor.role not in PRODUCT_CREATORS:
+            raise PermissionDeniedError()
         product_type = self._get_product_type(parse_id(product_type_id))
         self._ensure_name_is_free(name, product_type)
         product = Product(name=name, product_type=product_type, is_active=True)

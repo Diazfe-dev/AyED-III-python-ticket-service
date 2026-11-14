@@ -827,7 +827,7 @@
       },
       "post": {
         "summary": "Create a product",
-        "description": "Admin only. Creates an active product of an existing product type. `name` and `product_type_id` are validated together (`400`); then the product type must exist (`404`) and the name must be free inside it (`409`).",
+        "description": "An `Admin` or a `Representative` creates an active product of an existing product type; a `Client` gets `403`. `name` and `product_type_id` are validated together (`400`), then the role is checked (`403`, before the lookups), then the product type must exist (`404`) and the name must be free inside it (`409`).",
         "operationId": "createProduct",
         "tags": [
           "catalog"
@@ -860,7 +860,17 @@
             "$ref": "#/components/responses/AuthenticationRequired"
           },
           "403": {
-            "$ref": "#/components/responses/Forbidden"
+            "description": "The session user is a `Client` (`forbidden`). Returned after the `400` and before the `404` and the `409`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "error": "forbidden"
+                }
+              }
+            }
           },
           "404": {
             "$ref": "#/components/responses/ProductTypeNotFound"
@@ -944,7 +954,17 @@
             "$ref": "#/components/responses/AuthenticationRequired"
           },
           "403": {
-            "$ref": "#/components/responses/Forbidden"
+            "description": "The session user is not an administrator (`forbidden`). Every non-`Admin` gets it before the `404` and before the body is read.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "error": "forbidden"
+                }
+              }
+            }
           },
           "404": {
             "$ref": "#/components/responses/ProductOrProductTypeNotFound"
@@ -983,7 +1003,17 @@
             "$ref": "#/components/responses/AuthenticationRequired"
           },
           "403": {
-            "$ref": "#/components/responses/Forbidden"
+            "description": "The session user is not an administrator (`forbidden`). Every non-`Admin` gets it before the `404` and before the body is read.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "error": "forbidden"
+                }
+              }
+            }
           },
           "404": {
             "$ref": "#/components/responses/ProductNotFound"

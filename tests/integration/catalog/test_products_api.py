@@ -136,6 +136,101 @@ def test_create_product_with_malformed_or_missing_product_type_id_is_rejected(
 
 
 @pytest.fixture
+def rosa_client(client: FlaskClient, make_user: MakeUser, login_as: LoginAs) -> FlaskClient:
+    login_as(client, make_user(role="Representative"))
+    return client
+
+
+def test_representative_creates_a_product(
+    rosa_client: FlaskClient, db_session: Session, notebook: ProductType
+) -> None:
+    """SPEC-PRD-35 · TC-PRD-35c"""
+    response = create_product(rosa_client, name="  XPS 15 ", product_type_id=notebook.id)
+
+    assert response.status_code == 201
+    body = response.get_json()
+    assert body == {
+        "id": body["id"],
+        "name": "XPS 15",
+        "is_active": True,
+        "product_type": {"id": notebook.id, "name": "Notebook"},
+    }
+    assert isinstance(body["id"], int)
+    assert stored_products(db_session) == [("XPS 15", notebook.id, True)]
+
+
+def test_representative_creating_a_product_gets_the_admin_errors(
+    rosa_client: FlaskClient, db_session: Session, notebook: ProductType, make_product: MakeProduct
+) -> None:
+    """SPEC-PRD-35 · TC-PRD-35d"""
+    make_product(notebook, "xps 13")
+    before = stored_products(db_session)
+
+    nameless = create_product(rosa_client, product_type_id=notebook.id)
+    unknown = create_product(rosa_client, name="XPS 15", product_type_id=9999)
+    duplicate = create_product(rosa_client, name="XPS 13", product_type_id=notebook.id)
+
+    assert nameless.status_code == 400
+    assert nameless.get_json()["fields"] == {"name": "required"}
+    assert unknown.status_code == 404
+    assert unknown.get_json() == {"error": "product_type_not_found"}
+    assert duplicate.status_code == 409
+    assert duplicate.get_json() == {"error": "duplicate_product"}
+    assert stored_products(db_session) == before
+
+
+def test_a_product_created_by_a_representative_is_available(
+    rosa_client: FlaskClient, notebook: ProductType
+) -> None:
+    """SPEC-PRD-35 · TC-PRD-35e"""
+    create_product(rosa_client, name="XPS 15", product_type_id=notebook.id)
+
+    response = rosa_client.get("/products/available?q=xps 15")
+
+    assert response.status_code == 200
+    assert [product["name"] for product in response.get_json()] == ["XPS 15"]
+
+
+@pytest.fixture
+def client_session(client: FlaskClient, make_user: MakeUser, login_as: LoginAs) -> FlaskClient:
+    login_as(client, make_user(role="Client"))
+    return client
+
+
+def test_client_cannot_create_a_product(
+    client_session: FlaskClient, db_session: Session, notebook: ProductType
+) -> None:
+    """SPEC-PRD-37 · TC-PRD-37d"""
+    response = create_product(client_session, name="XPS 15", product_type_id=notebook.id)
+
+    assert response.status_code == 403
+    assert response.get_json() == {"error": "forbidden"}
+    assert stored_products(db_session) == []
+
+
+def test_malformed_body_of_a_client_is_a_400_not_a_403(
+    client_session: FlaskClient, db_session: Session, notebook: ProductType
+) -> None:
+    """SPEC-PRD-37 · TC-PRD-37e"""
+    response = create_product(client_session, product_type_id="abc")
+
+    assert response.status_code == 400
+    assert response.get_json()["fields"] == {"name": "required", "product_type_id": "invalid"}
+    assert stored_products(db_session) == []
+
+
+def test_client_creating_in_an_unknown_type_gets_forbidden_not_not_found(
+    client_session: FlaskClient, db_session: Session
+) -> None:
+    """SPEC-PRD-37 · TC-PRD-37f"""
+    response = create_product(client_session, name="XPS 15", product_type_id=9999)
+
+    assert response.status_code == 403
+    assert response.get_json() == {"error": "forbidden"}
+    assert stored_products(db_session) == []
+
+
+@pytest.fixture
 def catalog(make_product_type: MakeProductType, make_product: MakeProduct) -> dict[str, Any]:
     """`xps 13` (Notebook), inactive `Optiplex` (Desktop) and `LaserJet` (Impresora)."""
     notebook = make_product_type(name="Notebook")
