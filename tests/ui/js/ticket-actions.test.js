@@ -13,6 +13,7 @@ test("SPEC-UI-21 actions change only by role and by the three state rules (TC-UI
     "associate",
     "remove",
     "startProgress",
+    "startWork",
   ]);
   assert.deepEqual(ticketActions("Representative", "InProgress"), [
     "milestone",
@@ -70,5 +71,23 @@ test("SPEC-UI-40 the client gets a subset of milestone, close and reopen (TC-UI-
 test("SPEC-UI-41 the administrator gets no actions in any state (TC-UI-41c)", () => {
   for (const state of STATES) {
     assert.deepEqual(ticketActions("Admin", state), []);
+  }
+});
+
+test("SPEC-UI-211 the representative is offered startWork on a New ticket (TC-UI-211a)", () => {
+  assert.ok(ticketActions("Representative", "New").includes("startWork"));
+});
+
+test("SPEC-UI-212 the representative is offered no startWork once started or closed (TC-UI-212a)", () => {
+  for (const state of ["InProgress", "Closed"]) {
+    assert.ok(!ticketActions("Representative", state).includes("startWork"), state);
+  }
+});
+
+test("SPEC-UI-213 clients and administrators are offered no startWork (TC-UI-213a)", () => {
+  for (const role of ["Client", "Admin"]) {
+    for (const state of STATES) {
+      assert.ok(!ticketActions(role, state).includes("startWork"), `${role} ${state}`);
+    }
   }
 });
