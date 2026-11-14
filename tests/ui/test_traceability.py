@@ -159,7 +159,7 @@ RETIRED_MARK = re.compile(r"\*\*(?:Eliminada|Reemplazada por)\b")
 
 def _spec_rows() -> list[tuple[str, bool]]:
     """Return (ID, retired) for each row of the spec tables, not for the decisions."""
-    text = (ROOT / "specs" / "07-ui" / "spec.md").read_text(encoding="utf-8")
+    text = (ROOT / "docs" / "domains" / "ui" / "spec.md").read_text(encoding="utf-8")
     return [
         (spec_id, RETIRED_MARK.search(rest) is not None)
         for spec_id, rest in SPEC_TABLE_ROW.findall(text)
