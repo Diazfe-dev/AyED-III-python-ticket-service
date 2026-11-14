@@ -5,34 +5,29 @@ from flask.testing import FlaskClient
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.domain.products import Category, Product, ProductType
-from tests.conftest import LoginAs, MakeCategory, MakeProduct, MakeProductType, MakeUser
+from app.domain.products import Product, ProductType
+from tests.conftest import LoginAs, MakeProduct, MakeProductType, MakeUser
 
-# (method, path, body); `{category}` and `{type}` are ids of the `catalog` fixture.
+# (method, path, body); `{type}` is the id of the type of the `catalog` fixture.
 WRITE_ENDPOINTS = [
-    ("POST", "/product-types", {"name": "Router", "category_id": "{category}"}),
+    ("POST", "/product-types", {"name": "Router"}),
     ("PATCH", "/product-types/{type}", {"name": "Ultrabook"}),
     ("DELETE", "/product-types/{type}", None),
 ]
 
-Snapshot = tuple[list[tuple[Any, ...]], list[tuple[Any, ...]]]
+Snapshot = list[tuple[Any, ...]]
 
 
 @pytest.fixture
-def catalog(make_category: MakeCategory, make_product_type: MakeProductType) -> dict[str, int]:
-    """`Hardware` with the type `Notebook`, and the empty category `Oficina`."""
-    hardware, office = make_category("Hardware"), make_category("Oficina")
-    notebook = make_product_type(hardware, "Notebook")
-    return {"category": hardware.id, "empty": office.id, "type": notebook.id}
+def catalog(make_product_type: MakeProductType) -> dict[str, int]:
+    """The type `Notebook`."""
+    return {"type": make_product_type(name="Notebook").id}
 
 
 def snapshot(db_session: Session) -> Snapshot:
     db_session.expire_all()
-    categories = db_session.execute(select(Category.id, Category.name).order_by(Category.id))
-    types = db_session.execute(
-        select(ProductType.id, ProductType.name, ProductType.category_id).order_by(ProductType.id)
-    )
-    return [tuple(row) for row in categories], [tuple(row) for row in types]
+    types = db_session.execute(select(ProductType.id, ProductType.name).order_by(ProductType.id))
+    return [tuple(row) for row in types]
 
 
 def call_as(
@@ -45,8 +40,6 @@ def call_as(
 ) -> Any:
     method, path, body = endpoint
     login_as(client, make_user(role=role))
-    if isinstance(body, dict) and body.get("category_id") == "{category}":
-        body = body | {"category_id": catalog["category"]}
     return client.open(path.format(**catalog), method=method, json=body)
 
 
@@ -96,11 +89,9 @@ PRODUCT_WRITE_ENDPOINTS = [
 
 
 @pytest.fixture
-def products(
-    make_category: MakeCategory, make_product_type: MakeProductType, make_product: MakeProduct
-) -> dict[str, int]:
+def products(make_product_type: MakeProductType, make_product: MakeProduct) -> dict[str, int]:
     """`Hardware` with the type `Notebook` and its product `XPS 13`."""
-    notebook = make_product_type(make_category("Hardware"), "Notebook")
+    notebook = make_product_type(name="Notebook")
     return {"type": notebook.id, "product": make_product(notebook, "XPS 13").id}
 
 
@@ -175,14 +166,11 @@ def test_only_an_admin_can_activate_a_product(
     db_session: Session,
     make_user: MakeUser,
     login_as: LoginAs,
-    make_category: MakeCategory,
     make_product_type: MakeProductType,
     make_product: MakeProduct,
 ) -> None:
     """SPEC-PRD-25 · TC-PRD-25a"""
-    optiplex = make_product(
-        make_product_type(make_category("Hardware"), "Desktop"), "Optiplex", is_active=False
-    )
+    optiplex = make_product(make_product_type(name="Desktop"), "Optiplex", is_active=False)
     before = product_rows(db_session)
     login_as(client, make_user(role=role))
 

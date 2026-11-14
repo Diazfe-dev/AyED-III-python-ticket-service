@@ -2,7 +2,7 @@ from app.domain.products import Category, Product, ProductType, normalize_name
 
 
 def test_normalize_name_trims_and_casefolds_non_ascii_letters() -> None:
-    """SPEC-PTY-02 · TC-PTY-02a"""
+    """SPEC-PTY-26 · TC-PTY-26e"""
     assert normalize_name("  Hardware ") == "hardware"
     assert normalize_name("ÁUDIO") == "áudio"
 
@@ -22,20 +22,17 @@ def test_category_name_keeps_inner_spaces() -> None:
     assert category.name == "Mesa de  ayuda"
 
 
-def test_product_type_belongs_to_its_category_with_trimmed_name() -> None:
-    """SPEC-PTY-03 · TC-PTY-03b"""
-    hardware = Category(name="Hardware")
-
-    product_type = ProductType(name=" Notebook ", category=hardware)
+def test_product_type_has_trimmed_name_and_normalized_key() -> None:
+    """SPEC-PTY-25 · TC-PTY-25b"""
+    product_type = ProductType(name=" Notebook ")
 
     assert product_type.name == "Notebook"
     assert product_type.name_key == "notebook"
-    assert product_type in hardware.product_types
 
 
 def test_product_type_name_is_trimmed_on_every_assignment() -> None:
-    """SPEC-PTY-19 · TC-PTY-19b"""
-    product_type = ProductType(name=" Notebook ", category=Category(name="Hardware"))
+    """SPEC-PTY-28 · TC-PTY-28a"""
+    product_type = ProductType(name=" Notebook ")
 
     product_type.name = "  Ultrabook "
 
@@ -44,7 +41,7 @@ def test_product_type_name_is_trimmed_on_every_assignment() -> None:
 
 
 def notebook_type() -> ProductType:
-    return ProductType(name="Notebook", category=Category(name="Hardware"))
+    return ProductType(name="Notebook")
 
 
 def test_product_belongs_to_its_product_type() -> None:

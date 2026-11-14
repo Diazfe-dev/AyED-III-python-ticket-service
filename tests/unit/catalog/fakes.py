@@ -76,7 +76,8 @@ class FakeProductTypeRepository:
 
     def delete(self, product_type: ProductType) -> None:
         del self.product_types[product_type.id]
-        product_type.category.product_types.remove(product_type)
+        if product_type.category is not None:
+            product_type.category.product_types.remove(product_type)
 
 
 class FakeProductRepository:
