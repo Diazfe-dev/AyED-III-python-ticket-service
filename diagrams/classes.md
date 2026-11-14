@@ -638,7 +638,7 @@ classDiagram
 
 ### Notas de la interfaz
 
-- `Screen` representa a cada módulo de `screens/`: `boot`, `login`, `not-found`, `account`, `tickets-list`, `ticket-detail`, `ticket-new`, `users`, `categories`, `product-types` y `products`.
+- `Screen` representa a cada módulo de `screens/`: `boot`, `login`, `not-found`, `account`, `tickets-list`, `ticket-detail`, `ticket-new`, `users`, `product-types` y `products`.
 - `ui` es el único código de Python de esta área: `GET /` devuelve `index.html` con `send_static_file` (público, sin `login_required`); `/static/<path:filename>` lo registra `Flask(__name__)`.
 - `core/` es puro: no nombra `fetch`, `document` ni `window` y solo importa de `core/` (`session` → `routes`, `messages`). `net/api-client.js` recibe `fetch` por parámetro; solo `app.js` liga `window.fetch` y los eventos globales.
 - Dirección de las dependencias: `app.js` → todos; `screens` → `dom`, `core`; `dom` → `core`, `dom`; `core` → `core`. Ningún módulo de `core/`, `dom/` ni `screens/` importa `net/`: las pantallas reciben `request` en el contexto que arma `app.js`.
