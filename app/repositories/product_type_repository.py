@@ -64,3 +64,15 @@ class SqlAlchemyProductTypeRepository:
         if category_id is not None:
             statement = statement.where(ProductType.category_id == category_id)
         return list(self._session.scalars(statement).all())
+
+    def list_all(self, q: str | None = None) -> list[ProductType]:
+        """Every type ordered by name and id; with `q`, only names containing it ignoring case.
+
+        `%` and `_` in `q` are literal.
+        """
+        statement = select(ProductType).order_by(ProductType.name_key, ProductType.id)
+        if q is not None:
+            statement = statement.where(
+                ProductType.name_key.contains(q.casefold(), autoescape=True)
+            )
+        return list(self._session.scalars(statement).all())
