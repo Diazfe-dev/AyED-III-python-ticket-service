@@ -41,7 +41,6 @@ function ticketIdOf(record) {
 }
 
 function installReadDefaults(api) {
-  api.on("GET", /^\/categories(\?|$)/, { status: 200, body: [] });
   api.on("GET", "/product-types", { status: 200, body: [] });
   api.on("GET", "/products", { status: 200, body: pageOf([]) });
   api.on("GET", "/products/available", { status: 200, body: pageOf([]) });

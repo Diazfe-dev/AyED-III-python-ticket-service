@@ -26,7 +26,6 @@ test("SPEC-UI-56 shows the duplicate product type message on a 409 (TC-UI-56b)",
   const api = await installFakeApi(page);
   api.on("GET", "/me", { status: 200, body: ADMIN });
   api.on("GET", /^\/product-types(\?.*)?$/, { status: 200, body: [] });
-  api.on("GET", /^\/categories(\?.*)?$/, { status: 200, body: [] });
   await page.goto("/#/product-types");
   await expect(heading(page, "Tipos de producto")).toBeVisible();
   api.on("POST", "/product-types", { status: 409, body: { error: "duplicate_product_type" } });
