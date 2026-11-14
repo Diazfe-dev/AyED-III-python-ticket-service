@@ -61,7 +61,7 @@ def test_admin_creates_a_product_type(admin_client: FlaskClient, hardware: Categ
     assert response.status_code == 201
     body = response.get_json()
     assert isinstance(body["id"], int)
-    assert body == {"id": body["id"], "name": "Notebook", "category_id": hardware.id}
+    assert body == {"id": body["id"], "name": "Notebook"}
 
 
 def test_create_product_type_in_unknown_category_is_not_found(
@@ -144,7 +144,7 @@ def test_admin_renames_and_moves_a_product_type(
     )
 
     assert response.status_code == 200
-    assert response.get_json() == {"id": notebook.id, "name": "Ultrabook", "category_id": office.id}
+    assert response.get_json() == {"id": notebook.id, "name": "Ultrabook"}
     assert stored_types(db_session) == [("Ultrabook", office.id)]
 
 
@@ -334,3 +334,17 @@ def test_listing_product_types_ignores_category_id(query: str, admin_client: Fla
 
     assert response.status_code == 200
     assert names(response) == ALL_NAMES
+
+
+def test_every_product_type_response_has_exactly_id_and_name(
+    admin_client: FlaskClient, hardware: Category, notebook: ProductType
+) -> None:
+    """SPEC-PTY-35 · TC-PTY-35c"""
+    listing = admin_client.get("/product-types")
+    created = create_type(admin_client, name="Router", category_id=hardware.id)
+    updated = admin_client.patch(f"/product-types/{notebook.id}", json={"name": "Ultrabook"})
+
+    assert [response.status_code for response in (listing, created, updated)] == [200, 201, 200]
+    assert [set(item) for item in listing.get_json()] == [{"id", "name"}]
+    assert set(created.get_json()) == {"id", "name"}
+    assert set(updated.get_json()) == {"id", "name"}
