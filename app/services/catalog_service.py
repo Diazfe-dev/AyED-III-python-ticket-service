@@ -1,12 +1,9 @@
-"""Catalog use cases: categories and product types, their changes and listings."""
+"""Catalog use cases: product types, their changes and listings."""
 
 from collections.abc import Callable
 from typing import Any, Protocol
 
 from app.domain.errors import (
-    CategoryInUseError,
-    CategoryNotFoundError,
-    DuplicateCategoryError,
     DuplicateProductTypeError,
     ProductTypeInUseError,
     ProductTypeNotFoundError,
@@ -47,44 +44,11 @@ class ProductTypeRepository(Protocol):
 class CatalogService:
     def __init__(
         self,
-        categories: CategoryRepository,
         product_types: ProductTypeRepository,
         commit: Callable[[], None],
     ) -> None:
-        self._categories = categories
         self._product_types = product_types
         self._commit = commit
-
-    def create_category(self, name: Any) -> Category:
-        """Create a category; input comes unchecked from the caller and is validated here."""
-        raise_if_invalid({"name": text_error(name)})
-        self._ensure_category_name_is_free(name)
-        category = Category(name=name)
-        self._categories.add(category)
-        self._commit()
-        return category
-
-    def update_category(self, category_id: int, *, name: Any = None) -> Category:
-        """Rename a category; a name left as `None` keeps the current one."""
-        category = self._get_category(category_id)
-        if name is not None:
-            raise_if_invalid({"name": text_error(name)})
-            self._ensure_category_name_is_free(name, owner=category)
-            category.name = name
-        self._commit()
-        return category
-
-    def delete_category(self, category_id: int) -> None:
-        """Physical deletion of a category that has no product types."""
-        category = self._get_category(category_id)
-        if self._categories.has_product_types(category.id):
-            raise CategoryInUseError()
-        self._categories.delete(category)
-        self._commit()
-
-    def list_categories(self, q: str | None = None) -> list[Category]:
-        """Every category ordered by name without case; with `q`, only names containing it."""
-        return self._categories.list_all(q=search_text(q))
 
     def create_product_type(self, name: Any) -> ProductType:
         """Create a product type; its name is unique in the whole catalog."""
@@ -125,14 +89,3 @@ class CatalogService:
         if product_type is None:
             raise ProductTypeNotFoundError()
         return product_type
-
-    def _get_category(self, category_id: int) -> Category:
-        category = self._categories.get(category_id)
-        if category is None:
-            raise CategoryNotFoundError()
-        return category
-
-    def _ensure_category_name_is_free(self, name: str, owner: Category | None = None) -> None:
-        holder = self._categories.find_by_name(name)
-        if holder is not None and holder is not owner:
-            raise DuplicateCategoryError()

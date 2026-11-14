@@ -4,7 +4,6 @@ from datetime import UTC, datetime
 
 from app.db import get_session
 from app.domain.notifications import NotificationStrategy, default_strategies
-from app.repositories.category_repository import SqlAlchemyCategoryRepository
 from app.repositories.product_repository import SqlAlchemyProductRepository
 from app.repositories.product_type_repository import SqlAlchemyProductTypeRepository
 from app.repositories.ticket_repository import SqlAlchemyTicketRepository
@@ -18,7 +17,6 @@ from app.services.ticket_service import TicketService
 def get_catalog_service() -> CatalogService:
     db_session = get_session()
     return CatalogService(
-        SqlAlchemyCategoryRepository(db_session),
         SqlAlchemyProductTypeRepository(db_session),
         db_session.commit,
     )
