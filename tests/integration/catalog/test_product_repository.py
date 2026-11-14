@@ -110,31 +110,29 @@ def names(products: list[Product]) -> list[str]:
     return [product.name for product in products]
 
 
-def test_list_matching_exposes_type_category_and_state_of_every_product(
+def test_list_matching_exposes_type_and_state_of_every_product(
     db_session: Session, catalog: dict[str, int]
 ) -> None:
-    """SPEC-PRD-07 · TC-PRD-07b"""
+    """SPEC-PRD-31 · TC-PRD-31b"""
     db_session.expire_all()
 
     products = SqlAlchemyProductRepository(db_session).list_matching()
 
-    described = {
-        (p.name, p.product_type.name, p.product_type.category.name, p.is_active) for p in products
-    }
+    described = {(p.name, p.product_type.name, p.is_active) for p in products}
     assert described == {
-        ("xps 13", "Notebook", "Hardware", True),
-        ("Optiplex", "Desktop", "Hardware", False),
-        ("LaserJet", "Impresora", "Oficina", True),
+        ("xps 13", "Notebook", True),
+        ("Optiplex", "Desktop", False),
+        ("LaserJet", "Impresora", True),
     }
 
 
-def test_list_matching_loads_types_and_categories_without_n_plus_one(
+def test_list_matching_loads_types_without_n_plus_one(
     db_session: Session,
     make_category: MakeCategory,
     make_product_type: MakeProductType,
     make_product: MakeProduct,
 ) -> None:
-    """SPEC-PRD-07 · TC-PRD-07c"""
+    """SPEC-PRD-31 · TC-PRD-31c"""
     for category in [make_category(), make_category()]:
         make_product(make_product_type(category))
         make_product(make_product_type(category))
@@ -145,10 +143,10 @@ def test_list_matching_loads_types_and_categories_without_n_plus_one(
 
     with count_statements(db_session) as statements:
         products = SqlAlchemyProductRepository(db_session).list_matching()
-        described = [(p.product_type.name, p.product_type.category.name) for p in products]
+        described = [p.product_type.name for p in products]
 
     assert len(described) == 6
-    assert len(statements) <= 3
+    assert len(statements) <= 2
 
 
 def test_list_matching_orders_by_name_ignoring_case_then_by_id(
@@ -164,48 +162,15 @@ def test_list_matching_orders_by_name_ignoring_case_then_by_id(
     assert products[-1].id == desktop_xps.id
 
 
-def test_list_matching_by_category_returns_products_of_its_types(
-    db_session: Session, catalog: dict[str, int]
-) -> None:
-    """SPEC-PRD-08 · TC-PRD-08d"""
-    products = SqlAlchemyProductRepository(db_session).list_matching(
-        category_id=catalog["hardware"]
-    )
-
-    assert names(products) == ["Optiplex", "xps 13"]
-
-
 def test_list_matching_by_product_type_returns_only_its_products(
     db_session: Session, catalog: dict[str, int]
 ) -> None:
-    """SPEC-PRD-08 · TC-PRD-08e"""
+    """SPEC-PRD-32 · TC-PRD-32b"""
     products = SqlAlchemyProductRepository(db_session).list_matching(
         product_type_id=catalog["notebook"]
     )
 
     assert names(products) == ["xps 13"]
-
-
-def test_list_matching_by_category_and_type_returns_the_intersection(
-    db_session: Session, catalog: dict[str, int]
-) -> None:
-    """SPEC-PRD-08 · TC-PRD-08f"""
-    products = SqlAlchemyProductRepository(db_session).list_matching(
-        category_id=catalog["hardware"], product_type_id=catalog["notebook"]
-    )
-
-    assert names(products) == ["xps 13"]
-
-
-def test_list_matching_with_a_type_outside_the_category_is_empty(
-    db_session: Session, catalog: dict[str, int]
-) -> None:
-    """SPEC-PRD-20 · TC-PRD-20b"""
-    products = SqlAlchemyProductRepository(db_session).list_matching(
-        category_id=catalog["office"], product_type_id=catalog["notebook"]
-    )
-
-    assert products == []
 
 
 def test_list_matching_is_active_true_skips_inactive_products(
@@ -248,7 +213,9 @@ def test_list_matching_q_ignores_case_and_combines_with_other_filters(
     repository = SqlAlchemyProductRepository(db_session)
 
     assert names(repository.list_matching(q="CÁMARA")) == ["Cámara IP"]
-    assert names(repository.list_matching(q="xps", category_id=searchable_catalog["hardware"])) == [
+    assert names(
+        repository.list_matching(q="xps", product_type_id=searchable_catalog["notebook"])
+    ) == [
         "xps 13",
         "XPS 15",
     ]
@@ -298,9 +265,9 @@ def test_get_many_returns_active_and_inactive_products_ordered_by_id(
 
     with count_statements(db_session) as statements:
         products = SqlAlchemyProductRepository(db_session).get_many(wanted)
-        described = [(p.name, p.product_type.name, p.product_type.category.name) for p in products]
+        described = [(p.name, p.product_type.name) for p in products]
 
-    assert described == [("XPS 13", "Notebook", "Hardware"), ("Optiplex", "Notebook", "Hardware")]
+    assert described == [("XPS 13", "Notebook"), ("Optiplex", "Notebook")]
     assert len(statements) <= 3
 
 

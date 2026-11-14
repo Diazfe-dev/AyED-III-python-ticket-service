@@ -46,7 +46,6 @@ def test_admin_creates_a_product(
         "name": "XPS 13",
         "is_active": True,
         "product_type": {"id": notebook.id, "name": "Notebook"},
-        "category": {"id": hardware.id, "name": "Hardware"},
     }
     assert stored_products(db_session) == [("XPS 13", notebook.id, True)]
 
@@ -154,6 +153,7 @@ def catalog(
         "hardware": hardware,
         "office": office,
         "notebook": notebook,
+        "printer": printer,
         "products": [
             make_product(printer, "LaserJet"),
             make_product(desktop, "Optiplex", is_active=False),
@@ -169,7 +169,6 @@ def expected_json(product: Product) -> dict[str, Any]:
         "name": product.name,
         "is_active": product.is_active,
         "product_type": {"id": product_type.id, "name": product_type.name},
-        "category": {"id": product_type.category.id, "name": product_type.category.name},
     }
 
 
@@ -182,98 +181,86 @@ def logged_in_as(role: str, client: FlaskClient, make_user: MakeUser, login_as: 
     return client
 
 
-def test_any_user_lists_every_product_with_type_category_and_state(
+def test_any_user_lists_every_product_with_its_type_and_state(
     client: FlaskClient, login_as: LoginAs, make_user: MakeUser, catalog: dict[str, Any]
 ) -> None:
-    """SPEC-PRD-07 · TC-PRD-07d"""
+    """SPEC-PRD-31 · TC-PRD-31d"""
     expected = [expected_json(product) for product in catalog["products"]]
 
     response = logged_in_as("Client", client, make_user, login_as).get("/products")
 
     assert response.status_code == 200
     assert response.get_json() == expected
+    assert [set(item) for item in response.get_json()] == [
+        {"id", "name", "is_active", "product_type"}
+    ] * 3
+    assert [set(item["product_type"]) for item in response.get_json()] == [{"id", "name"}] * 3
     assert response.get_json()[1]["is_active"] is False
 
 
-def test_products_can_be_filtered_by_category_or_type(
+def test_products_can_be_filtered_by_type(
     client: FlaskClient, login_as: LoginAs, make_user: MakeUser, catalog: dict[str, Any]
 ) -> None:
-    """SPEC-PRD-08 · TC-PRD-08g"""
+    """SPEC-PRD-32 · TC-PRD-32c"""
     rep = logged_in_as("Representative", client, make_user, login_as)
 
-    by_category = rep.get(f"/products?category_id={catalog['hardware'].id}")
-    by_type = rep.get(f"/products?product_type_id={catalog['notebook'].id}")
-
-    assert by_category.status_code == 200
-    assert listed_names(by_category) == ["Optiplex", "xps 13"]
-    assert by_type.status_code == 200
-    assert listed_names(by_type) == ["xps 13"]
-
-
-def test_filtering_by_a_type_outside_the_category_lists_nothing(
-    client: FlaskClient, login_as: LoginAs, make_user: MakeUser, catalog: dict[str, Any]
-) -> None:
-    """SPEC-PRD-20 · TC-PRD-20c"""
-    rep = logged_in_as("Representative", client, make_user, login_as)
-
-    response = rep.get(
-        f"/products?category_id={catalog['office'].id}&product_type_id={catalog['notebook'].id}"
-    )
+    response = rep.get(f"/products?product_type_id={catalog['notebook'].id}")
 
     assert response.status_code == 200
-    assert response.get_json() == []
+    assert listed_names(response) == ["xps 13"]
 
 
 @pytest.mark.parametrize(
-    ("query", "fields"),
+    ("query", "names"),
     [
-        ("category_id=abc", {"category_id": "invalid"}),
-        ("product_type_id=", {"product_type_id": "invalid"}),
-        (
-            "category_id=x&product_type_id=0",
-            {"category_id": "invalid", "product_type_id": "invalid"},
-        ),
+        ("category_id=abc", ["LaserJet", "Optiplex", "xps 13"]),
+        ("category_id=9999", ["LaserJet", "Optiplex", "xps 13"]),
+        ("category_id=1&product_type_id={notebook}", ["xps 13"]),
     ],
 )
-def test_listing_products_with_malformed_filters_is_rejected(
-    admin_client: FlaskClient, query: str, fields: dict[str, str]
+def test_listing_products_ignores_category_id(
+    query: str,
+    names: list[str],
+    admin_client: FlaskClient,
+    catalog: dict[str, Any],
 ) -> None:
-    """SPEC-PRD-15 · TC-PRD-15h"""
+    """SPEC-PRD-32 · TC-PRD-32d"""
+    response = admin_client.get("/products?" + query.format(notebook=catalog["notebook"].id))
+
+    assert response.status_code == 200
+    assert listed_names(response) == names
+
+
+@pytest.mark.parametrize("query", ["product_type_id=", "product_type_id=0"])
+def test_listing_products_with_a_malformed_type_filter_is_rejected(
+    admin_client: FlaskClient, query: str
+) -> None:
+    """SPEC-PRD-33 · TC-PRD-33h"""
     response = admin_client.get(f"/products?{query}")
 
     assert response.status_code == 400
-    assert response.get_json() == {"error": "validation_error", "fields": fields}
+    assert response.get_json() == {
+        "error": "validation_error",
+        "fields": {"product_type_id": "invalid"},
+    }
 
 
-@pytest.mark.parametrize(
-    ("query", "error"),
-    [
-        ("category_id=9999", "category_not_found"),
-        ("product_type_id=9999", "product_type_not_found"),
-    ],
-)
-def test_listing_products_of_unknown_category_or_type_is_not_found(
-    admin_client: FlaskClient, query: str, error: str
-) -> None:
-    """SPEC-PRD-16 · TC-PRD-16c"""
-    response = admin_client.get(f"/products?{query}")
+def test_listing_products_of_unknown_type_is_not_found(admin_client: FlaskClient) -> None:
+    """SPEC-PRD-34 · TC-PRD-34b"""
+    response = admin_client.get("/products?product_type_id=9999")
 
     assert response.status_code == 404
-    assert response.get_json() == {"error": error}
+    assert response.get_json() == {"error": "product_type_not_found"}
 
 
-@pytest.mark.parametrize(
-    ("field", "error"),
-    [("category_id", "category_not_found"), ("product_type_id", "product_type_not_found")],
-)
-def test_listing_products_with_a_filter_beyond_sqlite_integers_is_not_found(
-    admin_client: FlaskClient, field: str, error: str
+def test_listing_products_of_a_type_beyond_sqlite_integers_is_not_found(
+    admin_client: FlaskClient,
 ) -> None:
-    """SPEC-PRD-16 · TC-PRD-16d"""
-    response = admin_client.get(f"/products?{field}=99999999999999999999")
+    """SPEC-PRD-34 · TC-PRD-34c"""
+    response = admin_client.get("/products?product_type_id=99999999999999999999")
 
     assert response.status_code == 404
-    assert response.get_json() == {"error": error}
+    assert response.get_json() == {"error": "product_type_not_found"}
 
 
 @pytest.mark.parametrize("role", ["Client", "Representative"])
@@ -321,7 +308,6 @@ def test_admin_renames_and_moves_a_product_ignoring_other_keys(
         "name": "Optiplex",
         "is_active": True,
         "product_type": {"id": desktop.id, "name": "Desktop"},
-        "category": {"id": hardware.id, "name": "Hardware"},
     }
     assert stored_products(db_session) == [("Optiplex", desktop.id, True)]
 
@@ -545,12 +531,12 @@ def test_products_are_searched_by_text_alone_and_with_other_filters(
     user = logged_in_as("Client", client, make_user, login_as)
 
     by_text = user.get("/products?q=XPS")
-    with_category = user.get(f"/products?q=xps&category_id={searchable['office'].id}")
+    with_type = user.get(f"/products?q=xps&product_type_id={searchable['printer'].id}")
 
     assert by_text.status_code == 200
     assert listed_names(by_text) == ["xps 13", "XPS 15"]
-    assert with_category.status_code == 200
-    assert with_category.get_json() == []
+    assert with_type.status_code == 200
+    assert with_type.get_json() == []
 
 
 def test_a_blank_search_text_lists_every_product(
@@ -698,11 +684,11 @@ def test_available_products_ignore_every_other_parameter(
     assert len(response.get_json()) == 5
 
 
-def test_available_products_apply_the_search_and_ignore_the_category(
+def test_available_products_apply_the_search_and_ignore_the_category_id(
     admin_client: FlaskClient, searchable: dict[str, Any]
 ) -> None:
     """SPEC-PRD-30 · TC-PRD-30b"""
-    response = admin_client.get(f"/products/available?q=xps&category_id={searchable['office'].id}")
+    response = admin_client.get("/products/available?q=xps&category_id=1")
 
     assert response.status_code == 200
     assert listed_names(response) == ["xps 13", "XPS 15"]
