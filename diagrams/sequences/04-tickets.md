@@ -2,7 +2,7 @@
 
 Spec: [specs/04-tickets/spec.md](../../specs/04-tickets/spec.md)
 
-Convención de transacción: el service hace `commit()` de la operación del ticket **antes** de notificar. Así, si falla una notificación, el cambio no se revierte (SPEC-NTF-04). El detalle del envío está en [06-notifications.md](06-notifications.md).
+Convención de transacción: el service hace `commit()` de la operación del ticket **antes** de notificar. Así, si falla una notificación, el cambio no se revierte (SPEC-NTF-14). El detalle del envío está en [06-notifications.md](06-notifications.md).
 
 Convenciones del código actual:
 
