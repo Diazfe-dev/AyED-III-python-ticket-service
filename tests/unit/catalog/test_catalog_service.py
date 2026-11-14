@@ -233,37 +233,22 @@ def test_create_product_type_with_invalid_name_is_rejected(
 MALFORMED_IDS = [True, False, 1.5, 0, -3, "abc", "-1", "0", "1.5", "", [1]]
 
 
-def test_update_product_type_renames_it_in_the_same_category(
-    sut: ServiceUnderTest, hardware: Category
-) -> None:
-    """SPEC-PTY-06 · TC-PTY-06a"""
-    notebook = add_type(sut, "Notebook", hardware)
+def test_update_product_type_renames_it_and_commits(sut: ServiceUnderTest) -> None:
+    """SPEC-PTY-29 · TC-PTY-29a"""
+    notebook = add_type(sut, "Notebook")
 
     updated = sut.service.update_product_type(notebook.id, name="Ultrabook")
 
     assert updated is notebook
-    assert (notebook.name, notebook.category) == ("Ultrabook", hardware)
-    assert sut.commit.calls == 1
-
-
-def test_update_product_type_moves_it_to_another_category(
-    sut: ServiceUnderTest, hardware: Category, office: Category
-) -> None:
-    """SPEC-PTY-06 · TC-PTY-06b"""
-    notebook = add_type(sut, "Notebook", hardware)
-
-    sut.service.update_product_type(notebook.id, category_id=office.id)
-
-    assert notebook in office.product_types
-    assert notebook not in hardware.product_types
+    assert notebook.name == "Ultrabook"
     assert sut.commit.calls == 1
 
 
 def test_update_product_type_to_its_own_name_in_other_case_is_allowed(
-    sut: ServiceUnderTest, hardware: Category
+    sut: ServiceUnderTest,
 ) -> None:
-    """SPEC-PTY-06 · TC-PTY-06c"""
-    notebook = add_type(sut, "Notebook", hardware)
+    """SPEC-PTY-29 · TC-PTY-29b"""
+    notebook = add_type(sut, "Notebook")
 
     sut.service.update_product_type(notebook.id, name="NOTEBOOK")
 
@@ -271,7 +256,7 @@ def test_update_product_type_to_its_own_name_in_other_case_is_allowed(
 
 
 def test_update_unknown_product_type_is_rejected(sut: ServiceUnderTest) -> None:
-    """SPEC-PTY-06 · TC-PTY-06d"""
+    """SPEC-PTY-29 · TC-PTY-29c"""
     with pytest.raises(ProductTypeNotFoundError):
         sut.service.update_product_type(9999, name="X")
 
@@ -280,10 +265,10 @@ def test_update_unknown_product_type_is_rejected(sut: ServiceUnderTest) -> None:
 
 @pytest.mark.parametrize(("name", "reason"), [("   ", "required"), (["x"], "invalid")])
 def test_update_product_type_with_invalid_name_is_rejected(
-    sut: ServiceUnderTest, hardware: Category, name: Any, reason: str
+    sut: ServiceUnderTest, name: Any, reason: str
 ) -> None:
-    """SPEC-PTY-15 · TC-PTY-15e"""
-    notebook = add_type(sut, "Notebook", hardware)
+    """SPEC-PTY-27 · TC-PTY-27b"""
+    notebook = add_type(sut, "Notebook")
 
     with pytest.raises(ValidationError) as raised:
         sut.service.update_product_type(notebook.id, name=name)
@@ -293,59 +278,17 @@ def test_update_product_type_with_invalid_name_is_rejected(
     assert sut.commit.calls == 0
 
 
-def test_update_product_type_to_unknown_category_is_rejected(
-    sut: ServiceUnderTest, hardware: Category
+def test_renaming_a_product_type_to_the_name_of_another_is_rejected(
+    sut: ServiceUnderTest,
 ) -> None:
-    """SPEC-PTY-16 · TC-PTY-16a"""
-    notebook = add_type(sut, "Notebook", hardware)
-
-    with pytest.raises(CategoryNotFoundError):
-        sut.service.update_product_type(notebook.id, category_id=9999)
-
-    assert notebook.category is hardware
-    assert sut.commit.calls == 0
-
-
-def test_moving_a_product_type_onto_a_taken_name_is_rejected(
-    sut: ServiceUnderTest, hardware: Category, office: Category
-) -> None:
-    """SPEC-PTY-16 · TC-PTY-16b"""
-    notebook = add_type(sut, "Notebook", hardware)
-    add_type(sut, "notebook", office)
+    """SPEC-PTY-30 · TC-PTY-30a"""
+    add_type(sut, "Notebook")
+    router = add_type(sut, "Router")
 
     with pytest.raises(DuplicateProductTypeError):
-        sut.service.update_product_type(notebook.id, category_id=office.id)
+        sut.service.update_product_type(router.id, name=" NOTEBOOK ")
 
-    assert notebook.category is hardware
-    assert sut.commit.calls == 0
-
-
-def test_renaming_a_product_type_to_a_sibling_name_is_rejected(
-    sut: ServiceUnderTest, hardware: Category
-) -> None:
-    """SPEC-PTY-16 · TC-PTY-16c"""
-    add_type(sut, "Notebook", hardware)
-    desktop = add_type(sut, "Desktop", hardware)
-
-    with pytest.raises(DuplicateProductTypeError):
-        sut.service.update_product_type(desktop.id, name="NOTEBOOK")
-
-    assert desktop.name == "Desktop"
-    assert sut.commit.calls == 0
-
-
-@pytest.mark.parametrize("category_id", [0, "abc", True])
-def test_update_product_type_with_malformed_category_id_is_rejected(
-    sut: ServiceUnderTest, hardware: Category, category_id: Any
-) -> None:
-    """SPEC-PTY-20 · TC-PTY-20d"""
-    notebook = add_type(sut, "Notebook", hardware)
-
-    with pytest.raises(ValidationError) as raised:
-        sut.service.update_product_type(notebook.id, category_id=category_id)
-
-    assert raised.value.fields == {"category_id": "invalid"}
-    assert notebook.category is hardware
+    assert router.name == "Router"
     assert sut.commit.calls == 0
 
 
