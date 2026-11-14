@@ -17,14 +17,6 @@ NEW_USER: dict[str, Any] = {
     "password": "password1",
 }
 
-ADMIN_ONLY_ENDPOINTS = [
-    ("POST", "/users"),
-    ("PATCH", "/users/1"),
-    ("POST", "/users/1/deactivate"),
-    ("GET", "/representatives"),
-]
-CLIENT_FORBIDDEN_ENDPOINTS = [*ADMIN_ONLY_ENDPOINTS, ("GET", "/clients")]
-
 
 def create_user(client: FlaskClient, **overrides: Any) -> Any:
     return client.post("/users", json=NEW_USER | overrides)
@@ -467,30 +459,35 @@ def test_user_listings_order_by_name_without_case_then_id(admin_client: FlaskCli
     assert len({user["id"] for user in first + second}) == 4
 
 
-@pytest.mark.parametrize(("method", "path"), ADMIN_ONLY_ENDPOINTS)
-def test_representative_cannot_manage_users(
-    client: FlaskClient, make_user: MakeUser, login_as: LoginAs, method: str, path: str
+@pytest.mark.parametrize("role", ["Representative", "Client"])
+@pytest.mark.parametrize(
+    ("method", "path", "body"),
+    [
+        ("PATCH", "/users/{id}", {"name": "Otro"}),
+        ("POST", "/users/{id}/deactivate", None),
+    ],
+    ids=["update", "deactivate"],
+)
+def test_only_the_admin_updates_and_deactivates_users(
+    client: FlaskClient,
+    make_user: MakeUser,
+    login_as: LoginAs,
+    db_session: Session,
+    role: str,
+    method: str,
+    path: str,
+    body: dict[str, str] | None,
 ) -> None:
-    """SPEC-USR-18 · TC-USR-18b"""
-    login_as(client, make_user(role="Representative"))
+    """SPEC-USR-53 · TC-USR-53a, TC-USR-53b"""
+    target = make_user(name="Ana")
+    login_as(client, make_user(role=role))
 
-    response = client.open(path, method=method, json=NEW_USER)
+    response = client.open(path.format(id=target.id), method=method, json=body)
 
     assert response.status_code == 403
     assert response.get_json() == {"error": "forbidden"}
-
-
-@pytest.mark.parametrize(("method", "path"), CLIENT_FORBIDDEN_ENDPOINTS)
-def test_client_cannot_manage_users(
-    client: FlaskClient, make_user: MakeUser, login_as: LoginAs, method: str, path: str
-) -> None:
-    """SPEC-USR-18 · TC-USR-18c"""
-    login_as(client, make_user(role="Client"))
-
-    response = client.open(path, method=method, json=NEW_USER)
-
-    assert response.status_code == 403
-    assert response.get_json() == {"error": "forbidden"}
+    reloaded = stored(db_session, target)
+    assert (reloaded.name, reloaded.is_active) == ("Ana", True)
 
 
 @pytest.mark.usefixtures("reference_users")
@@ -662,11 +659,10 @@ def test_activating_an_unknown_user_is_not_found(admin_client: FlaskClient, user
 @pytest.mark.parametrize(
     ("method", "path", "body"),
     [
-        ("GET", "/users", None),
         ("POST", "/users/{id}/activate", None),
         ("POST", "/users/{id}/password", {"new_password": "newpassword"}),
     ],
-    ids=["list", "activate", "password"],
+    ids=["activate", "password"],
 )
 def test_new_management_endpoints_are_admin_only(
     client: FlaskClient,
@@ -678,7 +674,7 @@ def test_new_management_endpoints_are_admin_only(
     path: str,
     body: dict[str, str] | None,
 ) -> None:
-    """SPEC-USR-18 · TC-USR-18e"""
+    """SPEC-USR-53 · TC-USR-53c"""
     target = make_user(is_active=False)
     password_hash = target.password_hash
     login_as(client, make_user(role=role))
@@ -772,3 +768,153 @@ def test_reset_treats_null_as_required_and_non_text_as_invalid(
         "fields": {"new_password": reason},
     }
     assert stored(db_session, ana).password_hash == before
+
+
+NORA: dict[str, Any] = {
+    "name": "Nora",
+    "email": "nora@x.com",
+    "role": "Client",
+    "password": "password1",
+}
+
+
+def test_representative_creates_a_client_and_sees_it_listed(
+    rosa_client: FlaskClient, db_session: Session
+) -> None:
+    """SPEC-USR-51 · TC-USR-51c"""
+    response = rosa_client.post("/users", json=NORA)
+
+    assert response.status_code == 201
+    body = response.get_json()
+    assert body["role"] == "Client"
+    assert body["is_active"] is True
+    assert body["preferred_channel"] == "mail"
+    assert db_session.scalar(select(User).where(User.email == "nora@x.com")) is not None
+    listed = rosa_client.get("/clients?q=nora").get_json()
+    assert [client["name"] for client in listed] == ["Nora"]
+
+
+def test_representative_creating_a_client_gets_the_admin_validation(
+    rosa_client: FlaskClient, make_user: MakeUser, db_session: Session
+) -> None:
+    """SPEC-USR-51 · TC-USR-51d"""
+    make_user(email="taken@x.com")
+    before = count_users(db_session)
+
+    short = rosa_client.post("/users", json=NORA | {"password": "1234567"})
+    channel = rosa_client.post("/users", json=NORA | {"preferred_channel": "sms"})
+    duplicate = rosa_client.post("/users", json=NORA | {"email": "TAKEN@x.com"})
+
+    assert short.status_code == 400
+    assert short.get_json()["fields"]["password"] == "too_short"
+    assert channel.status_code == 400
+    assert channel.get_json()["fields"]["preferred_channel"] == "invalid"
+    assert duplicate.status_code == 409
+    assert duplicate.get_json() == {"error": "duplicate_email"}
+    assert count_users(db_session) == before
+
+
+@pytest.mark.parametrize("role", ["Admin", "Representative"])
+def test_representative_cannot_create_other_roles(
+    rosa_client: FlaskClient, db_session: Session, role: str
+) -> None:
+    """SPEC-USR-52 · TC-USR-52d"""
+    before = count_users(db_session)
+
+    response = rosa_client.post("/users", json=NORA | {"role": role})
+
+    assert response.status_code == 403
+    assert response.get_json() == {"error": "forbidden"}
+    assert count_users(db_session) == before
+
+
+def test_malformed_body_of_a_representative_is_a_400_not_a_403(
+    rosa_client: FlaskClient, db_session: Session
+) -> None:
+    """SPEC-USR-52 · TC-USR-52e"""
+    before = count_users(db_session)
+
+    unknown_role = rosa_client.post("/users", json=NORA | {"role": "Root"})
+    nameless = rosa_client.post("/users", json={**NORA, "role": "Admin", "name": None})
+
+    assert unknown_role.status_code == 400
+    assert unknown_role.get_json() == {"error": "validation_error", "fields": {"role": "invalid"}}
+    assert nameless.status_code == 400
+    assert nameless.get_json()["fields"] == {"name": "required"}
+    assert count_users(db_session) == before
+
+
+def test_forbidden_role_is_reported_before_a_duplicate_email(
+    rosa_client: FlaskClient, make_user: MakeUser, db_session: Session
+) -> None:
+    """SPEC-USR-52 · TC-USR-52f"""
+    make_user(email="nora@x.com")
+    before = count_users(db_session)
+
+    response = rosa_client.post("/users", json=NORA | {"email": "NORA@x.com", "role": "Admin"})
+
+    assert response.status_code == 403
+    assert response.get_json() == {"error": "forbidden"}
+    assert count_users(db_session) == before
+
+
+def test_client_cannot_create_users(
+    client: FlaskClient, make_user: MakeUser, login_as: LoginAs, db_session: Session
+) -> None:
+    """SPEC-USR-54 · TC-USR-54c"""
+    login_as(client, make_user(role="Client"))
+    before = count_users(db_session)
+
+    response = client.post("/users", json=NORA)
+
+    assert response.status_code == 403
+    assert response.get_json() == {"error": "forbidden"}
+    assert count_users(db_session) == before
+
+
+def test_empty_body_of_a_client_is_a_400_not_a_403(
+    client: FlaskClient, make_user: MakeUser, login_as: LoginAs, db_session: Session
+) -> None:
+    """SPEC-USR-54 · TC-USR-54d"""
+    login_as(client, make_user(role="Client"))
+    before = count_users(db_session)
+
+    response = client.post("/users", json={})
+
+    assert response.status_code == 400
+    body = response.get_json()
+    assert body["error"] == "validation_error"
+    for field in ("name", "email", "role", "password"):
+        assert body["fields"][field] == "required"
+    assert count_users(db_session) == before
+
+
+@pytest.mark.parametrize("role", ["Representative", "Client"])
+@pytest.mark.parametrize(
+    ("method", "path", "body"),
+    [
+        ("PATCH", "/users/9999", {"name": "Otro"}),
+        ("POST", "/users/9999/deactivate", None),
+        ("POST", "/users/9999/activate", None),
+        ("POST", "/users/9999/password", {"new_password": "newpassword"}),
+        ("PATCH", "/users/{id}", {"name": ""}),
+    ],
+    ids=["update", "deactivate", "activate", "password", "malformed-update"],
+)
+def test_non_admin_gets_forbidden_before_not_found_or_a_malformed_body(
+    client: FlaskClient,
+    make_user: MakeUser,
+    login_as: LoginAs,
+    role: str,
+    method: str,
+    path: str,
+    body: dict[str, str] | None,
+) -> None:
+    """SPEC-USR-53 · TC-USR-53f"""
+    existing = make_user(name="Ana")
+    login_as(client, make_user(role=role))
+
+    response = client.open(path.format(id=existing.id), method=method, json=body)
+
+    assert response.status_code == 403
+    assert response.get_json() == {"error": "forbidden"}

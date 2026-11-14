@@ -28,6 +28,10 @@ from app.services.validation import INVALID, REQUIRED, provided, raise_if_invali
 EMAIL_PATTERN = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
 TOO_SHORT = "too_short"
 MIN_PASSWORD_LENGTH = 8
+CREATABLE_ROLES: dict[str, frozenset[str]] = {
+    "Admin": frozenset(ROLE_CLASSES),
+    "Representative": frozenset({"Client"}),
+}
 
 
 class UserRepository(Protocol):
@@ -66,8 +70,14 @@ class UserService:
         role: Any,
         password: Any,
         preferred_channel: Any = None,
+        *,
+        actor: User | None = None,
     ) -> User:
-        """Create an active user; input comes unchecked from the caller and is validated here."""
+        """Create an active user; input comes unchecked from the caller and is validated here.
+
+        Order: format, then the actor's permission over the role, then the free email. Without
+        an actor (system calls such as `create-admin`) the permission is not checked.
+        """
         raise_if_invalid(
             {
                 "name": text_error(name),
@@ -77,6 +87,8 @@ class UserService:
                 "preferred_channel": _channel_error(preferred_channel),
             }
         )
+        if actor is not None and role not in CREATABLE_ROLES.get(actor.role, frozenset()):
+            raise PermissionDeniedError()
         self._ensure_email_is_free(email)
         user = ROLE_CLASSES[role](
             name=name,
