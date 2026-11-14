@@ -771,22 +771,12 @@
     "/products": {
       "get": {
         "summary": "List products",
-        "description": "Any authenticated user. Every product, active and inactive, ordered by name without case and then by id. `category_id` and `product_type_id` are optional filters: both are validated together with `is_active`, `page` and `page_size` (`400`), then each must exist (`404`), and the result keeps only the products matching every filter given, `q` and `is_active` included. A product type outside the category gives an empty list. `q` searches the product name. `page` and `page_size` are optional: without them the response is an array.",
+        "description": "Any authenticated user. Every product, active and inactive, ordered by name without case and then by id. `product_type_id` is an optional filter: it is validated together with `is_active`, `page` and `page_size` (`400`), then it must exist (`404`), and the result keeps only the products matching every filter given, `q` and `is_active` included. `q` searches the product name. `page` and `page_size` are optional: without them the response is an array. Any other query parameter (such as `category_id`) is ignored, not rejected.",
         "operationId": "listProducts",
         "tags": [
           "catalog"
         ],
         "parameters": [
-          {
-            "name": "category_id",
-            "in": "query",
-            "required": false,
-            "description": "Positive integer of an existing category; matches the products whose type belongs to it. Anything else is `invalid` (`400`).",
-            "schema": {
-              "type": "integer",
-              "minimum": 1
-            }
-          },
           {
             "name": "product_type_id",
             "in": "query",
@@ -821,7 +811,7 @@
             "$ref": "#/components/responses/AuthenticationRequired"
           },
           "404": {
-            "$ref": "#/components/responses/CategoryOrProductTypeNotFound"
+            "$ref": "#/components/responses/ProductTypeNotFound"
           }
         }
       },
@@ -874,7 +864,7 @@
     "/products/available": {
       "get": {
         "summary": "List the products available for tickets",
-        "description": "Any authenticated user. Only the active products, ordered by name without case and then by id. `q` searches the product name. `page` and `page_size` are optional: without them the response is an array. Any other query parameter (such as `is_active`, `category_id` or `product_type_id`) is ignored, not rejected.",
+        "description": "Any authenticated user. Only the active products, ordered by name without case and then by id. `q` searches the product name. `page` and `page_size` are optional: without them the response is an array. Any other query parameter (such as `is_active` or `product_type_id`) is ignored, not rejected.",
         "operationId": "listAvailableProducts",
         "tags": [
           "catalog"
@@ -1644,19 +1634,6 @@
           }
         }
       },
-      "CategoryOrProductTypeNotFound": {
-        "description": "The `category_id` filter names no category (`category_not_found`), or the `product_type_id` filter names no product type (`product_type_not_found`).",
-        "content": {
-          "application/json": {
-            "schema": {
-              "$ref": "#/components/schemas/Error"
-            },
-            "example": {
-              "error": "category_not_found"
-            }
-          }
-        }
-      },
       "ProductNotFound": {
         "description": "No product has this id (`product_not_found`).",
         "content": {
@@ -1997,21 +1974,6 @@
           }
         }
       },
-      "Category": {
-        "type": "object",
-        "required": [
-          "id",
-          "name"
-        ],
-        "properties": {
-          "id": {
-            "type": "integer"
-          },
-          "name": {
-            "type": "string"
-          }
-        }
-      },
       "ProductType": {
         "type": "object",
         "required": [
@@ -2058,8 +2020,7 @@
           "id",
           "name",
           "is_active",
-          "product_type",
-          "category"
+          "product_type"
         ],
         "properties": {
           "id": {
@@ -2074,10 +2035,6 @@
           },
           "product_type": {
             "$ref": "#/components/schemas/ProductType"
-          },
-          "category": {
-            "$ref": "#/components/schemas/Category",
-            "description": "Category of the product type."
           }
         }
       },
