@@ -3,6 +3,8 @@ import { stateLabel } from "../core/labels.js";
 import { pageHeader, surface, toolbar } from "../dom/layout.js";
 import { createListing, fillOptions, searchField, selectField } from "../dom/listing.js";
 import { el } from "../dom/render.js";
+import { openClientDialog } from "./client-create-dialog.js";
+import { openProductDialog } from "./product-create-dialog.js";
 import { openTicketDialog } from "./ticket-create-dialog.js";
 
 const COLUMNS = ["Número", "Cliente", "Estado", "Creado"];
@@ -124,6 +126,19 @@ export function mount({ root, user, request, showError, navigate, replaceHash, r
   header = pageHeader({
     title: title(),
     action: canCreate ? { label: "Nuevo ticket", onClick: openCreate } : null,
+    secondary: canCreate
+      ? [
+          {
+            label: "Nuevo cliente",
+            onClick: (opener) => openClientDialog({ root, opener, fallback: () => header.button }),
+          },
+          {
+            label: "Nuevo producto",
+            onClick: (opener) =>
+              openProductDialog({ root, request, showError, opener, fallback: () => header.button }),
+          },
+        ]
+      : [],
   });
   root.append(header.element, surface({ toolbar: toolbar(controls), table: listing.element }));
   listing.load();
