@@ -74,7 +74,7 @@ app/
   wiring.py            # get_catalog_service, get_product_service y get_ticket_service (con el NotificationService) y notification_strategies: arman los services del request sin que los controllers toquen la Session
   auth.py              # get_user_service, current_user y decoradores login_required (401) y admin_required (403)
   cli.py               # comando create-admin
-  static/              # Interfaz web de una sola página: index.html, css/app.css y js/ (core/ módulos puros, dom/, net/ y screens/)
+  static/              # Interfaz web de una sola página: index.html, css/app.css y js/ (core/ módulos puros, dom/, net/ y screens/, con los formularios compartidos account-form.js y product-form.js y los diálogos del representante client-create-dialog.js y product-create-dialog.js)
   domain/              # Entidades mapeadas con SQLAlchemy; sin Flask ni HTTP
     base.py            # Base(DeclarativeBase)
     errors.py          # DomainError y subclases (ValidationError, DuplicateUserError, ProductTypeInUseError, ...)
@@ -215,6 +215,8 @@ Reglas funcionales que suelen romperse, a tener en cuenta:
 - La reapertura reasigna al **mismo** representante que lo gestionó (RF 1.4.5).
 - Los hitos se listan siempre en orden cronológico ascendente (`ORDER BY created_at, id`) (RF 1.5.2).
 - Nuevo hito o cambio de estado por el representante → se notifica al cliente; respuesta o pedido de reapertura del cliente → se notifica al representante (RF 1.6).
+- `POST /users` y `POST /products` exigen sesión (`login_required`): el representante solo da de alta usuarios con rol `Client` y productos; el `Client` no crea nada y el Admin conserva la gestión completa (`PATCH`, baja, reactivación y contraseñas son solo del Admin). En el alta, el `400` de formato precede al `403` del rol.
+- «Comenzar a trabajar» es un botón del encabezado del detalle (representante, ticket `New`) que envía un hito de contenido fijo con `start_progress`; el formulario de hito no tiene casilla.
 
 ## Convenciones de código
 
