@@ -6,18 +6,16 @@ from sqlalchemy.orm import Load, Session, aliased, selectinload
 from app.db import fits_integer_column
 from app.domain.milestone import Milestone
 from app.domain.paging import Page, PageRequest
-from app.domain.products import Product, ProductType
 from app.domain.state_change import StateChange
 from app.domain.ticket import Ticket
 from app.domain.users import User
 from app.repositories.paging import fetch
+from app.repositories.product_repository import WITH_TYPE
 
 WITH_PARTICIPANTS_AND_PRODUCTS = (
     selectinload(Ticket.client),
     selectinload(Ticket.representative),
-    selectinload(Ticket.products)
-    .selectinload(Product.product_type)
-    .selectinload(ProductType.category),
+    selectinload(Ticket.products).options(WITH_TYPE),
 )
 WITH_MILESTONES = (selectinload(Ticket.milestones).selectinload(Milestone.author),)
 WITH_HISTORY = (selectinload(Ticket.state_history).selectinload(StateChange.user),)
