@@ -3,8 +3,6 @@ from pathlib import Path
 from typing import Any
 
 CONTRACT = Path(__file__).resolve().parents[3] / "docs" / "openapi.json"
-# Still used by the products listing; T-PRD-41 removes them and drops this exception.
-PENDING_REMOVAL = {"Category", "CategoryOrProductTypeNotFound"}
 PRODUCT_TYPE_SCHEMAS = ("ProductType", "CreateProductTypeRequest", "UpdateProductTypeRequest")
 
 
@@ -20,8 +18,11 @@ def test_contract_exposes_no_category_paths_or_fields() -> None:
     assert [path for path in contract["paths"] if path.startswith("/categories")] == []
     for section in ("schemas", "responses", "parameters"):
         names = [name for name in components[section] if name.startswith("Category")]
-        assert [name for name in names if name not in PENDING_REMOVAL] == []
+        assert names == []
     for name in PRODUCT_TYPE_SCHEMAS:
         assert "category_id" not in components["schemas"][name]["properties"]
     listing_parameters = contract["paths"]["/product-types"]["get"]["parameters"]
     assert [parameter.get("name") for parameter in listing_parameters] == [None]
+    assert "category" not in components["schemas"]["Product"]["properties"]
+    product_parameters = contract["paths"]["/products"]["get"]["parameters"]
+    assert "category_id" not in [parameter.get("name") for parameter in product_parameters]
