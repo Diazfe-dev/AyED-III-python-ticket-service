@@ -5,12 +5,14 @@ import pytest
 
 from app.domain.errors import (
     DuplicateProductError,
+    PermissionDeniedError,
     ProductNotFoundError,
     ProductTypeNotFoundError,
     ValidationError,
 )
 from app.domain.paging import Page
 from app.domain.products import Product, ProductType
+from app.domain.users import Admin, Client, Representative
 from app.services.product_service import ProductService
 from tests.unit.catalog.fakes import (
     FakeProductRepository,
@@ -530,3 +532,83 @@ def test_available_products_with_bad_pagination_are_rejected(
         searchable.service.list_available_products(page=page, page_size=page_size)
 
     assert raised.value.fields == {field: "invalid"}
+
+
+@pytest.fixture
+def admin() -> Admin:
+    return Admin(name="Root", email="root@x.com", password_hash="x")
+
+
+@pytest.fixture
+def rosa() -> Representative:
+    return Representative(name="Rosa", email="rosa@x.com", password_hash="x")
+
+
+@pytest.fixture
+def ana() -> Client:
+    return Client(name="Ana", email="ana@x.com", password_hash="x")
+
+
+def test_admin_keeps_creating_products(sut: ServiceUnderTest, admin: Admin) -> None:
+    """SPEC-PRD-01 · TC-PRD-01e"""
+    product = sut.service.create_product("XPS 15", sut.notebook.id, actor=admin)
+
+    assert product.is_active is True
+    assert sut.products.get(product.id) is product
+    assert sut.commit.calls == 1
+
+
+def test_representative_creates_an_active_product(
+    sut: ServiceUnderTest, rosa: Representative
+) -> None:
+    """SPEC-PRD-35 · TC-PRD-35a"""
+    product = sut.service.create_product("XPS 15", sut.notebook.id, actor=rosa)
+
+    assert product.is_active is True
+    assert product.product_type is sut.notebook
+    assert sut.products.get(product.id) is product
+    assert sut.commit.calls == 1
+
+
+def test_representative_gets_the_same_rules_as_the_admin(
+    sut: ServiceUnderTest, rosa: Representative
+) -> None:
+    """SPEC-PRD-35 · TC-PRD-35b"""
+    sut.add_product("xps 13", sut.notebook)
+    sut.commit.calls = 0
+
+    with pytest.raises(ValidationError) as blank:
+        sut.service.create_product("   ", sut.notebook.id, actor=rosa)
+    with pytest.raises(ValidationError) as malformed:
+        sut.service.create_product("XPS 15", "abc", actor=rosa)
+    with pytest.raises(ProductTypeNotFoundError):
+        sut.service.create_product("XPS 15", 9999, actor=rosa)
+    with pytest.raises(DuplicateProductError):
+        sut.service.create_product(" xps 13 ", sut.notebook.id, actor=rosa)
+
+    assert blank.value.fields == {"name": "required"}
+    assert malformed.value.fields == {"product_type_id": "invalid"}
+    assert [product.name for product in sut.products.products.values()] == ["xps 13"]
+    assert sut.commit.calls == 0
+
+
+def test_client_cannot_create_products(sut: ServiceUnderTest, ana: Client) -> None:
+    """SPEC-PRD-37 · TC-PRD-37a"""
+    with pytest.raises(PermissionDeniedError):
+        sut.service.create_product("XPS 15", sut.notebook.id, actor=ana)
+
+    assert_nothing_created(sut)
+
+
+def test_the_format_is_checked_before_the_role(sut: ServiceUnderTest, ana: Client) -> None:
+    """SPEC-PRD-37 · TC-PRD-37b"""
+    with pytest.raises(ValidationError) as raised:
+        sut.service.create_product("", "abc", actor=ana)
+
+    assert raised.value.fields == {"name": "required", "product_type_id": "invalid"}
+
+
+def test_the_role_is_checked_before_the_type_lookup(sut: ServiceUnderTest, ana: Client) -> None:
+    """SPEC-PRD-37 · TC-PRD-37c"""
+    with pytest.raises(PermissionDeniedError):
+        sut.service.create_product("XPS 15", 9999, actor=ana)
