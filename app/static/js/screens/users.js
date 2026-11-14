@@ -6,18 +6,10 @@ import { createFields } from "../dom/form.js";
 import { pageHeader, surface, toolbar } from "../dom/layout.js";
 import { createListing, searchField, selectField } from "../dom/listing.js";
 import { el } from "../dom/render.js";
+import { accountFields } from "./account-form.js";
 
 const COLUMNS = ["Nombre", "Email", "Rol", "Estado", "Acciones"];
 const MISMATCH_MESSAGE = "La nueva contraseña y su confirmación no coinciden.";
-const ROLE_OPTIONS = [
-  { value: "Admin", label: roleLabel("Admin") },
-  { value: "Representative", label: roleLabel("Representative") },
-  { value: "Client", label: roleLabel("Client") },
-];
-const CHANNEL_OPTIONS = [
-  { value: "mail", label: "Correo" },
-  { value: "whatsapp", label: "WhatsApp" },
-];
 const STATUS_OPTIONS = [
   { value: "", label: "Todos" },
   { value: "true", label: activeLabel(true) },
@@ -26,26 +18,6 @@ const STATUS_OPTIONS = [
 
 export function title() {
   return "Usuarios";
-}
-
-function accountFields(creating, user) {
-  return [
-    { name: "name", label: "Nombre", value: user?.name ?? "" },
-    { name: "email", label: "Email", type: "email", value: user?.email ?? "" },
-    ...(creating
-      ? [
-          { name: "role", label: "Rol", options: ROLE_OPTIONS, placeholder: "Seleccione un rol" },
-          { name: "password", label: "Contraseña", type: "password", autocomplete: "new-password" },
-        ]
-      : []),
-    {
-      name: "preferred_channel",
-      label: "Canal",
-      options: CHANNEL_OPTIONS,
-      placeholder: "Sin especificar",
-      value: user?.preferred_channel ?? "",
-    },
-  ];
 }
 
 const RESET_FIELDS = [
