@@ -1,14 +1,14 @@
 # Secuencias — 04 Ciclo de vida del ticket
 
-Spec: [specs/04-tickets/spec.md](../../specs/04-tickets/spec.md)
+Spec: [docs/domains/tickets/tickets/spec.md](spec.md)
 
-Convención de transacción: el service hace `commit()` de la operación del ticket **antes** de notificar. Así, si falla una notificación, el cambio no se revierte (SPEC-NTF-14). El detalle del envío está en [06-notifications.md](06-notifications.md).
+Convención de transacción: el service hace `commit()` de la operación del ticket **antes** de notificar. Así, si falla una notificación, el cambio no se revierte (SPEC-NTF-14). El detalle del envío está en [06-notifications.md](../../notifications/sequences.md).
 
 Convenciones del código actual:
 
 - El `TicketController` solo lee el cuerpo JSON y delega con `actor=current_user`; todas las reglas, incluido el `403`, las decide el `TicketService`. Los errores de dominio se traducen en `controllers/errors.py`: `400` `validation_error`, `invalid_client` e `invalid_product`; `403` `forbidden`; `404` `ticket_not_found` y `product_not_in_ticket`; `409` `invalid_transition`.
 - El service lee `clock()` una vez y pasa `now` al dominio. El dominio no lee el reloj, y toda transición pasa por `Ticket._enter`, que cambia `state_name` y agrega el `StateChange`.
-- Los pasos `NS.notify` son de [06-notifications](../../specs/06-notifications/spec.md): `TicketService` recibe un `NotificationService` (`app/wiring.py`) y lo llama como última acción, después del `commit()`; el mensaje sale de `app/services/notification_messages.py`. Si la operación no termina con éxito (`4xx` o `500`), no se notifica (SPEC-NTF-15). El destinatario del cierre y de la reapertura es la contraparte del actor (`_notify_counterpart`).
+- Los pasos `NS.notify` son de [06-notifications](../../notifications/spec.md): `TicketService` recibe un `NotificationService` (`app/wiring.py`) y lo llama como última acción, después del `commit()`; el mensaje sale de `app/services/notification_messages.py`. Si la operación no termina con éxito (`4xx` o `500`), no se notifica (SPEC-NTF-15). El destinatario del cierre y de la reapertura es la contraparte del actor (`_notify_counterpart`).
 
 ## 1. Creación de ticket
 

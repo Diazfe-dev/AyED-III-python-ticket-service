@@ -1,8 +1,8 @@
 # 06 — Gestión de notificaciones
 
-Origen: RF 1.6 · Diagramas: [secuencias](../../diagrams/sequences/06-notifications.md), [clases](../../diagrams/classes.md) (patrón Strategy)
+Origen: RF 1.6 · Diagramas: [secuencias](sequences.md), [clases](../../diagrams/classes.md) (patrón Strategy)
 
-Depende de: SPEC-USR-06, SPEC-USR-23 ([01-users](../01-users/spec.md)) · SPEC-TKT-01, SPEC-TKT-04, SPEC-TKT-07, SPEC-TKT-09, SPEC-TKT-10, SPEC-TKT-11, SPEC-TKT-12, SPEC-TKT-14, SPEC-TKT-15, SPEC-TKT-21 ([04-tickets](../04-tickets/spec.md)) · SPEC-MLS-01, SPEC-MLS-02, SPEC-MLS-03 ([05-milestones](../05-milestones/spec.md))
+Depende de: SPEC-USR-06, SPEC-USR-23 ([01-users](../users/spec.md)) · SPEC-TKT-01, SPEC-TKT-04, SPEC-TKT-07, SPEC-TKT-09, SPEC-TKT-10, SPEC-TKT-11, SPEC-TKT-12, SPEC-TKT-14, SPEC-TKT-15, SPEC-TKT-21 ([04-tickets](../tickets/tickets/spec.md)) · SPEC-MLS-01, SPEC-MLS-02, SPEC-MLS-03 ([05-milestones](../tickets/milestones/spec.md))
 
 ## Canal de envío
 
@@ -40,12 +40,12 @@ Depende de: SPEC-USR-06, SPEC-USR-23 ([01-users](../01-users/spec.md)) · SPEC-T
 | ID | Tipo | Especificación | Origen |
 |----|------|----------------|--------|
 | SPEC-NTF-11 | No deseado | **Si** el destinatario de una notificación es el mismo usuario que realizó la acción, **entonces el sistema deberá** omitir el envío y no registrar la notificación. | Regla defensiva (RF 1.6) |
-| SPEC-NTF-16 | Por evento | **Cuando** el destinatario de una notificación está inactivo, **el sistema deberá** notificarlo igual. | Decisión 9, Decisión 8 de [04-tickets](../04-tickets/spec.md#decisiones) |
+| SPEC-NTF-16 | Por evento | **Cuando** el destinatario de una notificación está inactivo, **el sistema deberá** notificarlo igual. | Decisión 9, Decisión 8 de [04-tickets](../tickets/tickets/spec.md#decisiones) |
 | SPEC-NTF-17 | No deseado | **Cuando** se agregan productos a un ticket (SPEC-TKT-07) o se quitan (SPEC-TKT-21), **el sistema no deberá** enviar ninguna notificación. | Decisión 12, SPEC-TKT-07, SPEC-TKT-21 |
 
 ## Decisiones
 
-Resueltas el 2026-11-09 y registradas en Engram (`tp-final/decision/*`) y en [MEMORY.md](../../MEMORY.md) (Cambios y motivación):
+Resueltas el 2026-11-09 y registradas en Engram (`tp-final/decision/*`) y en [MEMORY.md](../../../MEMORY.md) (Cambios y motivación):
 
 1. Cuando el cliente cierra un ticket, se notifica al representante (RF 1.6.3 ampliado).
 2. Las notificaciones se simulan: las estrategias `MailNotification` y `WhatsappNotification` solo registran el envío. El patrón Strategy permite conectar envíos reales más adelante sin cambiar los services.
@@ -57,11 +57,11 @@ Confirmada el 2026-11-10 (revisión transversal de huecos):
 Aprobadas el 2026-11-11:
 
 4. **Una sola notificación al crear un ticket (SPEC-NTF-05)**: crear un ticket envía exactamente una notificación al cliente. El hito inicial (SPEC-TKT-04) y el estado inicial `New` (SPEC-TKT-15) forman parte del alta y no disparan SPEC-NTF-06, 07 ni 08.
-5. **SPEC-NTF-08 excluye a SPEC-NTF-06 y 07**: cuando un hito provoca un cambio de estado, el cliente recibe una única notificación combinada y nunca las separadas además. Un `start_progress` redundante (sin cambio de estado, decisión 5 de [05-milestones](../05-milestones/spec.md#decisiones)) genera solo la de SPEC-NTF-06.
+5. **SPEC-NTF-08 excluye a SPEC-NTF-06 y 07**: cuando un hito provoca un cambio de estado, el cliente recibe una única notificación combinada y nunca las separadas además. Un `start_progress` redundante (sin cambio de estado, decisión 5 de [05-milestones](../tickets/milestones/spec.md#decisiones)) genera solo la de SPEC-NTF-06.
 6. **Fallo de envío dividido en tres specs (SPEC-NTF-04, 14 y 19)**: SPEC-NTF-04 cubre el registro del fallo (`Notification` con estado `failed` y el texto del error); SPEC-NTF-14 cubre que el fallo no revierte la operación del ticket (el cambio persiste); SPEC-NTF-19 cubre que quien llama recibe la misma respuesta exitosa. Se agregaron al final para no renumerar los IDs existentes.
 7. **Datos registrados (SPEC-NTF-03)**: destinatario, canal, mensaje, fecha (el instante actual en UTC, mismo criterio que SPEC-TKT-14 y SPEC-MLS-03) y estado `sent` o `failed`. El texto del error se especifica solo en SPEC-NTF-04.
 8. **Una operación que no termina con éxito no notifica (SPEC-NTF-15)**: cualquier respuesta `4xx` o `5xx` (incluido el `401` y un `500` con rollback) no envía ni registra ninguna notificación.
-9. **Destinatarios inactivos (SPEC-NTF-16)**: un destinatario inactivo igual es notificado, coherente con la decisión 8 de [04-tickets](../04-tickets/spec.md#decisiones).
+9. **Destinatarios inactivos (SPEC-NTF-16)**: un destinatario inactivo igual es notificado, coherente con la decisión 8 de [04-tickets](../tickets/tickets/spec.md#decisiones).
 10. **Contenido del mensaje (SPEC-NTF-18)**: el mensaje debe identificar el ticket y el evento (creación, hito, cambio de estado con el nuevo estado, cierre, reapertura). El texto exacto no es parte del contrato: los tests verifican esos datos, no la frase.
 11. **SPEC-NTF-11 es una regla defensiva**: en los flujos normales el destinatario nunca es quien realiza la acción; solo se alcanza llamando al service directamente. Por eso su origen la declara como regla defensiva y no cita solo RF 1.6. Cuando ocurre, se omite el envío y no se registra la notificación (mismo criterio que SPEC-NTF-15).
 12. **Agregar o quitar productos no notifica (SPEC-NTF-17)**: agregar productos a un ticket (SPEC-TKT-07) o quitarlos (SPEC-TKT-21) no envía ninguna notificación.

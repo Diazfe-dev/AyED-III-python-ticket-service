@@ -1,6 +1,6 @@
 # Secuencias — 02 Tipos de producto (rubros)
 
-Spec: [specs/02-product-types/spec.md](../../specs/02-product-types/spec.md)
+Spec: [docs/domains/catalog/product-types/spec.md](spec.md)
 
 En todos los flujos de escritura, si `current_user` no es `Admin`, `admin_required` responde 403 (SPEC-PTY-34), y sin sesión `login_required` responde 401. Para no repetirlo, solo se muestra en el primer diagrama. El controller obtiene el service con `get_catalog_service()` (`app/wiring.py`), que lo arma con el repositorio y `commit = session.commit`. Las excepciones de dominio se traducen a HTTP con la tabla de `app/controllers/errors.py`. El tipo de producto es el rubro: no tiene otros campos que `name`, y su nombre es único en todo el catálogo.
 

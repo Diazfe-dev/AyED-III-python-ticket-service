@@ -1,6 +1,6 @@
 # Modelo de casos de uso
 
-Fuente: [docs/REQUERIMIENTOS.md](../docs/REQUERIMIENTOS.md) (RF 1.1 a 1.6 y los RNF que condicionan cada caso) y las specs de [specs/](../specs/). Complementa a [classes.md](classes.md) (estructura) y a [sequences/](sequences/) (comportamiento): acá se ve **quién hace qué** con el sistema.
+Fuente: [docs/REQUERIMIENTOS.md](../REQUERIMIENTOS.md) (RF 1.1 a 1.6 y los RNF que condicionan cada caso) y las specs de [docs/domains/](../domains/). Complementa a [classes.md](classes.md) (estructura) y a `sequences.md` de cada área (en [domains/](../domains/)) (comportamiento): acá se ve **quién hace qué** con el sistema.
 
 ## Convenciones
 
@@ -334,5 +334,5 @@ Todos los RF de 1.1 a 1.6 quedan cubiertos; RF 1.2.3 no se modela por estar elim
 - **Actor:** Cliente dueño o Representante asignado.
 - **Precondición:** el ticket está Cerrado y el actor tiene acceso a él.
 - **Flujo principal:** 1) el actor solicita la reapertura; 2) el sistema reasigna el ticket al **mismo representante** que lo gestionó antes del cierre; 3) el ticket vuelve directamente a **En Progreso** y se registra el cambio de estado con usuario y fecha UTC; 4) se notifica a la contraparte (CU-30 o CU-31).
-- **Alternativos y excepciones:** el ticket no está Cerrado: `409` `invalid_transition`. Ticket ajeno: `404`. Administrador: `403`. Si el representante original está inactivo, la reapertura igual lo reasigna a él (limitación conocida, ver [MEMORY.md](../MEMORY.md)).
+- **Alternativos y excepciones:** el ticket no está Cerrado: `409` `invalid_transition`. Ticket ajeno: `404`. Administrador: `403`. Si el representante original está inactivo, la reapertura igual lo reasigna a él (limitación conocida, ver [MEMORY.md](../../MEMORY.md)).
 - **Postcondición:** ticket En Progreso con el representante original asignado y el nuevo cambio de estado en el historial.

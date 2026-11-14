@@ -3,7 +3,7 @@
 Aplicación web para centros de atención telefónica. Un representante registra la consulta de un cliente como un **ticket**, la sigue con un hilo cronológico de **hitos** inmutables, y el sistema **notifica** a cada parte cuando hay novedades. Es el trabajo práctico final de **Algoritmos y Programación III**.
 
 > **Estado**: la API y la interfaz web están implementadas.
-> El avance de cada área está en el [índice de specs](specs/README.md#índice).
+> El avance de cada área está en el [índice de specs](docs/README.md#índice).
 
 ## Qué hace
 
@@ -57,7 +57,7 @@ flowchart LR
     CODE --> REF[Refactor]
 ```
 
-Cada área funcional tiene su carpeta en [specs/](specs/) con hasta cuatro archivos:
+Cada área funcional tiene su carpeta en [docs/domains/](docs/domains/) con hasta cuatro archivos:
 
 | Archivo | Responde |
 |---------|----------|
@@ -85,9 +85,9 @@ Arquitectura en capas **Controller → Service → Repository**, con dos patrone
 
 | Diagrama | Contenido |
 |----------|-----------|
-| [Casos de uso](diagrams/use-cases.md) | Modelo UML de casos de uso: 5 diagramas (general y 4 paquetes), 31 casos y descripciones de los casos centrales del ticket |
-| [Clases](diagrams/classes.md) | Modelo de dominio y capas de aplicación |
-| [Secuencias](diagrams/sequences/) | 22 flujos en 6 archivos, uno por área, cada uno con las specs que cubre |
+| [Casos de uso](docs/diagrams/use-cases.md) | Modelo UML de casos de uso: 5 diagramas (general y 4 paquetes), 31 casos y descripciones de los casos centrales del ticket |
+| [Clases](docs/diagrams/classes.md) | Modelo de dominio y capas de aplicación |
+| Secuencias (`sequences.md` de cada área en [docs/domains/](docs/domains/)) | 22 flujos en 6 archivos, uno por área, cada uno con las specs que cubre |
 
 Los diagramas están en Mermaid y se ven directamente en GitHub.
 
@@ -97,11 +97,11 @@ Los diagramas están en Mermaid y se ven directamente en GitHub.
 ├── README.md
 ├── AGENTS.md            # Guía de trabajo para personas y agentes de IA
 ├── MEMORY.md            # Estado del proyecto, cambios con su motivación y próximos pasos
-├── docs/
+├── docs/                # Documentación funcional
 │   ├── constitution.md  # Principios innegociables
-│   └── REQUERIMIENTOS.md # Requerimientos funcionales y no funcionales
-├── specs/               # Una carpeta por área: spec, plan, tasks y test-plan
-├── diagrams/            # Casos de uso, clases y secuencias (Mermaid)
+│   ├── REQUERIMIENTOS.md # Requerimientos funcionales y no funcionales
+│   ├── domains/         # Una carpeta por dominio y área: spec, plan, tasks, test-plan y secuencias
+│   └── diagrams/        # Casos de uso y clases (Mermaid)
 ├── app/                 # Código; la interfaz web está en app/static/
 ├── tests/               # Tests unitarios, de integración y de la interfaz (tests/ui/)
 ├── package.json         # Solo herramientas de prueba de la interfaz (Playwright)
@@ -116,7 +116,7 @@ Leer en este orden:
 1. [docs/constitution.md](docs/constitution.md): 6 principios innegociables (stack, spec y código, lógica e interfaz, tests, datos del usuario e idioma). Prevalecen sobre todo lo demás.
 2. [AGENTS.md](AGENTS.md): convenciones, patrones, prohibiciones, flujo de trabajo, testing y estilo de commits.
 3. [MEMORY.md](MEMORY.md): estado actual, cambios con su motivación y próximos pasos. Las decisiones con su justificación y los errores a evitar están en Engram (proyecto `tp-final`).
-4. [specs/README.md](specs/README.md): sintaxis EARS e índice de áreas.
+4. [docs/README.md](docs/README.md): sintaxis EARS e índice de áreas.
 
 ## Puesta en marcha
 

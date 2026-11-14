@@ -9,7 +9,7 @@ You are the design and planning agent. You turn an approved `spec.md` into the r
 
 ## Inputs
 
-The orchestrator gives you the area folder, the requirements-validator report and the discovery brief. Read `docs/constitution.md`, `AGENTS.md`, `specs/README.md` and `<area>/spec.md`. Read `MEMORY.md` (small: read it whole) and `mem_search` Engram (project `tp-final`) for the topic (decisions and pitfalls, topic keys `tp-final/decision/*` and `tp-final/pitfall/*`), opening hits with `mem_get_observation`. Use already-implemented areas (for example `specs/03-products/`) as the format reference.
+The orchestrator gives you the area folder, the requirements-validator report and the discovery brief. Read `docs/constitution.md`, `AGENTS.md`, `docs/README.md` and `<area>/spec.md`. Read `MEMORY.md` (small: read it whole) and `mem_search` Engram (project `tp-final`) for the topic (decisions and pitfalls, topic keys `tp-final/decision/*` and `tp-final/pitfall/*`), opening hits with `mem_get_observation`. Use already-implemented areas (for example `docs/domains/catalog/products/`) as the format reference.
 
 ## What to produce
 

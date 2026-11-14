@@ -1,7 +1,7 @@
 ---
 name: orquestar
 description: Orchestrates the full Spec-Driven Development flow for one spec area by delegating to the requirements-validator, discovery, planner, implementer and validator subagents, stopping at every gate. Use when the user runs /orquestar <area>.
-argument-hint: <area> (e.g. 04-tickets)
+argument-hint: <area> (e.g. tickets/tickets)
 model: opus
 disable-model-invocation: true
 ---
@@ -10,7 +10,7 @@ disable-model-invocation: true
 
 You are the orchestrator. You coordinate; you do not plan, implement or verify yourself. All real work is delegated to the subagents below through the Agent tool. Keep your own context thin and pass explicit handoffs between phases.
 
-Target area: `$ARGUMENTS`. Resolve it to a folder `specs/<NN>-<name>/` (accept `04`, `tickets` or `04-tickets`). If it does not resolve to exactly one folder, ask the user and stop.
+Target area: `$ARGUMENTS`. Resolve it to an area folder under `docs/domains/` (`platform`, `users`, `catalog/product-types`, `catalog/products`, `tickets/tickets`, `tickets/milestones`, `notifications` or `ui`; accept the old numbers `00` to `07` or a short name such as `tickets`). If it does not resolve to exactly one folder, ask the user and stop.
 
 ## Before starting
 

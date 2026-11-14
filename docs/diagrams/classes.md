@@ -6,7 +6,7 @@ Versión en Mermaid del diagrama de clases. Se divide en tres vistas para que se
 2. **Capas de aplicación**: controllers, services y repositories (Controller → Service → Repository).
 3. **Interfaz web (`07-ui`)**: el blueprint `ui` y el front de `app/static/js`.
 
-Los nombres siguen la convención de Python (`snake_case` para atributos y métodos), igual que los [diagramas de secuencia](sequences/).
+Los nombres siguen la convención de Python (`snake_case` para atributos y métodos), igual que los [diagramas de secuencia](../domains/).
 
 ## 1. Modelo de dominio
 

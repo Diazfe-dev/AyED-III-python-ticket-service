@@ -2,7 +2,7 @@
 
 Cada test cita en su docstring la spec y el caso: `"""SPEC-USR-05 · TC-USR-05a"""`.
 
-Fixtures existentes (`tests/conftest.py`): `app`, `client` y `runner` (ver [00-platform](../00-platform/test-plan.md)).
+Fixtures existentes (`tests/conftest.py`): `app`, `client` y `runner` (ver [00-platform](../platform/test-plan.md)).
 
 Fixtures nuevas (`tests/conftest.py`):
 - `schema`: crea las tablas de `Base.metadata` en la base en memoria de la `app` del test.

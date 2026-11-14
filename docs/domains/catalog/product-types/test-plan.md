@@ -2,7 +2,7 @@
 
 Cada test cita en su docstring la spec y el caso: `"""SPEC-PTY-05 · TC-PTY-05a"""`.
 
-Fixtures existentes (`tests/conftest.py`): `app`, `client`, `runner`, `schema`, `db_session`, `make_user`, `login_as`, `admin` y `admin_client` (ver [00-platform](../00-platform/test-plan.md) y [01-users](../01-users/test-plan.md)).
+Fixtures existentes (`tests/conftest.py`): `app`, `client`, `runner`, `schema`, `db_session`, `make_user`, `login_as`, `admin` y `admin_client` (ver [00-platform](../../platform/test-plan.md) y [01-users](../../users/test-plan.md)).
 
 Fixtures nuevas (`tests/conftest.py`):
 - `make_category`: fábrica `make_category(name=...)` que persiste una `Category` con `db_session` y hace commit. Sin nombre, genera uno único (`"Category 1"`, `"Category 2"`, …).

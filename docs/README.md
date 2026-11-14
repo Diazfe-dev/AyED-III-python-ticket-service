@@ -1,6 +1,6 @@
-# Specs
+# Documentación funcional
 
-Descomposición de los requerimientos funcionales de [REQUERIMIENTOS.md](../docs/REQUERIMIENTOS.md) en especificaciones atómicas y verificables, escritas con **EARS** (*Easy Approach to Requirements Syntax*).
+Descomposición de los requerimientos funcionales de [REQUERIMIENTOS.md](REQUERIMIENTOS.md) en especificaciones atómicas y verificables, escritas con **EARS** (*Easy Approach to Requirements Syntax*).
 
 ## Patrones EARS
 
@@ -27,7 +27,7 @@ Cada spec usa exactamente uno de estos patrones. Las palabras clave van en **neg
 
 ## Estructura de un área
 
-Cada área es una carpeta `NN-<área>/`. `spec.md` existe siempre. Los demás archivos se crean cuando se empieza a trabajar el área, en este orden y antes de escribir código (ver [AGENTS.md](../AGENTS.md)):
+Cada área es una carpeta bajo `domains/` (`platform`, `users`, `catalog/product-types`, `catalog/products`, `tickets/tickets`, `tickets/milestones`, `notifications`, `ui`); los diagramas de secuencia de cada área están en su `sequences.md` y los transversales en `diagrams/`. `spec.md` existe siempre. Los demás archivos se crean cuando se empieza a trabajar el área, en este orden y antes de escribir código (ver [AGENTS.md](../AGENTS.md)):
 
 | Archivo | Responde |
 |---------|----------|
@@ -40,14 +40,14 @@ Cada área es una carpeta `NN-<área>/`. `spec.md` existe siempre. Los demás ar
 
 | Área | Descripción | RF | spec | plan | tasks | test-plan |
 |------|-------------|----|------|------|-------|-----------|
-| [00-platform/](00-platform/spec.md) | Plataforma: configuración, base de datos, sesión, comandos y documentación de la API | RNF 1, 2, 7 | ✅ | ✅ | ✅ | ✅ |
-| [01-users/](01-users/spec.md) | Gestión de usuarios y accesos | 1.1 | ✅ | ✅ | ✅ | ✅ |
-| [02-product-types/](02-product-types/spec.md) | Gestión de tipos de producto (rubros) | 1.2 | ✅ | ✅ | ✅ | ✅ |
-| [03-products/](03-products/spec.md) | Gestión de productos | 1.3 | ✅ | ✅ | ✅ | ✅ |
-| [04-tickets/](04-tickets/spec.md) | Ciclo de vida del ticket | 1.4 | ✅ | ✅ | ✅ | ✅ |
-| [05-milestones/](05-milestones/spec.md) | Gestión de hitos | 1.5 | ✅ | ✅ | ✅ | ✅ |
-| [06-notifications/](06-notifications/spec.md) | Gestión de notificaciones | 1.6 | ✅ | ✅ | ✅ | ✅ |
-| [07-ui/](07-ui/spec.md) | Interfaz web | 1.7, RNF 8, 9, 10 | ✅ | ✅ | ✅ | ✅ |
+| [00-platform/](domains/platform/spec.md) | Plataforma: configuración, base de datos, sesión, comandos y documentación de la API | RNF 1, 2, 7 | ✅ | ✅ | ✅ | ✅ |
+| [01-users/](domains/users/spec.md) | Gestión de usuarios y accesos | 1.1 | ✅ | ✅ | ✅ | ✅ |
+| [02-product-types/](domains/catalog/product-types/spec.md) | Gestión de tipos de producto (rubros) | 1.2 | ✅ | ✅ | ✅ | ✅ |
+| [03-products/](domains/catalog/products/spec.md) | Gestión de productos | 1.3 | ✅ | ✅ | ✅ | ✅ |
+| [04-tickets/](domains/tickets/tickets/spec.md) | Ciclo de vida del ticket | 1.4 | ✅ | ✅ | ✅ | ✅ |
+| [05-milestones/](domains/tickets/milestones/spec.md) | Gestión de hitos | 1.5 | ✅ | ✅ | ✅ | ✅ |
+| [06-notifications/](domains/notifications/spec.md) | Gestión de notificaciones | 1.6 | ✅ | ✅ | ✅ | ✅ |
+| [07-ui/](domains/ui/spec.md) | Interfaz web | 1.7, RNF 8, 9, 10 | ✅ | ✅ | ✅ | ✅ |
 
 ## Actores
 

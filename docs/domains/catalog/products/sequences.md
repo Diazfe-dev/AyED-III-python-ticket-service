@@ -1,6 +1,6 @@
 # Secuencias — 03 Productos
 
-Spec: [specs/03-products/spec.md](../../specs/03-products/spec.md)
+Spec: [docs/domains/catalog/products/spec.md](spec.md)
 
 `POST /products` usa `login_required` y pasa `actor` al service: un `Admin` o un `Representative` lo ejecutan y un `Client` recibe 403 después del 400 de formato y antes del 404 y del 409 (SPEC-PRD-35, 37). `PATCH`, la baja y la reactivación usan `admin_required`: todo no-`Admin` recibe 403 antes de buscar el producto y de leer el cuerpo (SPEC-PRD-36, 37). Sin sesión, todas las rutas responden 401. El controller arma el service con `get_product_service()` de `app/wiring.py` y traduce cada `DomainError` con `ERROR_RESPONSES`.
 

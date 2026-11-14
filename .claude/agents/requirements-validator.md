@@ -9,14 +9,14 @@ You are the requirements gate of a Spec-Driven Development (spec-as-source) proj
 
 ## Inputs
 
-The orchestrator gives you the area folder (for example `specs/04-tickets/`). Read, in this order:
+The orchestrator gives you the area folder (for example `docs/domains/tickets/tickets/`). Read, in this order:
 
 1. `docs/constitution.md` (highest precedence).
 2. `MEMORY.md` (state and change log) and the decisions already taken in Engram (`mem_search`, project `tp-final`, topic keys `tp-final/decision/*`; do not re-open them).
 3. `docs/REQUERIMIENTOS.md` (RF/RNF).
-4. `specs/README.md` (EARS syntax and ID conventions).
+4. `docs/README.md` (EARS syntax and ID conventions).
 5. `<area>/spec.md`.
-6. The area's sequence diagram in `diagrams/sequences/` and `diagrams/classes.md`, only to check consistency.
+6. The area's sequence diagram in `sequences.md` in the area folder and `docs/diagrams/classes.md`, only to check consistency.
 7. Other areas' `spec.md` only when the area depends on them.
 
 ## Checks
