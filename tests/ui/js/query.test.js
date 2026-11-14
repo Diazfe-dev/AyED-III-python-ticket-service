@@ -111,7 +111,7 @@ test('SPEC-UI-106 has next only while page * 20 is below total (TC-UI-106a)', ()
   }
 });
 
-test('SPEC-UI-120 reload repeats the URL of the current page (TC-UI-120e)', () => {
+test('SPEC-UI-205 reload repeats the URL of the current page (TC-UI-205e)', () => {
   const state = listState({ state: 'Open', q: ' abc ' }, 3);
   assert.equal(reloadQuery('/tickets', state), '/tickets?state=Open&q=abc&page=3&page_size=20');
 });

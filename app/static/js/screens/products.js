@@ -6,7 +6,7 @@ import { pageHeader, surface, toolbar } from "../dom/layout.js";
 import { createListing, searchField, selectField } from "../dom/listing.js";
 import { el } from "../dom/render.js";
 
-const COLUMNS = ["Nombre", "Tipo", "Categoría", "Estado", "Acciones"];
+const COLUMNS = ["Nombre", "Tipo", "Estado", "Acciones"];
 const ALL_OPTION = { value: "", label: "Todos" };
 const STATUS_OPTIONS = [
   ALL_OPTION,
@@ -127,7 +127,6 @@ export function mount({ root, request, showError, showStatus }) {
     return [
       product.name,
       product.product_type.name,
-      product.category.name,
       activeLabel(product.is_active),
       el("div", { class: "row-actions" }, [
         actionButton("Editar", product, (button) => openEdit(product, button)),
@@ -150,12 +149,6 @@ export function mount({ root, request, showError, showStatus }) {
     options: STATUS_OPTIONS,
     onChange: (value) => listing.apply({ is_active: value }),
   });
-  const categoryFilter = selectField({
-    id: "filter-category",
-    label: "Categoría",
-    options: [ALL_OPTION],
-    onChange: (value) => listing.apply({ category_id: value }),
-  });
   const typeFilter = selectField({
     id: "filter-type",
     label: "Tipo",
@@ -170,17 +163,9 @@ export function mount({ root, request, showError, showStatus }) {
   });
 
   async function loadSelectors() {
-    const [categories, types] = await Promise.all([
-      request("GET", "/categories", undefined, "categories"),
-      request("GET", "/product-types", undefined, "product-types"),
-    ]);
+    const types = await request("GET", "/product-types", undefined, "product-types");
     if (!root.isConnected) {
       return;
-    }
-    if (categories.ok) {
-      categoryFilter.select.append(...optionNodes(typeOptions(categories.body)));
-    } else {
-      showError(translateError(categories, "list").message);
     }
     if (types.ok) {
       productTypes = types.body;
@@ -194,7 +179,7 @@ export function mount({ root, request, showError, showStatus }) {
   root.append(
     header.element,
     surface({
-      toolbar: toolbar([statusFilter.element, categoryFilter.element, typeFilter.element, searchForm]),
+      toolbar: toolbar([statusFilter.element, typeFilter.element, searchForm]),
       table: listing.element,
     }),
   );
