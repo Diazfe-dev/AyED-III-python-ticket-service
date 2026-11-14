@@ -16,7 +16,7 @@ def test_unknown_route_answers_json_not_found(client: FlaskClient) -> None:
 @pytest.mark.parametrize(
     ("method", "path"),
     [
-        ("PATCH", "/categories/abc"),
+        ("PATCH", "/product-types/abc"),
         ("PATCH", "/users/abc"),
         ("POST", "/users/abc/deactivate"),
     ],
