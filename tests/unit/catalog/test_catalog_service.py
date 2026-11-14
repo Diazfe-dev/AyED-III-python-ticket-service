@@ -195,58 +195,35 @@ def add_type(sut: ServiceUnderTest, name: str, category: Category | None = None)
     return product_type
 
 
-def test_create_product_type_stores_it_in_its_category(
-    sut: ServiceUnderTest, hardware: Category
-) -> None:
-    """SPEC-PTY-03 · TC-PTY-03a"""
-    product_type = sut.service.create_product_type("Notebook", hardware.id)
+def test_create_product_type_stores_it_and_commits(sut: ServiceUnderTest) -> None:
+    """SPEC-PTY-25 · TC-PTY-25a"""
+    product_type = sut.service.create_product_type("Notebook")
 
-    assert product_type.category is hardware
+    assert product_type.name == "Notebook"
     assert sut.product_types.get(product_type.id) is product_type
     assert sut.commit.calls == 1
 
 
-def test_create_product_type_in_unknown_category_is_rejected(sut: ServiceUnderTest) -> None:
-    """SPEC-PTY-04 · TC-PTY-04a"""
-    with pytest.raises(CategoryNotFoundError):
-        sut.service.create_product_type("Notebook", 9999)
-
-    assert sut.product_types.product_types == {}
-    assert sut.commit.calls == 0
-
-
-def test_create_product_type_with_a_taken_name_in_the_category_is_rejected(
-    sut: ServiceUnderTest, hardware: Category
-) -> None:
-    """SPEC-PTY-05 · TC-PTY-05a"""
-    existing = add_type(sut, "Notebook", hardware)
+def test_create_product_type_with_a_taken_name_is_rejected(sut: ServiceUnderTest) -> None:
+    """SPEC-PTY-26 · TC-PTY-26a"""
+    existing = add_type(sut, "Notebook")
 
     with pytest.raises(DuplicateProductTypeError):
-        sut.service.create_product_type("NOTEBOOK", hardware.id)
+        sut.service.create_product_type(" NOTEBOOK ")
 
     assert list(sut.product_types.product_types.values()) == [existing]
     assert sut.commit.calls == 0
 
 
-def test_create_product_type_may_repeat_a_name_of_another_category(
-    sut: ServiceUnderTest, hardware: Category, office: Category
-) -> None:
-    """SPEC-PTY-05 · TC-PTY-05b"""
-    add_type(sut, "Notebook", hardware)
-
-    product_type = sut.service.create_product_type("Notebook", office.id)
-
-    assert product_type.category is office
-    assert sut.commit.calls == 1
-
-
-@pytest.mark.parametrize(("name", "reason"), [("", "required"), (7, "invalid")])
+@pytest.mark.parametrize(
+    ("name", "reason"), [(None, "required"), ("", "required"), ("   ", "required"), (7, "invalid")]
+)
 def test_create_product_type_with_invalid_name_is_rejected(
-    sut: ServiceUnderTest, hardware: Category, name: Any, reason: str
+    sut: ServiceUnderTest, name: Any, reason: str
 ) -> None:
-    """SPEC-PTY-15 · TC-PTY-15d"""
+    """SPEC-PTY-27 · TC-PTY-27a"""
     with pytest.raises(ValidationError) as raised:
-        sut.service.create_product_type(name, hardware.id)
+        sut.service.create_product_type(name)
 
     assert raised.value.fields == {"name": reason}
     assert sut.product_types.product_types == {}
@@ -254,47 +231,6 @@ def test_create_product_type_with_invalid_name_is_rejected(
 
 
 MALFORMED_IDS = [True, False, 1.5, 0, -3, "abc", "-1", "0", "1.5", "", [1]]
-
-
-@pytest.mark.usefixtures("hardware")
-@pytest.mark.parametrize("category_id", MALFORMED_IDS)
-def test_create_product_type_with_malformed_category_id_is_rejected(
-    sut: ServiceUnderTest, category_id: Any
-) -> None:
-    """SPEC-PTY-20 · TC-PTY-20a"""
-    with pytest.raises(ValidationError) as raised:
-        sut.service.create_product_type("Notebook", category_id)
-
-    assert raised.value.fields == {"category_id": "invalid"}
-    assert sut.product_types.product_types == {}
-    assert sut.commit.calls == 0
-
-
-@pytest.mark.parametrize(
-    ("name", "fields"),
-    [
-        ("Notebook", {"category_id": "required"}),
-        ("", {"name": "required", "category_id": "required"}),
-    ],
-)
-def test_create_product_type_without_category_id_is_rejected(
-    sut: ServiceUnderTest, name: str, fields: dict[str, str]
-) -> None:
-    """SPEC-PTY-20 · TC-PTY-20b"""
-    with pytest.raises(ValidationError) as raised:
-        sut.service.create_product_type(name, None)
-
-    assert raised.value.fields == fields
-    assert sut.commit.calls == 0
-
-
-def test_create_product_type_accepts_a_category_id_written_as_digits(
-    sut: ServiceUnderTest, hardware: Category
-) -> None:
-    """SPEC-PTY-20 · TC-PTY-20c"""
-    product_type = sut.service.create_product_type("Notebook", str(hardware.id))
-
-    assert product_type.category is hardware
 
 
 def test_update_product_type_renames_it_in_the_same_category(

@@ -56,8 +56,7 @@ def _seed() -> None:
 def _seed_catalog() -> list[int]:
     catalog = get_catalog_service()
     products = get_product_service()
-    category = catalog.create_category("Computación")
-    product_type = catalog.create_product_type("Portátiles", category.id)
+    product_type = catalog.create_product_type("Portátiles")
     return [
         products.create_product("Notebook Lenovo", product_type.id).id,
         products.create_product("Notebook Dell", product_type.id).id,

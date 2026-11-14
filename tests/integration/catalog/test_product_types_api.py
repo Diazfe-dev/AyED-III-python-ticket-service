@@ -54,74 +54,61 @@ def test_category_routes_do_not_exist(
     assert response.get_json() == {"error": "not_found"}
 
 
-def test_admin_creates_a_product_type(admin_client: FlaskClient, hardware: Category) -> None:
-    """SPEC-PTY-03 · TC-PTY-03d"""
-    response = create_type(admin_client, name="Notebook", category_id=hardware.id)
+def test_admin_creates_a_product_type(admin_client: FlaskClient, db_session: Session) -> None:
+    """SPEC-PTY-25 · TC-PTY-25d"""
+    response = create_type(admin_client, name="Notebook")
 
     assert response.status_code == 201
     body = response.get_json()
     assert isinstance(body["id"], int)
     assert body == {"id": body["id"], "name": "Notebook"}
+    assert stored_types(db_session) == [("Notebook", None)]
 
 
-def test_create_product_type_in_unknown_category_is_not_found(
-    admin_client: FlaskClient, db_session: Session
+def test_create_product_type_with_a_taken_name_is_a_conflict(
+    admin_client: FlaskClient, db_session: Session, make_product_type: MakeProductType
 ) -> None:
-    """SPEC-PTY-04 · TC-PTY-04c"""
-    response = create_type(admin_client, name="Notebook", category_id=9999)
+    """SPEC-PTY-26 · TC-PTY-26d"""
+    make_product_type(name="Notebook")
 
-    assert response.status_code == 404
-    assert response.get_json() == {"error": "category_not_found"}
-    assert stored_types(db_session) == []
-
-
-def test_create_product_type_with_a_taken_name_in_the_category_is_a_conflict(
-    admin_client: FlaskClient, hardware: Category, make_product_type: MakeProductType
-) -> None:
-    """SPEC-PTY-05 · TC-PTY-05e"""
-    make_product_type(hardware, "Notebook")
-
-    response = create_type(admin_client, name="nOTEBOOK", category_id=hardware.id)
+    response = create_type(admin_client, name="NOTEBOOK")
 
     assert response.status_code == 409
     assert response.get_json() == {"error": "duplicate_product_type"}
-
-
-def test_create_product_type_with_non_text_name_is_rejected(
-    admin_client: FlaskClient, db_session: Session, hardware: Category
-) -> None:
-    """SPEC-PTY-15 · TC-PTY-15h"""
-    response = create_type(admin_client, name=123, category_id=hardware.id)
-
-    assert response.status_code == 400
-    assert response.get_json()["fields"] == {"name": "invalid"}
-    assert stored_types(db_session) == []
+    assert stored_types(db_session) == [("Notebook", None)]
 
 
 @pytest.mark.parametrize(
-    ("body", "reason"),
-    [
-        ({"category_id": "abc"}, "invalid"),
-        ({"category_id": True}, "invalid"),
-        ({}, "required"),
-    ],
+    ("body", "reason"), [({"name": 123}, "invalid"), ({}, "required"), (None, "required")]
 )
-def test_create_product_type_with_malformed_or_missing_category_id_is_rejected(
-    admin_client: FlaskClient,
-    db_session: Session,
-    hardware: Category,
-    body: dict[str, Any],
-    reason: str,
+def test_create_product_type_with_invalid_name_is_rejected(
+    admin_client: FlaskClient, db_session: Session, body: dict[str, Any] | None, reason: str
 ) -> None:
-    """SPEC-PTY-20 · TC-PTY-20f"""
-    response = create_type(admin_client, name="Notebook", **body)
+    """SPEC-PTY-27 · TC-PTY-27c"""
+    response = admin_client.post("/product-types", json=body)
 
     assert response.status_code == 400
-    assert response.get_json() == {
-        "error": "validation_error",
-        "fields": {"category_id": reason},
-    }
+    assert response.get_json() == {"error": "validation_error", "fields": {"name": reason}}
     assert stored_types(db_session) == []
+
+
+def test_create_product_type_stores_the_name_without_surrounding_spaces(
+    admin_client: FlaskClient, db_session: Session
+) -> None:
+    """SPEC-PTY-28 · TC-PTY-28b"""
+    response = create_type(admin_client, name="  Notebook ")
+
+    assert response.status_code == 201
+    assert response.get_json()["name"] == "Notebook"
+    assert stored_types(db_session) == [("Notebook", None)]
+
+
+def test_create_product_type_ignores_category_id(admin_client: FlaskClient) -> None:
+    """SPEC-PTY-35 · TC-PTY-35e"""
+    response = create_type(admin_client, name="Notebook", category_id="abc")
+
+    assert response.status_code == 201
+    assert response.get_json() == {"id": response.get_json()["id"], "name": "Notebook"}
 
 
 @pytest.fixture
