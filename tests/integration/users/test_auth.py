@@ -57,7 +57,7 @@ def test_session_of_an_unknown_user_counts_as_no_session(client: FlaskClient) ->
 def test_admin_route_with_client_session_is_forbidden(
     client: FlaskClient, make_user: MakeUser, login_as: LoginAs
 ) -> None:
-    """SPEC-USR-18 · TC-USR-18a"""
+    """SPEC-USR-53 · TC-USR-53d"""
     login_as(client, make_user(role="Client"))
 
     response = client.get("/test/admin-only")
@@ -68,7 +68,7 @@ def test_admin_route_with_client_session_is_forbidden(
 
 @pytest.mark.usefixtures("guarded_routes")
 def test_admin_route_with_admin_session_is_allowed(admin_client: FlaskClient) -> None:
-    """SPEC-USR-18 · TC-USR-18d"""
+    """SPEC-USR-53 · TC-USR-53e"""
     response = admin_client.get("/test/admin-only")
 
     assert response.status_code == 200

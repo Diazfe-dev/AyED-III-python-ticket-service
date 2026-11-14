@@ -17,13 +17,6 @@ NEW_USER: dict[str, Any] = {
     "password": "password1",
 }
 
-ADMIN_ONLY_ENDPOINTS = [
-    ("PATCH", "/users/1"),
-    ("POST", "/users/1/deactivate"),
-    ("GET", "/representatives"),
-]
-CLIENT_FORBIDDEN_ENDPOINTS = [*ADMIN_ONLY_ENDPOINTS, ("GET", "/clients")]
-
 
 def create_user(client: FlaskClient, **overrides: Any) -> Any:
     return client.post("/users", json=NEW_USER | overrides)
@@ -466,30 +459,35 @@ def test_user_listings_order_by_name_without_case_then_id(admin_client: FlaskCli
     assert len({user["id"] for user in first + second}) == 4
 
 
-@pytest.mark.parametrize(("method", "path"), ADMIN_ONLY_ENDPOINTS)
-def test_representative_cannot_manage_users(
-    client: FlaskClient, make_user: MakeUser, login_as: LoginAs, method: str, path: str
+@pytest.mark.parametrize("role", ["Representative", "Client"])
+@pytest.mark.parametrize(
+    ("method", "path", "body"),
+    [
+        ("PATCH", "/users/{id}", {"name": "Otro"}),
+        ("POST", "/users/{id}/deactivate", None),
+    ],
+    ids=["update", "deactivate"],
+)
+def test_only_the_admin_updates_and_deactivates_users(
+    client: FlaskClient,
+    make_user: MakeUser,
+    login_as: LoginAs,
+    db_session: Session,
+    role: str,
+    method: str,
+    path: str,
+    body: dict[str, str] | None,
 ) -> None:
-    """SPEC-USR-18 · TC-USR-18b"""
-    login_as(client, make_user(role="Representative"))
+    """SPEC-USR-53 · TC-USR-53a, TC-USR-53b"""
+    target = make_user(name="Ana")
+    login_as(client, make_user(role=role))
 
-    response = client.open(path, method=method, json=NEW_USER)
+    response = client.open(path.format(id=target.id), method=method, json=body)
 
     assert response.status_code == 403
     assert response.get_json() == {"error": "forbidden"}
-
-
-@pytest.mark.parametrize(("method", "path"), CLIENT_FORBIDDEN_ENDPOINTS)
-def test_client_cannot_manage_users(
-    client: FlaskClient, make_user: MakeUser, login_as: LoginAs, method: str, path: str
-) -> None:
-    """SPEC-USR-18 · TC-USR-18c"""
-    login_as(client, make_user(role="Client"))
-
-    response = client.open(path, method=method, json=NEW_USER)
-
-    assert response.status_code == 403
-    assert response.get_json() == {"error": "forbidden"}
+    reloaded = stored(db_session, target)
+    assert (reloaded.name, reloaded.is_active) == ("Ana", True)
 
 
 @pytest.mark.usefixtures("reference_users")
@@ -661,11 +659,10 @@ def test_activating_an_unknown_user_is_not_found(admin_client: FlaskClient, user
 @pytest.mark.parametrize(
     ("method", "path", "body"),
     [
-        ("GET", "/users", None),
         ("POST", "/users/{id}/activate", None),
         ("POST", "/users/{id}/password", {"new_password": "newpassword"}),
     ],
-    ids=["list", "activate", "password"],
+    ids=["activate", "password"],
 )
 def test_new_management_endpoints_are_admin_only(
     client: FlaskClient,
@@ -677,7 +674,7 @@ def test_new_management_endpoints_are_admin_only(
     path: str,
     body: dict[str, str] | None,
 ) -> None:
-    """SPEC-USR-18 · TC-USR-18e"""
+    """SPEC-USR-53 · TC-USR-53c"""
     target = make_user(is_active=False)
     password_hash = target.password_hash
     login_as(client, make_user(role=role))
@@ -890,3 +887,34 @@ def test_empty_body_of_a_client_is_a_400_not_a_403(
     for field in ("name", "email", "role", "password"):
         assert body["fields"][field] == "required"
     assert count_users(db_session) == before
+
+
+@pytest.mark.parametrize("role", ["Representative", "Client"])
+@pytest.mark.parametrize(
+    ("method", "path", "body"),
+    [
+        ("PATCH", "/users/9999", {"name": "Otro"}),
+        ("POST", "/users/9999/deactivate", None),
+        ("POST", "/users/9999/activate", None),
+        ("POST", "/users/9999/password", {"new_password": "newpassword"}),
+        ("PATCH", "/users/{id}", {"name": ""}),
+    ],
+    ids=["update", "deactivate", "activate", "password", "malformed-update"],
+)
+def test_non_admin_gets_forbidden_before_not_found_or_a_malformed_body(
+    client: FlaskClient,
+    make_user: MakeUser,
+    login_as: LoginAs,
+    role: str,
+    method: str,
+    path: str,
+    body: dict[str, str] | None,
+) -> None:
+    """SPEC-USR-53 · TC-USR-53f"""
+    existing = make_user(name="Ana")
+    login_as(client, make_user(role=role))
+
+    response = client.open(path.format(id=existing.id), method=method, json=body)
+
+    assert response.status_code == 403
+    assert response.get_json() == {"error": "forbidden"}
