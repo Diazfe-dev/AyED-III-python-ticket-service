@@ -90,7 +90,7 @@ PRODUCT_WRITE_ENDPOINTS = [
 
 @pytest.fixture
 def products(make_product_type: MakeProductType, make_product: MakeProduct) -> dict[str, int]:
-    """`Hardware` with the type `Notebook` and its product `XPS 13`."""
+    """The type `Notebook` and its product `XPS 13`."""
     notebook = make_product_type(name="Notebook")
     return {"type": notebook.id, "product": make_product(notebook, "XPS 13").id}
 

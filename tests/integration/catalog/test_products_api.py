@@ -6,18 +6,13 @@ from flask.testing import FlaskClient
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.domain.products import Category, Product, ProductType
-from tests.conftest import LoginAs, MakeCategory, MakeProduct, MakeProductType, MakeUser
+from app.domain.products import Product, ProductType
+from tests.conftest import LoginAs, MakeProduct, MakeProductType, MakeUser
 
 
 @pytest.fixture
-def hardware(make_category: MakeCategory) -> Category:
-    return make_category("Hardware")
-
-
-@pytest.fixture
-def notebook(hardware: Category, make_product_type: MakeProductType) -> ProductType:
-    return make_product_type(hardware, "Notebook")
+def notebook(make_product_type: MakeProductType) -> ProductType:
+    return make_product_type(name="Notebook")
 
 
 def stored_products(db_session: Session) -> list[tuple[str, int, bool]]:
@@ -33,7 +28,7 @@ def create_product(client: FlaskClient, **body: Any) -> Any:
 
 
 def test_admin_creates_a_product(
-    admin_client: FlaskClient, db_session: Session, hardware: Category, notebook: ProductType
+    admin_client: FlaskClient, db_session: Session, notebook: ProductType
 ) -> None:
     """SPEC-PRD-01 · TC-PRD-01d"""
     response = create_product(admin_client, name="XPS 13", product_type_id=notebook.id)
@@ -141,17 +136,12 @@ def test_create_product_with_malformed_or_missing_product_type_id_is_rejected(
 
 
 @pytest.fixture
-def catalog(
-    make_category: MakeCategory, make_product_type: MakeProductType, make_product: MakeProduct
-) -> dict[str, Any]:
-    """`xps 13` (Notebook), inactive `Optiplex` (Desktop) and `LaserJet` (Impresora, Oficina)."""
-    hardware, office = make_category("Hardware"), make_category("Oficina")
-    notebook = make_product_type(hardware, "Notebook")
-    desktop = make_product_type(hardware, "Desktop")
-    printer = make_product_type(office, "Impresora")
+def catalog(make_product_type: MakeProductType, make_product: MakeProduct) -> dict[str, Any]:
+    """`xps 13` (Notebook), inactive `Optiplex` (Desktop) and `LaserJet` (Impresora)."""
+    notebook = make_product_type(name="Notebook")
+    desktop = make_product_type(name="Desktop")
+    printer = make_product_type(name="Impresora")
     return {
-        "hardware": hardware,
-        "office": office,
         "notebook": notebook,
         "printer": printer,
         "products": [
@@ -280,8 +270,8 @@ def test_any_user_lists_only_the_available_products(
 
 
 @pytest.fixture
-def desktop(hardware: Category, make_product_type: MakeProductType) -> ProductType:
-    return make_product_type(hardware, "Desktop")
+def desktop(make_product_type: MakeProductType) -> ProductType:
+    return make_product_type(name="Desktop")
 
 
 @pytest.fixture
@@ -294,7 +284,6 @@ def test_admin_renames_and_moves_a_product_ignoring_other_keys(
     db_session: Session,
     xps: Product,
     desktop: ProductType,
-    hardware: Category,
 ) -> None:
     """SPEC-PRD-04 · TC-PRD-04g"""
     response = admin_client.patch(

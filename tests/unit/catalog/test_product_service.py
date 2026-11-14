@@ -10,7 +10,7 @@ from app.domain.errors import (
     ValidationError,
 )
 from app.domain.paging import Page
-from app.domain.products import Category, Product, ProductType
+from app.domain.products import Product, ProductType
 from app.services.product_service import ProductService
 from tests.unit.catalog.fakes import (
     FakeProductRepository,
@@ -25,8 +25,6 @@ class ServiceUnderTest:
     products: FakeProductRepository
     product_types: FakeProductTypeRepository
     commit: CommitSpy
-    hardware: Category
-    office: Category
     notebook: ProductType
     desktop: ProductType
     printer: ProductType
@@ -39,13 +37,12 @@ class ServiceUnderTest:
 
 @pytest.fixture
 def sut() -> ServiceUnderTest:
-    """`Hardware` with `Notebook` (id 1) and `Desktop`; `Oficina` with `Impresora`."""
+    """`Notebook` (id 1), `Desktop` and `Impresora`."""
     products, product_types = FakeProductRepository(), FakeProductTypeRepository()
     commit = CommitSpy()
-    hardware, office = Category(name="Hardware"), Category(name="Oficina")
-    notebook = ProductType(name="Notebook", category=hardware)
-    desktop = ProductType(name="Desktop", category=hardware)
-    printer = ProductType(name="Impresora", category=office)
+    notebook = ProductType(name="Notebook")
+    desktop = ProductType(name="Desktop")
+    printer = ProductType(name="Impresora")
     for product_type in (notebook, desktop, printer):
         product_types.add(product_type)
     service = ProductService(products, product_types, commit)
@@ -54,8 +51,6 @@ def sut() -> ServiceUnderTest:
         products,
         product_types,
         commit,
-        hardware,
-        office,
         notebook,
         desktop,
         printer,
