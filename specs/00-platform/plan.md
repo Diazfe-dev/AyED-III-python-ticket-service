@@ -2,6 +2,8 @@
 
 Specs cubiertas: SPEC-PLT-01 a SPEC-PLT-27 ([spec.md](spec.md)). SPEC-PLT-14 está reemplazada por SPEC-PLT-23 (2026-11-12). RNF: 1, 2, 7, 8 (rutas de la UI fuera del contrato) y 10 (paginación).
 
+> **Re-sincronización del 2026-11-13** (eliminación de las categorías, decisión 15 de la spec): esta área no cambia de comportamiento ni de código. Las referencias de abajo a `/categories/abc`, a `category_id` en `GET /products` y a SPEC-PTY-21 a 23 se leen ahora como `/product-types/abc`, `product_type_id` y SPEC-PTY-32 (listados sin paginar: SPEC-PTY-33). Solo cambia un dato de prueba: TC-PLT-15b usa `PATCH /product-types/abc` (T-PLT-25), porque `/categories/abc` daría `404` por no existir la ruta y ya no probaría el conversor `<int:...>`.
+
 > **Re-sincronización del 2026-11-12** (nueva área [07-ui](../07-ui/spec.md)): agrega la convención común de paginación opcional y de `q` vacío (SPEC-PLT-17 a 22 y 24 a 27) como helpers compartidos por los listados de 01 a 04, y rehace el test de paridad con el contrato para SPEC-PLT-23. Ver [Paginación y búsqueda](#paginación-y-búsqueda-2026-11-12) y las tasks T-PLT-17 a 24. Esta área **no** implementa `GET /` ni los archivos de la UI (son de 07-ui); solo los excluye del contrato.
 
 ## Enfoque

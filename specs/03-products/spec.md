@@ -1,6 +1,6 @@
 # 03 — Gestión de productos
 
-Origen: RF 1.3 · Relacionados: RNF 10 · Diagramas: [secuencias](../../diagrams/sequences/03-products.md), [clases](../../diagrams/classes.md)
+Origen: RF 1.3 (sin categoría desde el 2026-11-13) · Relacionados: RNF 10 · Diagramas: [secuencias](../../diagrams/sequences/03-products.md), [clases](../../diagrams/classes.md)
 
 | ID | Tipo | Especificación | Origen |
 |----|------|----------------|--------|
@@ -10,20 +10,20 @@ Origen: RF 1.3 · Relacionados: RNF 10 · Diagramas: [secuencias](../../diagrams
 | SPEC-PRD-04 | Por evento | **Cuando** un administrador modifica el nombre o el tipo de un producto, **el sistema deberá** guardar los cambios. | RF 1.3.1, RF 1.3.2 |
 | SPEC-PRD-05 | Por evento | **Cuando** un administrador da de baja un producto, **el sistema deberá** marcarlo como inactivo sin eliminarlo. | RF 1.3.1 |
 | SPEC-PRD-06 | Ubicuo | **El sistema deberá** conservar la asociación de un producto inactivo con los tickets a los que ya estaba asociado. | RF 1.3.1, RNF 5 |
-| SPEC-PRD-07 | Por evento | **Cuando** un usuario autenticado solicita el listado de productos, **el sistema deberá** devolver cada producto con su tipo, su categoría y su estado. | RF 1.3.3 |
-| SPEC-PRD-08 | Por evento | **Cuando** un usuario autenticado filtra el listado por categoría o por tipo de producto, **el sistema deberá** devolver solo los productos que coinciden. | RF 1.3.3, Diagrama de clases (`getProductsByCategory`) |
+| SPEC-PRD-07 | Por evento | **Reemplazada por SPEC-PRD-31.** **Cuando** un usuario autenticado solicita el listado de productos, **el sistema deberá** devolver cada producto con su tipo, su categoría y su estado. | RF 1.3.3 |
+| SPEC-PRD-08 | Por evento | **Reemplazada por SPEC-PRD-32.** **Cuando** un usuario autenticado filtra el listado por categoría o por tipo de producto, **el sistema deberá** devolver solo los productos que coinciden. | RF 1.3.3, Diagrama de clases (`getProductsByCategory`) |
 | SPEC-PRD-09 | No deseado | **Si** un usuario sin rol `Admin` intenta crear, modificar o dar de baja productos, **entonces el sistema deberá** denegar la operación. | RF 1.1.5, RNF 2 |
 | SPEC-PRD-10 | Por evento | **Cuando** un usuario autenticado solicita los productos disponibles para asociar a un ticket, **el sistema deberá** devolver solo los productos activos. | RF 1.3.1 |
 | SPEC-PRD-11 | No deseado | **Si** el alta o la modificación de un producto tiene un nombre vacío o que no es texto, **entonces el sistema deberá** rechazarla e indicar que el nombre es inválido. | RF 1.3.1 |
 | SPEC-PRD-12 | No deseado | **Si** la modificación de un producto indica un tipo de producto inexistente, **entonces el sistema deberá** rechazarla. | RF 1.3.2 |
 | SPEC-PRD-13 | No deseado | **Si** ya existe un producto con el mismo nombre en el mismo tipo de producto (sin distinguir mayúsculas), **entonces el sistema deberá** rechazar el alta o la modificación. | RF 1.3.1 |
 | SPEC-PRD-14 | Ubicuo | **El sistema deberá** guardar los nombres de los productos sin espacios al inicio ni al final. | RF 1.3.1 |
-| SPEC-PRD-15 | No deseado | **Si** el identificador de tipo de producto de un alta o de una modificación, o el de categoría o tipo usado como filtro del listado, no es un entero positivo, **entonces el sistema deberá** rechazar la solicitud e indicar qué campo es inválido (`400`). | RF 1.3.2, RF 1.3.3 |
-| SPEC-PRD-16 | No deseado | **Si** el listado se filtra por una categoría o un tipo de producto inexistente, **entonces el sistema deberá** responder que no existe (`404`). | RF 1.3.3 |
+| SPEC-PRD-15 | No deseado | **Reemplazada por SPEC-PRD-33.** **Si** el identificador de tipo de producto de un alta o de una modificación, o el de categoría o tipo usado como filtro del listado, no es un entero positivo, **entonces el sistema deberá** rechazar la solicitud e indicar qué campo es inválido (`400`). | RF 1.3.2, RF 1.3.3 |
+| SPEC-PRD-16 | No deseado | **Reemplazada por SPEC-PRD-34.** **Si** el listado se filtra por una categoría o un tipo de producto inexistente, **entonces el sistema deberá** responder que no existe (`404`). | RF 1.3.3 |
 | SPEC-PRD-17 | No deseado | **Si** se intenta modificar o dar de baja un producto inexistente, incluido un identificador fuera del rango que admite la base, **entonces el sistema deberá** responder que el producto no existe (`404`). | RF 1.3.1 |
 | SPEC-PRD-18 | Por evento | **Cuando** un administrador da de baja un producto que ya está inactivo, **el sistema deberá** responder con éxito sin modificarlo. | RF 1.3.1 |
 | SPEC-PRD-19 | Complejo | **Mientras** un producto está inactivo, **cuando** un administrador modifica su nombre o su tipo, **el sistema deberá** guardar los cambios y mantenerlo inactivo. | RF 1.3.1 |
-| SPEC-PRD-20 | Por evento | **Cuando** el listado se filtra a la vez por una categoría y por un tipo de producto que no pertenece a esa categoría, **el sistema deberá** devolver una lista vacía. | RF 1.3.3 |
+| SPEC-PRD-20 | Por evento | **Eliminada el 2026-11-13 (decisión 11).** **Cuando** el listado se filtra a la vez por una categoría y por un tipo de producto que no pertenece a esa categoría, **el sistema deberá** devolver una lista vacía. | RF 1.3.3 |
 | SPEC-PRD-21 | Ubicuo | **El sistema deberá** devolver los listados de productos ordenados alfabéticamente por nombre. | RF 1.3.3 |
 
 ## Reactivación, búsqueda y paginación
@@ -39,6 +39,10 @@ Origen: RF 1.3 · Relacionados: RNF 10 · Diagramas: [secuencias](../../diagrams
 | SPEC-PRD-28 | No deseado | **Si** `is_active` no es `true` ni `false`, **entonces el sistema deberá** rechazar el listado con `400` y el código `validation_error`, indicando ese parámetro como inválido. | RF 1.3.5 |
 | SPEC-PRD-29 | Opcional | **Donde** se solicita el listado de productos o el de productos disponibles con `page` o `page_size`, **el sistema deberá** paginarlo según SPEC-PLT-17 a SPEC-PLT-22. | RNF 10 |
 | SPEC-PRD-30 | Ubicuo | **El sistema deberá** ignorar en `GET /products/available` todo parámetro de consulta que no sea `q`, `page` ni `page_size`, sin rechazarlo. | RF 1.3.5 |
+| SPEC-PRD-31 | Por evento | **Cuando** un usuario autenticado solicita el listado de productos, **el sistema deberá** devolver cada producto con su tipo (el rubro) y su estado. | RF 1.3.3 |
+| SPEC-PRD-32 | Por evento | **Cuando** un usuario autenticado filtra el listado por tipo de producto, **el sistema deberá** devolver solo los productos de ese tipo. | RF 1.3.3, RF 1.3.5 |
+| SPEC-PRD-33 | No deseado | **Si** el identificador de tipo de producto de un alta o de una modificación, o el usado como filtro del listado, no es un entero positivo, **entonces el sistema deberá** rechazar la solicitud e indicar qué campo es inválido (`400`). | RF 1.3.2, RF 1.3.3 |
+| SPEC-PRD-34 | No deseado | **Si** el listado se filtra por un tipo de producto inexistente, **entonces el sistema deberá** responder que no existe (`404`). | RF 1.3.3 |
 
 ## Decisiones
 
@@ -63,3 +67,7 @@ Aprobadas el 2026-11-12 (validación de requerimientos de [07-ui](../07-ui/spec.
 
 9. **Parámetros no admitidos en los disponibles (SPEC-PRD-30)**: `GET /products/available` solo admite `q`, `page` y `page_size`; cualquier otro (por ejemplo `is_active`, `category_id`) se ignora, como hoy. No es un error, porque los disponibles son siempre activos (SPEC-PRD-10).
 10. **`q` vacío**: en SPEC-PRD-26, un `q` vacío o con solo espacios equivale a no enviar `q` (SPEC-PLT-27).
+
+Aprobadas el 2026-11-13 (eliminación de las categorías, ver [02-product-types](../02-product-types/spec.md) decisión 8):
+
+11. **Sin categoría en productos**: el profesor pidió solo producto y tipo de producto; el tipo es el rubro. Se reemplazan SPEC-PRD-07 → 31, 08 → 32, 15 → 33 y 16 → 34, y se elimina SPEC-PRD-20 (ya no hay filtro cruzado). La respuesta de un producto no trae categoría y `GET /products` solo filtra por tipo (`product_type_id`), `is_active` y `q`; un `category_id` enviado se ignora sin error, como cualquier parámetro desconocido. Las decisiones 2, 8 y 9 quedan como historial.

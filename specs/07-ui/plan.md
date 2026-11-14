@@ -1,8 +1,10 @@
 # 07 — Interfaz web · Plan de implementación
 
-Specs cubiertas: SPEC-UI-01 a SPEC-UI-138 ([spec.md](spec.md)), con las decisiones 1 a 65. RF 1.7.1 a 1.7.6. RNF: 2 (sesión por cookie, sin secretos ni identidad en el navegador, texto de la API como texto), 7 (las rutas de la UI quedan fuera del contrato, SPEC-PLT-23), 8 (front plano servido por Flask, mismo origen, sin build), 9 (pruebas de JavaScript con `node --test`, suite de Playwright y prueba de trazabilidad) y 10 (listados paginados con `page_size` 20).
+> **Re-sincronización del 2026-11-13** (decisiones 74 a 76: sin categorías en la interfaz, integrada con el rediseño del PR #29): eliminadas SPEC-UI-49, 86, 87, 88, 94, 143 y 150; reemplazadas 17 → 206, 50 → 200, 90 → 201, 91 → 202, 51 → 203, 54 → 204, 120 → 205, 144 → 207, 145 → 208, 146 → 209 y 147 → 210. Manda la sección [Sin categorías](#sin-categorías-2026-11-13) y las tasks T-UI-47 a 56. Las filas de abajo que nombran `screens/categories.js`, `#/categories`, «Categorías», `GET /categories`, `flattenProductTypes` o la columna y el filtro de categoría son historial. Los IDs nuevos van en el bloque 200 a 210 para no chocar con SPEC-UI-137 a 172 del PR #29 (G-07 resuelto, decisión 75).
 
-> **Estado**: plan derivado el 2026-11-12 de la spec validada y re-sincronizado el mismo día con la octava ronda (SPEC-UI-135 y 136, decisiones 57 a 61) y con las decisiones 62 a 65 (definición de «reemplazó», falla de conexión, instancia de pantalla y sus pruebas). No hay código del front todavía. El desglose está en [tasks.md](tasks.md) (41 tasks, T-UI-01 a T-UI-41; T-UI-40 y T-UI-41 cubren SPEC-UI-137 y 138; T-UI-39 va después de T-UI-12 en el orden de lectura) y los casos en [test-plan.md](test-plan.md) (279 casos: 15 `pytest`, 86 `node --test`, 178 Playwright). Los huecos G-01 a G-06 están **resueltos** con las decisiones del usuario (ver [Huecos y preguntas](#huecos-y-preguntas-abiertas)); no queda ninguna decisión pendiente.
+Specs cubiertas: SPEC-UI-01 a SPEC-UI-172 y 200 a 210 ([spec.md](spec.md)), con las decisiones 1 a 76, sin las eliminadas ni las reemplazadas (165 vigentes). RF 1.7.1 a 1.7.6. RNF: 2 (sesión por cookie, sin secretos ni identidad en el navegador, texto de la API como texto), 7 (las rutas de la UI quedan fuera del contrato, SPEC-PLT-23), 8 (front plano servido por Flask, mismo origen, sin build), 9 (pruebas de JavaScript con `node --test`, suite de Playwright y prueba de trazabilidad) y 10 (listados paginados con `page_size` 20 por defecto, SPEC-UI-26 y 140).
+
+> **Estado**: plan derivado el 2026-11-12 de la spec validada y re-sincronizado el mismo día con la octava ronda (SPEC-UI-135 y 136, decisiones 57 a 61) y con las decisiones 62 a 65 (definición de «reemplazó», falla de conexión, instancia de pantalla y sus pruebas). No hay código del front todavía. El desglose está en [tasks.md](tasks.md) (56 tasks, T-UI-01 a T-UI-56; T-UI-40 a 46 son del rediseño del PR #29 y T-UI-47 a 56 de la quita de categorías; T-UI-39 va después de T-UI-12 y T-UI-56 después de T-UI-51 en el orden de lectura) y los casos en [test-plan.md](test-plan.md) (ver su Resumen: 343 casos vigentes en esta rama). Los huecos G-01 a G-06 están **resueltos** con las decisiones del usuario (ver [Huecos y preguntas](#huecos-y-preguntas-abiertas)); no queda ninguna decisión pendiente.
 
 ## Enfoque
 
@@ -180,11 +182,11 @@ Convención de títulos y docstrings de esta área: `SPEC-UI-NN <english descrip
 
 Si algún job falla, el PR no se mergea (constitución, principio 4).
 
-## Tablas, diseño de pantalla y diálogos (SPEC-UI-139 a 171)
+## Tablas, diseño de pantalla y diálogos (SPEC-UI-139 a 172)
 
 - **Pantalla de listado**: `dom/layout.js` arma el encabezado (`h1` y botón principal) y una única superficie con la barra de herramientas, la tabla (`dom/table.js`) y el pie (`dom/paginator.js`: «Filas por página», rango «1–20 de 57», «Anterior» y «Siguiente»).
-- **Lógica pura** en `core/query.js`: opciones de tamaño (10, 20 y 50; 20 por defecto), página 1 al cambiar el tamaño, formato del rango, aplanado de los tipos de producto, porción en memoria (`memoryPage`, que también da la última página válida) y `sharesScreenInstance` en `core/routes.js`.
-- **Dos listados**: `createListing` (la API pagina) y `createMemoryListing` (categorías y tipos: pide el arreglo completo y lo corta en el navegador, sin pedidos al mover de página o de tamaño).
+- **Lógica pura** en `core/query.js`: opciones de tamaño (10, 20 y 50; 20 por defecto), página 1 al cambiar el tamaño, formato del rango, porción en memoria (`memoryPage`, que también da la última página válida) y `sharesScreenInstance` en `core/routes.js`.
+- **Dos listados**: `createListing` (la API pagina) y `createMemoryListing` (solo tipos de producto desde la decisión 76: pide el arreglo plano completo y lo corta en el navegador, sin pedidos al mover de página o de tamaño, SPEC-UI-207 a 210; en la versión del PR #29 también servía a categorías y aplanaba los grupos con `flattenProductTypes`, que se borra en T-UI-50).
 - **Diálogos**: `dom/dialog.js` crea un `<dialog>` dentro de `#app` (lo cubren `setInert` y el reemplazo de pantalla), lo abre con `showModal`, mueve el foco al primer campo y lo devuelve al disparador (o al botón principal, o al `h1`). `send` deshabilita los controles mientras dura el pedido, ignora la respuesta si el diálogo ya no está abierto (SPEC-UI-167) y muestra errores dentro. `app.js` cierra los diálogos al pasar a inerte (SPEC-UI-166); el cambio de pantalla los elimina (SPEC-UI-168).
 - **`#/tickets/new`**: `screens/ticket-new.js` monta `tickets-list.js` con `route: "ticket-new"`. `app.js` conserva la instancia entre las dos rutas (`continuesScreen`), llama a `setRoute` y no mueve el foco al `h1`; al cancelar el diálogo de la ruta, `replaceHash("#/tickets")`.
 
@@ -305,9 +307,44 @@ Casos de otras áreas que esta área completa: TC-PLT-23d (`GET /` existe y no e
 - (c) **`#/login` vuelto a mostrar por SPEC-UI-126 con `POST /login` pendiente** (NOTE): la decisión 58 confirma el comportamiento del plan (G-03): no se vuelve a dibujar el login, se conservan el formulario y el pedido pendiente y SPEC-UI-09 maneja su respuesta (TC-UI-126e).
 - (d) **SPEC-UI-11 probada solo de forma indirecta en Playwright** (NOTE): se mantiene la prueba indirecta de la decisión 56 (TC-UI-11b y 11c) y se suma una prueba directa sobre la máquina pura (TC-UI-11a: tras `logoutClicked`, `currentUser` es `null` y la época sube antes de que responda `POST /logout`).
 
+## Sin categorías (2026-11-13)
+
+### Cambios por pieza
+
+| Pieza | Archivo | Cambio | Specs |
+|-------|---------|--------|-------|
+| Rutas y navegación | `core/routes.js` | Se quita `#/categories` de la tabla de rutas (cae en `not_found`, «Página no encontrada», SPEC-UI-20) y «Categorías» de `navItems("Admin")`, que queda con 6 entradas | UI-206, 20 |
+| Mensajes | `core/messages.js` | Se quitan `duplicate_category`, `category_in_use` y `category_not_found` (la tabla queda con 17 códigos); `duplicate_product_type` → «Ya existe un tipo de producto con ese nombre.» | UI-56 |
+| Pantallas | `screens/categories.js` (se borra), `screens/index.js` | Se borra la pantalla y su registro | UI-206, 20 |
+| Estilos | `app/static/css/app.css` | Se borra la regla `nav a[href="#/categories"]::before` (ícono de la entrada que ya no existe) | UI-206 |
+| Tipos de producto | `screens/product-types.js` | Una sola lectura `GET /product-types` (sin `GET /categories`) con clave `product-types`; lista plana en el orden de la API, en la tabla de SPEC-UI-139 con las columnas «Nombre» y «Acciones» (sin `fieldset` ni columna «Categoría»; se borra `flattenProductTypes` de `core/query.js`); alta y edición solo con el nombre (`{"name"}`), en los diálogos de SPEC-UI-159 sin selector de categoría; «Eliminar» con `<dialog>` y recarga completa con el mismo `q`, sin cambios | UI-200, 201, 202, 204, 205, 89, 207 a 210 |
+| Productos | `screens/products.js` | Tabla `Nombre`, `Tipo`, `Estado`, `Acciones` (sin `Categoría`); sin el filtro de categoría ni `GET /categories`; el selector de tipos lee el arreglo plano de `GET /product-types` | UI-203, 95, 52, 109, 205 |
+| Paginación en memoria | `core/query.js`, `dom/listing.js` | `memoryPage` y `createMemoryListing` se conservan para `#/product-types` (la API devuelve una lista plana, sin aplanar): pedir `GET /product-types` sin `page` ni `page_size`, cortar en el navegador, sin pedidos al mover de página o de tamaño, página 1 con una búsqueda nueva y última página válida tras recargar | UI-207, 208, 209, 210 |
+| Tablas, diseño y diálogos | `dom/layout.js`, `dom/dialog.js`, `screens/*.js` | Los listados pasan a cuatro (usuarios, tipos, productos y tickets) y los diálogos a ocho: sin los de categoría; el diálogo de tipo tiene solo el nombre | UI-139, 155, 156, 157, 159, 163, 164 |
+| Pruebas | `tests/ui/e2e/support/fake-api.js` | Se quita la respuesta por defecto de `GET /categories`: desde entonces cualquier pedido a `/categories` hace fallar la prueba (guarda de que ninguna pantalla lo pide) | UI-200, 203 |
+| Trazabilidad | `tests/ui/test_traceability.py` | `spec_ids()` lee todas las filas (183 en esta rama) y separa las vigentes (165 en esta rama) de las marcadas **Eliminada** o **Reemplazada por**: SPEC-UI-121 exige cita solo de las vigentes (G-08, resuelto) | UI-121 |
+| Servidor de Playwright | `tests/ui/e2e/server.py` | La siembra crea el tipo sin categoría; lo hace T-PTY-49 de 02 (cambia la firma de `create_product_type`) | — |
+
+### Decisiones técnicas
+
+| Decisión | Motivo y alternativas descartadas |
+|----------|-----------------------------------|
+| Primero los textos (T-UI-47) y el refactor de las pruebas transversales, de tablas, de diseño y de diálogos (T-UI-48), después la quita de la ruta y la pantalla (T-UI-49) | Las pruebas de títulos, español, accesibilidad y seguridad recorren `#/categories`: si la ruta desaparece antes, quedan en rojo. Así cada task deja la suite en verde. |
+| La respuesta por defecto de `GET /categories` en `fake-api.js` se quita al final (T-UI-53) | Hasta que tipos (T-UI-50) y productos (T-UI-52) dejan de pedirla, quitarla rompería las pruebas. La regla de T-UI-15 («las tasks posteriores no editan `fake-api.js`») admite una task nueva explícita, que es esta. |
+| La prueba de trazabilidad deja de exigir citas de las specs marcadas como eliminadas o reemplazadas | Convención de AGENTS.md: los tests de una spec reemplazada se actualizan o se eliminan; si la prueba siguiera exigiendo SPEC-UI-17 o 49, habría que mantener tests de comportamiento que ya no existe. Confirmado (G-08, decisión 75). |
+| SPEC-UI-125 se lee como «la página recargada por SPEC-UI-205» | La spec nombraba SPEC-UI-120 (reemplazada); el comportamiento es el mismo. G-09 resuelto: la spec ya cita SPEC-UI-205 (decisión 75). |
+
+### Riesgos
+
+| Riesgo | Mitigación |
+|--------|------------|
+| Entre el PR de la API y el de la interfaz, `#/product-types` contra la API real pide `GET /categories` (`404`) | El CI no lo ve (API simulada). Los PR se encadenan sin liberar en el medio (ver la división en [02-product-types/tasks.md](../02-product-types/tasks.md)). |
+| `products.js` arma hoy el selector de tipos sobre la respuesta agrupada de la API real (mostraría categorías como tipos); las pruebas con API simulada usan un arreglo plano y no lo detectan | Con el listado plano de T-PTY-45 el selector queda correcto sin cambios de código; TC-UI-95a y 52a siguen en verde. Se anota como hallazgo en el PR. |
+| Conflicto con el PR #29 (mismos IDs de spec y de task, y specs nuevas sobre `#/categories`) | Resuelto al integrar: los IDs nuevos son 200 a 210 (G-07, decisión 75), las tasks propias se renumeraron a T-UI-47 a 56 y las specs 143 a 147 y 150 del PR #29 se eliminaron o reemplazaron (decisión 76). |
+
 ## Huecos y preguntas abiertas
 
-Todos los huecos están **resueltos** (2026-11-12, decisiones del usuario). No queda ninguna pregunta abierta.
+Todos los huecos de la primera versión están **resueltos** (2026-11-12, decisiones del usuario). Los de la re-sincronización del 2026-11-13 son G-07 a G-09 (al final de la tabla), también **resueltos** el 2026-11-13 por el usuario (decisión 75), y G-10, resuelto con un criterio propuesto en la decisión 76 que el usuario aún tiene que confirmar.
 
 | ID | Specs | Pregunta | Resolución | Impacto en el plan | Estado |
 |----|-------|----------|------------|--------------------|--------|
@@ -317,3 +354,7 @@ Todos los huecos están **resueltos** (2026-11-12, decisiones del usuario). No q
 | G-04 | 85, 55 | Texto de la confirmación del alta de usuario | «Usuario creado.», en la tabla «Mensajes propios de la interfaz» (decisión 59) | T-UI-05 suma el texto a `messages.js`; TC-UI-85a lo comprueba | Resuelto |
 | G-05 | 99 | «Descripción en inglés» no es verificable al pie de la letra | Título literal (sin `${...}`) en ASCII imprimible `0x20` a `0x7E`, ya escrito en SPEC-UI-99 (decisión 60) | TC-UI-99a sin cambios | Resuelto |
 | G-06 | 76, 98, 99, 121 | «Una prueba de `pytest`» de trazabilidad | Un módulo `tests/ui/test_traceability.py` con una prueba por spec (cuatro) | Ninguno | Resuelto |
+| G-07 | 200 a 210 | La rama `feat/ui-a11y-fixes` usó SPEC-UI-137 a 172 (ya integrada, PR #29), algunas sobre `#/categories`. Los IDs 137 a 143 de la primera versión de esta re-sincronización chocaban; al integrar habría IDs duplicados (TC-UI-121b exige IDs únicos). ¿Qué rama renumera? | **Opción A (2026-11-13, decisión 75)**: esta spec renumera sus nuevas al bloque 200 a 206 (17 → 206, 50 → 200, 90 → 201, 91 → 202, 51 → 203, 54 → 204 y 120 → 205; con la decisión 76, 144 → 207, 145 → 208, 146 → 209 y 147 → 210), lejos del rango de la otra rama. Descartadas: B (la rama de accesibilidad renumera) y C (integrar una y re-especificar la otra) | Desbloquea T-UI-47 a 56; los casos TC-UI-200a a 210c usan estos IDs | Resuelto |
+| G-08 | 121 | ¿La cobertura de SPEC-UI-121 («cada spec `SPEC-UI-NN` de esta área») incluye las filas marcadas **Eliminada** o **Reemplazada por**? | **No (2026-11-13, decisión 75)**: la prueba las lee y las excluye (convención de AGENTS.md). Descartado: seguir citándolas (habría que conservar tests de comportamiento eliminado) | T-UI-54 ya no está bloqueada | Resuelto |
+| G-09 | 125 | SPEC-UI-125 decía «la página recargada por SPEC-UI-120», que está reemplazada por 205; y la tabla de verificación de la spec listaba rangos (30 a 55, 77 a 95) que incluían IDs eliminados | **Corregido en la spec (2026-11-13, decisión 75)**: SPEC-UI-125 cita SPEC-UI-205 y los rangos excluyen los IDs eliminados y reemplazados (cambio de texto, sin comportamiento nuevo) | Ninguno | Resuelto |
+| G-10 | 139, 143 a 147, 150, 155 a 157, 159, 164 | El PR #29 sumó specs sobre categorías (`#/categories` paginada, encabezado, diálogos) y una que aplana los grupos de tipos por categoría. ¿Qué pasa con ellas al quitar la entidad? | **Criterio (2026-11-13, decisión 76, confirmado por el usuario)**: se eliminan las que solo son de categorías (143 y 150), se reemplazan por una spec nueva las que mezclaban categorías y tipos (144 a 147 → 207 a 210) y se editan en lugar las que solo enumeraban pantallas o IDs (139, 155, 156, 157, 159 y 164). SPEC-UI-200 y 205 conservan lo que el PR #29 agregó a 50 y 120 (tabla, `page_size`) | T-UI-48 (pruebas), T-UI-49 (pantalla), T-UI-50 (tipos) y T-UI-56 (paginación en memoria) | Resuelto (confirmado por el usuario el 2026-11-13) |

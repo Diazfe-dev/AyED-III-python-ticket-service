@@ -1,5 +1,7 @@
 # 03 — Productos · Plan de implementación
 
+> **Re-sincronización del 2026-11-13** (decisión 11 de la spec: productos sin categoría): SPEC-PRD-07, 08, 15 y 16 reemplazadas por 31, 32, 33 y 34; SPEC-PRD-20 eliminada. Manda la sección [Productos sin categoría](#productos-sin-categoría-2026-11-13) y las tasks T-PRD-41 a 46. Lo que las secciones anteriores dicen sobre `Category`, `category_id`, `CategoryRepository` en `ProductService`, el `join` de categoría y `WITH_TYPE_AND_CATEGORY` es historial.
+
 > **Re-sincronización del 2026-11-12** (nueva área [07-ui](../07-ui/spec.md)): reactivación (SPEC-PRD-22 a 25), `q`, `is_active` y paginación en los listados (SPEC-PRD-26 a 29) y parámetros ignorados en los disponibles (SPEC-PRD-30). Ver [Reactivación, búsqueda y paginación](#reactivación-búsqueda-y-paginación-2026-11-12) y las tasks T-PRD-29 a 40. Las secciones anteriores describen el diseño original; donde algo cambió (por ejemplo, la reactivación que antes figuraba fuera de alcance), manda la sección nueva. RNF 10 (listados paginables) se suma a los cubiertos.
 
 Specs cubiertas: SPEC-PRD-01 a SPEC-PRD-30 ([spec.md](spec.md); SPEC-PRD-22 a 30 desde el 2026-11-12) y SPEC-PTY-08 de [02-product-types](../02-product-types/spec.md) (decisión 4 de la spec). RNF: 2 (autenticación y permisos), 5 (conservación del historial, parcial) y 7 (API documentada). SPEC-PRD-06 se verifica completa en `04-tickets` (decisión 5 de la spec).
@@ -170,8 +172,51 @@ Sin cambios en el modelo de datos ni en `ERROR_RESPONSES` (`ProductNotFoundError
 | La subconsulta del `count` con `selectinload` y `join` de categoría cuenta filas de más | `fetch` cuenta sobre el `statement` sin `ORDER BY`; el `join` con `ProductType` es uno a uno por producto. TC-PRD-29a/29d comparan el `total` con datos conocidos y con filtro por categoría. |
 | Paginar rompe el control de N+1 del listado | TC-PRD-07c sigue en verde en T-PRD-32; las opciones de carga se aplican a la consulta de ítems. |
 
+## Productos sin categoría (2026-11-13)
+
+Specs cubiertas desde esta fecha: SPEC-PRD-01 a 06, 09 a 14, 17 a 19 y 21 a 34 (sin 07, 08, 15 y 16, reemplazadas, ni 20, eliminada).
+
+### Componentes por capa (cambios)
+
+| Capa | Archivo | Cambio | Specs |
+|------|---------|--------|-------|
+| Services | `app/services/product_service.py` | `ProductService(products, product_types, commit)` (sin `categories`); `list_products(product_type_id=None, q=None, is_active=None, page=None, page_size=None)`: formato de `product_type_id`, `is_active` y paginación juntos (`400`) → existencia del tipo (`404`) → `list_matching`. Sin `CategoryNotFoundError` ni el protocolo `CategoryRepository` | PRD-26 a 29, 31 a 34 |
+| Repositories | `app/repositories/product_repository.py` | `list_matching(product_type_id=None, is_active=None, q=None, window=None)` sin `category_id` ni `join` con la categoría; la constante `WITH_TYPE_AND_CATEGORY` pasa a `WITH_TYPE = (selectinload(Product.product_type),)`, que también usan `get_many` y el repositorio de tickets | PRD-31, 32 |
+| App | `app/wiring.py` | `get_product_service()` sin el repositorio de categorías | — |
+| Controllers | `app/controllers/catalog.py` | `GET /products` deja de leer `category_id` (se ignora); `GET /products/available` sin cambios | PRD-32, 33, 34 |
+| Controllers | `app/controllers/serializers.py` | `product_json` → `{"id", "name", "is_active", "product_type": {"id", "name"}}`; se borra `category_json` (último uso) | PRD-31 |
+| Contrato | `docs/openapi.json` | `Product` sin `category`; `GET /products` sin el parámetro `category_id` y con `404` `ProductTypeNotFound` (se borra `CategoryOrProductTypeNotFound`); descripción de `GET /products/available` sin nombrar `category_id`; se borra el esquema `Category` | RNF 7, PRD-31 a 34 |
+| Repositories (04) | `app/repositories/ticket_repository.py` | Importa `WITH_TYPE` (cambio mecánico de nombre; los tickets cargan una sentencia menos) | — |
+
+Sin cambios en el modelo de datos de `products` (nunca tuvo `category_id`).
+
+### Interfaz HTTP (cambiada)
+
+| Método y ruta | Acceso | Éxito | Errores | Specs |
+|---------------|--------|-------|---------|-------|
+| `GET /products?product_type_id&q&is_active&page&page_size` | sesión | `200` lista de `Product` o `ProductPage`; un `category_id` u otro parámetro desconocido se ignora | `400` (`product_type_id`, `is_active`, `page`, `page_size`, juntos), `401`, `404` `product_type_not_found` | PRD-21, 26 a 29, 31 a 34 |
+| Toda respuesta con un `Product` (`POST`, `PATCH`, baja, reactivación, listados y los productos de un ticket en 04) | — | `{"id", "name", "is_active", "product_type": {"id", "name"}}` | — | PRD-31 |
+
+### Decisiones técnicas
+
+| Decisión | Motivo y alternativas descartadas |
+|----------|-----------------------------------|
+| Orden: contrato (T-PRD-41) → serialización y controller (T-PRD-42) → service (T-PRD-43) → repositorio (T-PRD-44) → datos de prueba (T-PRD-45) | De afuera hacia adentro: cuando el controller deja de pasar `category_id` y de serializar la categoría, el parámetro del service y el `join` del repositorio quedan sin uso y se quitan sin romper nada. T-PRD-43 es una quita sin fase roja propia; T-PRD-44 tiene la suya (TC-PRD-31c con una sentencia menos). |
+| Un `category_id` en `GET /products` se ignora (`200` sin filtrar), no `400` | Decisión 11 de la spec. El controller no lo lee, igual que SPEC-PRD-30 en los disponibles. TC-PRD-32d. |
+| `WITH_TYPE` reemplaza a `WITH_TYPE_AND_CATEGORY` en el mismo ciclo que el repositorio, y `ticket_repository.py` solo cambia el import | La constante es de este repositorio; el cambio en 04 es mecánico y no cambia comportamiento. El ajuste de los conteos de sentencias de 04 (6 → 5) va en T-TKT-53. |
+| Los casos de las specs reemplazadas se re-trazan con IDs nuevos (TC-PRD-31a a 34c) y los de SPEC-PRD-20 y las partes de categoría se borran | Convención de AGENTS.md. Los IDs viejos quedan en la tabla de casos retirados del [test-plan](test-plan.md). |
+
+### Riesgos
+
+| Riesgo | Mitigación |
+|--------|------------|
+| `product_json` sin categoría cambia el cuerpo de los tickets (04) y los asserts de cuerpo completo fallan | T-PRD-42 ajusta en el mismo ciclo los asserts de TC-TKT-28c en `tests/integration/tickets/test_tickets_api.py` (cambio de 03, no de la spec de 04). |
+| El `count` de la paginación o el control de N+1 cambian al quitar el `join` | TC-PRD-29a, 29d, 29e y 31c siguen en verde en T-PRD-44. |
+| La interfaz arma la tabla de productos con `product.category.name` y falla con la respuesta nueva | T-UI-52 (07) quita la columna, en el PR de la interfaz. |
+
 ## Dependencias con otras áreas
 
+- **Desde el 2026-11-13**: T-PRD-41 sigue a T-PTY-43 en la cadena de `docs/openapi.json`; T-PRD-42 sigue a T-PTY-46 en `app/controllers/serializers.py`; T-PRD-45 necesita `make_product_type(category=None, name=None)` (T-PTY-48). La limpieza final de 02 (T-PTY-52) espera a T-PRD-45. T-TKT-53 (04) espera a T-PRD-44 (`WITH_TYPE`) y a T-PRD-45 (comparten `tests/integration/catalog/test_product_repository.py`).
 - Desde el 2026-11-12 usa de `00-platform` `page_request`, `search_text`, `fetch`, `listing_json` y los parámetros `Q`, `Page` y `PageSize` del contrato; de `01-users`, `bool_query_error`/`parse_bool_query` y el parámetro `IsActive`. `07-ui` usa la reactivación y los filtros.
 - Usa de `00-platform`: `create_app`, `get_session()`, `Base`, `create_schema`, `fits_integer_column`, el contrato `docs/openapi.json` y su test de sincronización (SPEC-PLT-14).
 - Usa de `01-users`: `login_required`, `admin_required`, `ERROR_RESPONSES`, `json_body()`, `ValidationError(fields)`, los fixtures `schema`, `db_session`, `make_user`, `login_as` y `admin_client`, `CommitSpy` y el test de guarda TC-USR-16d, que cubre los 5 endpoints nuevos sin cambios.

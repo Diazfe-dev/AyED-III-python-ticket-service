@@ -1,52 +1,65 @@
-# 02 — Gestión de tipos de producto y rubros
+# 02 — Gestión de tipos de producto
 
-Origen: RF 1.2 (RF 1.2.4 para la búsqueda) · Diagramas: [secuencias](../../diagrams/sequences/02-product-types.md), [clases](../../diagrams/classes.md)
+Origen: RF 1.2 (RF 1.2.3 eliminado; RF 1.2.4 para la búsqueda) · Diagramas: [secuencias](../../diagrams/sequences/02-product-types.md), [clases](../../diagrams/classes.md)
 
-Jerarquía de clasificación: `Category` (rubro) → `ProductType` → `Product`.
+Jerarquía de clasificación: `ProductType` (el tipo de producto es el rubro) → `Product`. Desde el 2026-11-13 no existe `Category` (decisión 8).
 
-## Categorías (rubros)
+## Categorías (eliminadas)
+
+Specs de la entidad `Category`, eliminada el 2026-11-13. Se conservan marcadas para no reutilizar los IDs.
 
 | ID | Tipo | Especificación | Origen |
 |----|------|----------------|--------|
-| SPEC-PTY-01 | Por evento | **Cuando** un administrador crea una categoría con un nombre, **el sistema deberá** registrarla. | RF 1.2.3, Seq. tipos §1 |
-| SPEC-PTY-02 | No deseado | **Si** ya existe una categoría con el mismo nombre (sin distinguir mayúsculas), **entonces el sistema deberá** rechazar la creación o la modificación. | RF 1.2.3 |
-| SPEC-PTY-12 | Por evento | **Cuando** un administrador modifica el nombre de una categoría, **el sistema deberá** guardar el cambio. | RF 1.2.3 |
-| SPEC-PTY-13 | Por evento | **Cuando** un administrador da de baja una categoría sin tipos de producto asociados, **el sistema deberá** eliminarla. | RF 1.2.3 |
-| SPEC-PTY-14 | No deseado | **Si** un administrador intenta dar de baja una categoría que tiene tipos de producto asociados, **entonces el sistema deberá** rechazar la baja e informar el motivo. | RF 1.2.3 |
-| SPEC-PTY-15 | No deseado | **Si** el alta o la modificación de una categoría o de un tipo de producto tiene un nombre vacío o que no es texto, **entonces el sistema deberá** rechazarla e indicar que el nombre es inválido. | RF 1.2.1, RF 1.2.3 |
-| SPEC-PTY-19 | Ubicuo | **El sistema deberá** guardar los nombres de categorías y tipos de producto sin espacios al inicio ni al final. | RF 1.2.1, RF 1.2.3 |
-| SPEC-PTY-20 | No deseado | **Si** el identificador de categoría de un alta, de una modificación o de un listado de tipos no es un entero positivo, **entonces el sistema deberá** rechazar la solicitud e indicar que la categoría es inválida (`400`). | RF 1.2.1, RF 1.2.2 |
+| SPEC-PTY-01 | Por evento | **Eliminada el 2026-11-13 (decisión 8).** **Cuando** un administrador crea una categoría con un nombre, **el sistema deberá** registrarla. | RF 1.2.3, Seq. tipos §1 |
+| SPEC-PTY-02 | No deseado | **Eliminada el 2026-11-13 (decisión 8).** **Si** ya existe una categoría con el mismo nombre (sin distinguir mayúsculas), **entonces el sistema deberá** rechazar la creación o la modificación. | RF 1.2.3 |
+| SPEC-PTY-12 | Por evento | **Eliminada el 2026-11-13 (decisión 8).** **Cuando** un administrador modifica el nombre de una categoría, **el sistema deberá** guardar el cambio. | RF 1.2.3 |
+| SPEC-PTY-13 | Por evento | **Eliminada el 2026-11-13 (decisión 8).** **Cuando** un administrador da de baja una categoría sin tipos de producto asociados, **el sistema deberá** eliminarla. | RF 1.2.3 |
+| SPEC-PTY-14 | No deseado | **Eliminada el 2026-11-13 (decisión 8).** **Si** un administrador intenta dar de baja una categoría que tiene tipos de producto asociados, **entonces el sistema deberá** rechazar la baja e informar el motivo. | RF 1.2.3 |
+| SPEC-PTY-15 | No deseado | **Reemplazada por SPEC-PTY-27.** **Si** el alta o la modificación de una categoría o de un tipo de producto tiene un nombre vacío o que no es texto, **entonces el sistema deberá** rechazarla e indicar que el nombre es inválido. | RF 1.2.1, RF 1.2.3 |
+| SPEC-PTY-19 | Ubicuo | **Reemplazada por SPEC-PTY-28.** **El sistema deberá** guardar los nombres de categorías y tipos de producto sin espacios al inicio ni al final. | RF 1.2.1, RF 1.2.3 |
+| SPEC-PTY-20 | No deseado | **Eliminada el 2026-11-13 (decisión 8).** **Si** el identificador de categoría de un alta, de una modificación o de un listado de tipos no es un entero positivo, **entonces el sistema deberá** rechazar la solicitud e indicar que la categoría es inválida (`400`). | RF 1.2.1, RF 1.2.2 |
 
 ## Tipos de producto
 
 | ID | Tipo | Especificación | Origen |
 |----|------|----------------|--------|
-| SPEC-PTY-03 | Por evento | **Cuando** un administrador crea un tipo de producto con nombre y categoría, **el sistema deberá** registrarlo asociado a esa categoría. | RF 1.2.1 |
-| SPEC-PTY-04 | No deseado | **Si** la categoría indicada no existe, **entonces el sistema deberá** rechazar la creación del tipo de producto. | RF 1.2.1 |
-| SPEC-PTY-05 | No deseado | **Si** ya existe un tipo de producto con el mismo nombre en la misma categoría (sin distinguir mayúsculas), **entonces el sistema deberá** rechazar la creación. | RF 1.2.1 |
-| SPEC-PTY-06 | Por evento | **Cuando** un administrador modifica el nombre o la categoría de un tipo de producto, **el sistema deberá** guardar los cambios. | RF 1.2.1 |
+| SPEC-PTY-03 | Por evento | **Reemplazada por SPEC-PTY-25.** **Cuando** un administrador crea un tipo de producto con nombre y categoría, **el sistema deberá** registrarlo asociado a esa categoría. | RF 1.2.1 |
+| SPEC-PTY-04 | No deseado | **Eliminada el 2026-11-13 (decisión 8).** **Si** la categoría indicada no existe, **entonces el sistema deberá** rechazar la creación del tipo de producto. | RF 1.2.1 |
+| SPEC-PTY-05 | No deseado | **Reemplazada por SPEC-PTY-26.** **Si** ya existe un tipo de producto con el mismo nombre en la misma categoría (sin distinguir mayúsculas), **entonces el sistema deberá** rechazar la creación. | RF 1.2.1 |
+| SPEC-PTY-06 | Por evento | **Reemplazada por SPEC-PTY-29.** **Cuando** un administrador modifica el nombre o la categoría de un tipo de producto, **el sistema deberá** guardar los cambios. | RF 1.2.1 |
 | SPEC-PTY-07 | Por evento | **Cuando** un administrador da de baja un tipo de producto sin productos asociados (activos o inactivos), **el sistema deberá** eliminarlo. | RF 1.2.1 |
 | SPEC-PTY-08 | No deseado | **Si** un administrador intenta dar de baja un tipo de producto que tiene productos asociados, **entonces el sistema deberá** rechazar la baja e informar el motivo. | RF 1.2.1 |
-| SPEC-PTY-16 | No deseado | **Si** la modificación de un tipo de producto indica una categoría inexistente o un nombre que ya existe en la categoría de destino (sin distinguir mayúsculas), **entonces el sistema deberá** rechazarla. | RF 1.2.1 |
+| SPEC-PTY-16 | No deseado | **Reemplazada por SPEC-PTY-30.** **Si** la modificación de un tipo de producto indica una categoría inexistente o un nombre que ya existe en la categoría de destino (sin distinguir mayúsculas), **entonces el sistema deberá** rechazarla. | RF 1.2.1 |
+| SPEC-PTY-25 | Por evento | **Cuando** un administrador crea un tipo de producto con un nombre, **el sistema deberá** registrarlo. | RF 1.2.1 |
+| SPEC-PTY-26 | No deseado | **Si** ya existe un tipo de producto con el mismo nombre (sin distinguir mayúsculas), **entonces el sistema deberá** rechazar la creación. | RF 1.2.1 |
+| SPEC-PTY-29 | Por evento | **Cuando** un administrador modifica el nombre de un tipo de producto, **el sistema deberá** guardar el cambio. | RF 1.2.1 |
+| SPEC-PTY-30 | No deseado | **Si** la modificación de un tipo de producto indica un nombre que ya existe en otro tipo (sin distinguir mayúsculas), **entonces el sistema deberá** rechazarla. | RF 1.2.1 |
+| SPEC-PTY-27 | No deseado | **Si** el alta o la modificación de un tipo de producto tiene un nombre vacío o que no es texto, **entonces el sistema deberá** rechazarla e indicar que el nombre es inválido. | RF 1.2.1 |
+| SPEC-PTY-28 | Ubicuo | **El sistema deberá** guardar los nombres de tipos de producto sin espacios al inicio ni al final. | RF 1.2.1 |
 
 ## Listados y permisos
 
 | ID | Tipo | Especificación | Origen |
 |----|------|----------------|--------|
 | SPEC-PTY-09 | Por evento | **Reemplazada por SPEC-PTY-22.** **Cuando** un usuario autenticado solicita el listado de tipos de producto, **el sistema deberá** devolverlos agrupados por categoría, incluidas las categorías sin tipos. | RF 1.2.2 |
-| SPEC-PTY-10 | Por evento | **Cuando** un usuario autenticado solicita los tipos de producto de una categoría, **el sistema deberá** devolver solo los de esa categoría. | RF 1.2.2 |
-| SPEC-PTY-17 | Por evento | **Cuando** un usuario autenticado solicita el listado de categorías, **el sistema deberá** devolver todas las categorías ordenadas por nombre. | RF 1.2.3 |
-| SPEC-PTY-18 | No deseado | **Si** se solicitan los tipos de producto de una categoría inexistente, **entonces el sistema deberá** responder que la categoría no existe (`404`). | RF 1.2.2 |
-| SPEC-PTY-11 | No deseado | **Si** un usuario sin rol `Admin` intenta crear, modificar o dar de baja categorías o tipos de producto, **entonces el sistema deberá** denegar la operación. | RF 1.1.5, RNF 2 |
+| SPEC-PTY-10 | Por evento | **Eliminada el 2026-11-13 (decisión 8).** **Cuando** un usuario autenticado solicita los tipos de producto de una categoría, **el sistema deberá** devolver solo los de esa categoría. | RF 1.2.2 |
+| SPEC-PTY-17 | Por evento | **Eliminada el 2026-11-13 (decisión 8).** **Cuando** un usuario autenticado solicita el listado de categorías, **el sistema deberá** devolver todas las categorías ordenadas por nombre. | RF 1.2.3 |
+| SPEC-PTY-18 | No deseado | **Eliminada el 2026-11-13 (decisión 8).** **Si** se solicitan los tipos de producto de una categoría inexistente, **entonces el sistema deberá** responder que la categoría no existe (`404`). | RF 1.2.2 |
+| SPEC-PTY-11 | No deseado | **Reemplazada por SPEC-PTY-34.** **Si** un usuario sin rol `Admin` intenta crear, modificar o dar de baja categorías o tipos de producto, **entonces el sistema deberá** denegar la operación. | RF 1.1.5, RNF 2 |
+| SPEC-PTY-34 | No deseado | **Si** un usuario sin rol `Admin` intenta crear, modificar o dar de baja tipos de producto, **entonces el sistema deberá** denegar la operación. | RF 1.1.5, RNF 2 |
 
 ## Búsqueda por nombre
 
 | ID | Tipo | Especificación | Origen |
 |----|------|----------------|--------|
-| SPEC-PTY-21 | Por evento | **Cuando** un usuario autenticado envía `q` en el listado de categorías, **el sistema deberá** devolver solo las categorías cuyo nombre contiene ese texto, sin distinguir mayúsculas y ordenadas por nombre. | RF 1.2.4, RF 1.2.3 |
-| SPEC-PTY-22 | Por evento | **Cuando** un usuario autenticado solicita el listado de tipos de producto sin `q`, **el sistema deberá** devolverlos agrupados por categoría, incluidas las categorías sin tipos. | RF 1.2.2 |
-| SPEC-PTY-23 | Por evento | **Cuando** un usuario autenticado envía `q` en el listado de tipos de producto, con o sin filtro de categoría, **el sistema deberá** devolver solo los tipos cuyo nombre contiene ese texto, sin distinguir mayúsculas, agrupados por categoría y sin las categorías que no tienen coincidencias. | RF 1.2.4, RF 1.2.2 |
-| SPEC-PTY-24 | Ubicuo | **El sistema deberá** responder `GET /categories` y `GET /product-types` sin paginar, ignorando `page` y `page_size` y conservando el filtro `q`. | RF 1.2.2, RF 1.2.3, RF 1.2.4, RNF 10 |
+| SPEC-PTY-21 | Por evento | **Eliminada el 2026-11-13 (decisión 8).** **Cuando** un usuario autenticado envía `q` en el listado de categorías, **el sistema deberá** devolver solo las categorías cuyo nombre contiene ese texto, sin distinguir mayúsculas y ordenadas por nombre. | RF 1.2.4, RF 1.2.3 |
+| SPEC-PTY-22 | Por evento | **Reemplazada por SPEC-PTY-31.** **Cuando** un usuario autenticado solicita el listado de tipos de producto sin `q`, **el sistema deberá** devolverlos agrupados por categoría, incluidas las categorías sin tipos. | RF 1.2.2 |
+| SPEC-PTY-23 | Por evento | **Reemplazada por SPEC-PTY-32.** **Cuando** un usuario autenticado envía `q` en el listado de tipos de producto, con o sin filtro de categoría, **el sistema deberá** devolver solo los tipos cuyo nombre contiene ese texto, sin distinguir mayúsculas, agrupados por categoría y sin las categorías que no tienen coincidencias. | RF 1.2.4, RF 1.2.2 |
+| SPEC-PTY-24 | Ubicuo | **Reemplazada por SPEC-PTY-33.** **El sistema deberá** responder `GET /categories` y `GET /product-types` sin paginar, ignorando `page` y `page_size` y conservando el filtro `q`. | RF 1.2.2, RF 1.2.3, RF 1.2.4, RNF 10 |
+| SPEC-PTY-31 | Por evento | **Cuando** un usuario autenticado solicita el listado de tipos de producto sin `q`, **el sistema deberá** devolverlos en una lista plana, sin agrupar, ordenados por nombre. | RF 1.2.2 |
+| SPEC-PTY-32 | Por evento | **Cuando** un usuario autenticado envía `q` en el listado de tipos de producto, **el sistema deberá** devolver, en una lista plana ordenada por nombre, solo los tipos cuyo nombre contiene ese texto, sin distinguir mayúsculas. | RF 1.2.4, RF 1.2.2 |
+| SPEC-PTY-33 | Ubicuo | **El sistema deberá** responder `GET /product-types` sin paginar, ignorando `page` y `page_size` y conservando el filtro `q`. | RF 1.2.2, RF 1.2.4, RNF 10 |
+| SPEC-PTY-35 | Ubicuo | **El sistema no deberá** exponer rutas ni campos de categoría: `/categories` no existe y los tipos de producto no tienen `category_id`. | RF 1.2.3 (eliminado) |
 
 ## Decisiones
 
@@ -68,3 +81,11 @@ Aprobadas el 2026-11-12 (validación de requerimientos de [07-ui](../07-ui/spec.
 
 6. **Sin paginación (SPEC-PTY-24)**: decisión del usuario. Se le ofreció paginar categorías y tipos de producto y eligió no hacerlo: son listados cortos. `GET /categories` y `GET /product-types` ignoran `page` y `page_size` (no responden `400` ni el objeto `{items, ...}`) y siguen aceptando `q`. Es lo que ya decía la decisión 5; ahora tiene spec propia.
 7. **`q` vacío**: en SPEC-PTY-21 a 23, un `q` vacío o con solo espacios equivale a no enviar `q` (SPEC-PLT-27).
+
+Aprobada el 2026-11-13 (eliminación de las categorías):
+
+8. **Se elimina la entidad `Category`**: el pedido del profesor fue «agregar al ticket el producto y el tipo de producto, dado que va a comenzar a especializar los técnicos por Rubro: línea blanca, cocina, electro, pequeños electrodomésticos». Solo pidió producto y tipo de producto; el rubro **es** el tipo de producto. La entidad `Category` era una sobreinterpretación nuestra. Se eliminan RF 1.2.3 y las specs SPEC-PTY-01, 02, 04, 10, 12, 13, 14, 17, 18, 20 y 21 (sin reemplazo). Se reemplazan SPEC-PTY-03 → 25, 05 → 26, 06 → 29, 11 → 34, 15 → 27, 16 → 30, 19 → 28, 22 → 31, 23 → 32 y 24 → 33. Se agrega SPEC-PTY-35. IDs de las eliminadas y reemplazadas no se reutilizan.
+9. **Unicidad global (SPEC-PTY-26 y 30)**: el nombre de un tipo es único en todo el sistema, sin distinguir mayúsculas (antes, dentro de su categoría).
+10. **Listado plano (SPEC-PTY-31 a 33)**: `GET /product-types` devuelve un arreglo plano ordenado por nombre, con `q` opcional; sin paginar, como antes. No hay filtro por categoría: un `category_id` enviado se ignora sin error, igual que cualquier parámetro desconocido. `GET /categories` y toda ruta `/categories` dejan de existir (`404`).
+11. La baja de un tipo con productos sigue rechazada (SPEC-PTY-08); la de uno sin productos sigue eliminándolo (SPEC-PTY-07).
+12. **SPEC-PTY-26 solo cubre la creación (G-10)**, 2026-11-13, resuelto por el usuario: el duplicado en la modificación es SPEC-PTY-30, así que SPEC-PTY-26 ya no dice «o la modificación». La unicidad global de la decisión 9 sigue valiendo para ambas. En el plan de pruebas los casos de alta trazan a 26 y los de modificación a 30; sin cambio de comportamiento.
