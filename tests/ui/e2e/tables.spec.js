@@ -31,6 +31,7 @@ const SERVER_PAGED = [
 const IN_MEMORY = [
   { name: "product types", hash: "#/product-types", path: "/product-types", table: "Tipos de producto" },
 ];
+const TYPES = IN_MEMORY[0];
 
 const pathOf = (record) => new URL(record.url).pathname;
 const calls = (api, path) =>
@@ -206,53 +207,103 @@ test("SPEC-UI-142 shows 0 de 0 for an empty listing (TC-UI-142d)", async ({ page
   await expect(footer(page)).toContainText("0 de 0");
 });
 
-test("SPEC-UI-144 paginates the flat product type list like the categories (TC-UI-144c)", async ({
+test("SPEC-UI-207 asks for the full product types without paging and slices them in the browser (TC-UI-207b)", async ({
   page,
 }) => {
-  await openMemory(page, IN_MEMORY[0], 45);
+  const api = await openMemory(page, TYPES, 45);
+  expect(new URL(calls(api, "/product-types")[0].url).search).toBe("");
   await expect(bodyRows(page)).toHaveCount(20);
   await expect(footer(page)).toContainText("1–20 de 45");
+  await expect(footer(page).getByRole("button", { name: "Anterior" })).toBeDisabled();
+  await footer(page).getByRole("button", { name: "Siguiente" }).click();
+  await footer(page).getByRole("button", { name: "Siguiente" }).click();
+  await expect(bodyRows(page)).toHaveCount(5);
+  await expect(footer(page)).toContainText("41–45 de 45");
+  await expect(footer(page).getByRole("button", { name: "Siguiente" })).toBeDisabled();
 });
 
-test("SPEC-UI-145 moves between pages and sizes without any request to the API (TC-UI-145a)", async ({
+test("SPEC-UI-207 shows the product types as a flat list without a category column (TC-UI-207c)", async ({
   page,
 }) => {
-  for (const screen of IN_MEMORY) {
-    const api = await openMemory(page, screen, 45);
-    await expect(bodyRows(page)).toHaveCount(20);
-    const sent = api.requests.length;
-    await footer(page).getByRole("button", { name: "Siguiente" }).click();
-    await expect(footer(page)).toContainText("21–40 de 45");
-    await footer(page).getByRole("button", { name: "Anterior" }).click();
-    await expect(footer(page)).toContainText("1–20 de 45");
-    await footer(page).getByRole("button", { name: "Siguiente" }).click();
-    await sizeSelect(page).selectOption("10");
-    await expect(footer(page)).toContainText("1–10 de 45");
-    await expect(bodyRows(page)).toHaveCount(10);
-    await sizeSelect(page).selectOption("50");
-    await expect(footer(page)).toContainText("1–45 de 45");
-    await expect(bodyRows(page)).toHaveCount(45);
-    expect(api.requests.length, screen.name).toBe(sent);
-  }
+  await openMemory(page, TYPES, 5);
+  const table = page.getByRole("table", { name: "Tipos de producto", exact: true });
+  await expect(table.locator("thead th")).toHaveText(["Nombre", "Acciones"]);
+  await expect(bodyRows(page)).toHaveCount(5);
+  const names = await bodyRows(page).evaluateAll((nodes) =>
+    nodes.map((n) => n.querySelector("td").textContent),
+  );
+  expect(names).toEqual(["Tipo 001", "Tipo 002", "Tipo 003", "Tipo 004", "Tipo 005"]);
+  await expect(page.locator("fieldset")).toHaveCount(0);
 });
 
-test("SPEC-UI-146 shows page 1 of the API result when a new search text is entered (TC-UI-146a)", async ({
+test("SPEC-UI-208 moves between pages and sizes without any request to the API (TC-UI-208b)", async ({
   page,
 }) => {
-  for (const screen of IN_MEMORY) {
-    const api = await openMemory(page, screen, 45);
-    await footer(page).getByRole("button", { name: "Siguiente" }).click();
-    await sizeSelect(page).selectOption("10");
-    await footer(page).getByRole("button", { name: "Siguiente" }).click();
-    await expect(footer(page)).toContainText("11–20 de 45");
-    const found = typesOf(15);
-    api.on("GET", `${screen.path}?q=00`, { status: 200, body: found });
-    await page.getByLabel("Buscar", { exact: true }).fill("00");
-    await page.getByRole("button", { name: "Buscar", exact: true }).click();
-    await expect(footer(page)).toContainText("1–10 de 15");
-    expect(new URL(calls(api, screen.path).at(-1).url).search).toBe("?q=00");
-    await expect(sizeSelect(page)).toHaveValue("10");
-  }
+  const api = await openMemory(page, TYPES, 45);
+  await expect(bodyRows(page)).toHaveCount(20);
+  const sent = api.requests.length;
+  await footer(page).getByRole("button", { name: "Siguiente" }).click();
+  await expect(footer(page)).toContainText("21–40 de 45");
+  await footer(page).getByRole("button", { name: "Anterior" }).click();
+  await expect(footer(page)).toContainText("1–20 de 45");
+  await footer(page).getByRole("button", { name: "Siguiente" }).click();
+  await sizeSelect(page).selectOption("10");
+  await expect(footer(page)).toContainText("1–10 de 45");
+  await expect(bodyRows(page)).toHaveCount(10);
+  await sizeSelect(page).selectOption("50");
+  await expect(footer(page)).toContainText("1–45 de 45");
+  await expect(bodyRows(page)).toHaveCount(45);
+  expect(api.requests.length).toBe(sent);
+});
+
+test("SPEC-UI-209 shows page 1 of the API result when a new search text is entered (TC-UI-209b)", async ({
+  page,
+}) => {
+  const api = await openMemory(page, TYPES, 45);
+  await footer(page).getByRole("button", { name: "Siguiente" }).click();
+  await sizeSelect(page).selectOption("10");
+  await footer(page).getByRole("button", { name: "Siguiente" }).click();
+  await expect(footer(page)).toContainText("11–20 de 45");
+  api.on("GET", "/product-types?q=00", { status: 200, body: typesOf(15) });
+  await page.getByLabel("Buscar", { exact: true }).fill("00");
+  await page.getByRole("button", { name: "Buscar", exact: true }).click();
+  await expect(footer(page)).toContainText("1–10 de 15");
+  expect(new URL(calls(api, "/product-types").at(-1).url).search).toBe("?q=00");
+  await expect(sizeSelect(page)).toHaveValue("10");
+});
+
+test("SPEC-UI-210 shows the last valid page after a reload leaves the page out of range (TC-UI-210b)", async ({
+  page,
+}) => {
+  const api = await openMemory(page, TYPES, 21);
+  api.on("DELETE", "/product-types/21", { status: 204 });
+  await footer(page).getByRole("button", { name: "Siguiente" }).click();
+  await expect(footer(page)).toContainText("21–21 de 21");
+  api.on("GET", /^\/product-types(\?|$)/, { status: 200, body: typesOf(20) });
+  const before = calls(api, "/product-types").length;
+  await page.getByRole("button", { name: "Eliminar Tipo 021" }).click();
+  await page.getByRole("dialog").getByRole("button", { name: "Confirmar" }).click();
+  await expect(footer(page)).toContainText("1–20 de 20");
+  await expect(bodyRows(page)).toHaveCount(20);
+  expect(calls(api, "/product-types")).toHaveLength(before + 1);
+});
+
+test("SPEC-UI-210 keeps the page and the size when the reloaded list still reaches them (TC-UI-210c)", async ({
+  page,
+}) => {
+  const api = await openMemory(page, TYPES, 45);
+  api.on("DELETE", "/product-types/25", { status: 204 });
+  await sizeSelect(page).selectOption("10");
+  await footer(page).getByRole("button", { name: "Siguiente" }).click();
+  await footer(page).getByRole("button", { name: "Siguiente" }).click();
+  await expect(footer(page)).toContainText("21–30 de 45");
+  api.on("GET", /^\/product-types(\?|$)/, { status: 200, body: typesOf(45).slice(1) });
+  const before = calls(api, "/product-types").length;
+  await page.getByRole("button", { name: "Eliminar Tipo 025" }).click();
+  await page.getByRole("dialog").getByRole("button", { name: "Confirmar" }).click();
+  await expect(footer(page)).toContainText("21–30 de 44");
+  await expect(sizeSelect(page)).toHaveValue("10");
+  expect(calls(api, "/product-types")).toHaveLength(before + 1);
 });
 
 test("SPEC-UI-26 requests the chosen page_size and keeps it in later pages (TC-UI-26f)", async ({
