@@ -2,51 +2,59 @@
 
 Spec: [specs/03-products/spec.md](../../specs/03-products/spec.md)
 
-En todos los flujos de escritura, si `current_user` no es `Admin`, `admin_required` responde 403 antes de llegar al controller (SPEC-PRD-09). Sin sesión, todas las rutas responden 401. El controller arma el service con `get_product_service()` de `app/wiring.py` y traduce cada `DomainError` con `ERROR_RESPONSES`.
+`POST /products` usa `login_required` y pasa `actor` al service: un `Admin` o un `Representative` lo ejecutan y un `Client` recibe 403 después del 400 de formato y antes del 404 y del 409 (SPEC-PRD-35, 37). `PATCH`, la baja y la reactivación usan `admin_required`: todo no-`Admin` recibe 403 antes de buscar el producto y de leer el cuerpo (SPEC-PRD-36, 37). Sin sesión, todas las rutas responden 401. El controller arma el service con `get_product_service()` de `app/wiring.py` y traduce cada `DomainError` con `ERROR_RESPONSES`.
 
 ## 1. Alta y modificación de producto
 
-Specs: SPEC-PRD-01, 02, 03, 04, 09, 11, 12, 13, 14, 17, 19, 33
+Specs: SPEC-PRD-01, 02, 03, 04, 11, 12, 13, 14, 17, 19, 33, 35, 36, 37
 
 ```mermaid
 sequenceDiagram
     autonumber
-    actor Admin
+    actor U as Admin, Representative o Client
     participant PC as CatalogController
     participant PS as ProductService
     participant TR as ProductTypeRepository
     participant PR as ProductRepository
 
-    Admin->>PC: POST /products (name, product_type_id)
-    alt current_user no es Admin
-        PC-->>Admin: 403 forbidden (SPEC-PRD-09)
-    else current_user es Admin
-        PC->>PS: create_product(name, product_type_id)
+    U->>PC: POST /products (name, product_type_id)
+    alt sin sesión
+        PC-->>U: 401 authentication_required
+    else con sesión (login_required)
+        PC->>PS: create_product(name, product_type_id, actor=current_user)
         alt nombre o product_type_id inválidos, se informan juntos
             PS-->>PC: raise ValidationError(fields)
-            PC-->>Admin: 400 validation_error (SPEC-PRD-03, 11, 33)
+            PC-->>U: 400 validation_error, antes del 403 (SPEC-PRD-03, 11, 33, 35, 37)
         else campos válidos
-            PS->>TR: get(product_type_id)
-            TR-->>PS: ProductType o None
-            alt el tipo no existe o el id no entra en INTEGER
-                PS-->>PC: raise ProductTypeNotFoundError
-                PC-->>Admin: 404 product_type_not_found (SPEC-PRD-02)
-            else el tipo existe
-                PS->>PR: find_by_name_in_type(name, product_type_id)
-                alt el nombre ya existe en el tipo, sin distinguir mayúsculas
-                    PS-->>PC: raise DuplicateProductError
-                    PC-->>Admin: 409 duplicate_product (SPEC-PRD-13)
-                else nombre libre
-                    PS->>PR: add(Product(name, product_type, is_active=True)) con flush
-                    Note over PR: el nombre se guarda recortado (SPEC-PRD-14)<br/>y el UNIQUE (product_type_id, name_key) traduce una carrera a DuplicateProductError
-                    PS->>PS: commit()
-                    PC-->>Admin: 201 Product (SPEC-PRD-01)
+            alt actor.role no está en PRODUCT_CREATORS (Client)
+                PS-->>PC: raise PermissionDeniedError
+                PC-->>U: 403 forbidden, antes de buscar el tipo (SPEC-PRD-37)
+            else Admin o Representative
+                PS->>TR: get(product_type_id)
+                TR-->>PS: ProductType o None
+                alt el tipo no existe o el id no entra en INTEGER
+                    PS-->>PC: raise ProductTypeNotFoundError
+                    PC-->>U: 404 product_type_not_found (SPEC-PRD-02)
+                else el tipo existe
+                    PS->>PR: find_by_name_in_type(name, product_type_id)
+                    alt el nombre ya existe en el tipo, sin distinguir mayúsculas
+                        PS-->>PC: raise DuplicateProductError
+                        PC-->>U: 409 duplicate_product (SPEC-PRD-13)
+                    else nombre libre
+                        PS->>PR: add(Product(name, product_type, is_active=True)) con flush
+                        Note over PR: el nombre se guarda recortado (SPEC-PRD-14)<br/>y el UNIQUE (product_type_id, name_key) traduce una carrera a DuplicateProductError
+                        PS->>PS: commit()
+                        PC-->>U: 201 Product (SPEC-PRD-01, 35)
+                    end
                 end
             end
         end
     end
 
     Admin->>PC: PATCH /products/{id} (name y product_type_id opcionales)
+    alt current_user no es Admin (admin_required)
+        PC-->>Admin: 403 forbidden, antes del 404 y del 400 (SPEC-PRD-36, 37)
+    end
     PC->>PS: update_product(id, name, product_type_id)
     PS->>PR: get(id)
     alt no existe o el id no entra en INTEGER
@@ -62,7 +70,7 @@ sequenceDiagram
 
 ## 2. Baja lógica de producto
 
-Specs: SPEC-PRD-05, 06, 09, 17, 18
+Specs: SPEC-PRD-05, 06, 17, 18, 36, 37
 
 ```mermaid
 sequenceDiagram
@@ -73,6 +81,9 @@ sequenceDiagram
     participant PR as ProductRepository
 
     Admin->>PC: POST /products/{id}/deactivate
+    alt current_user no es Admin (admin_required)
+        PC-->>Admin: 403 forbidden, antes del 404 (SPEC-PRD-36, 37)
+    end
     PC->>PS: deactivate_product(product_id)
     PS->>PR: get(product_id)
     alt no existe o el id no entra en INTEGER

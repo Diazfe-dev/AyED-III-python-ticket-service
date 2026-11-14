@@ -260,6 +260,7 @@ classDiagram
         +list_available_products(q, page, page_size)
         -_listing_args(names) dict
     }
+    note for CatalogController "POST /products usa login_required y pasa actor al servicio; modificar, baja y reactivación usan admin_required"
 
     class UserService {
         +UserRepository repository
@@ -328,7 +329,8 @@ classDiagram
         +ProductRepository products
         +ProductTypeRepository product_types
         +Callable commit
-        +create_product(name, product_type_id) Product
+        +PRODUCT_CREATORS frozenset
+        +create_product(name, product_type_id, actor) Product
         +update_product(product_id, name, product_type_id) Product
         +deactivate_product(product_id) Product
         +activate_product(product_id) Product
