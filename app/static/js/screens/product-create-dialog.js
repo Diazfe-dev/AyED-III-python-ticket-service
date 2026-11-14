@@ -1,9 +1,18 @@
-import { translateError } from "../core/messages.js";
+import { OWN_MESSAGES, translateError } from "../core/messages.js";
 import { openFormDialog } from "../dom/dialog.js";
 import { createFields } from "../dom/form.js";
-import { productFields } from "./product-form.js";
+import { productFields, writeBody } from "./product-form.js";
 
-export async function openProductDialog({ root, request, showError, opener, fallback }) {
+export async function openProductDialog({
+  root,
+  request,
+  showError,
+  showStatus,
+  opener,
+  fallback,
+}) {
+  showError("");
+  showStatus("");
   const types = await request("GET", "/product-types", undefined, "product-types");
   if (!root.isConnected) {
     return null;
@@ -20,6 +29,12 @@ export async function openProductDialog({ root, request, showError, opener, fall
     opener,
     fallback,
     form: createFields("product-create", productFields(types.body)),
-    onSubmit: async () => {},
+    onSubmit: async (values, dialog) => {
+      showError("");
+      showStatus("");
+      if (await dialog.send(request("POST", "/products", writeBody(values)))) {
+        showStatus(OWN_MESSAGES.productCreated);
+      }
+    },
   });
 }

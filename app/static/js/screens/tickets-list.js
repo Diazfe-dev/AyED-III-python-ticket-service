@@ -142,7 +142,14 @@ export function mount({ root, user, request, showError, showStatus, navigate, re
           {
             label: "Nuevo producto",
             onClick: (opener) =>
-              openProductDialog({ root, request, showError, opener, fallback: () => header.button }),
+              openProductDialog({
+                root,
+                request,
+                showError,
+                showStatus,
+                opener,
+                fallback: () => header.button,
+              }),
           },
         ]
       : [],
