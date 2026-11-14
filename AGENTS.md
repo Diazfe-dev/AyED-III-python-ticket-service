@@ -77,7 +77,7 @@ app/
   static/              # Interfaz web de una sola página: index.html, css/app.css y js/ (core/ módulos puros, dom/, net/ y screens/)
   domain/              # Entidades mapeadas con SQLAlchemy; sin Flask ni HTTP
     base.py            # Base(DeclarativeBase)
-    errors.py          # DomainError y subclases (ValidationError, DuplicateUserError, CategoryInUseError, ProductTypeInUseError, ...)
+    errors.py          # DomainError y subclases (ValidationError, DuplicateUserError, ProductTypeInUseError, ...)
     ticket.py          # Ticket (agregado raíz) y la tabla ticket_products
     types.py           # UtcDateTime (TypeDecorator: timestamps siempre en UTC)
     immutable.py       # make_immutable: listeners y triggers de SQLite que bloquean UPDATE y DELETE (StateChange y Milestone)
@@ -85,14 +85,14 @@ app/
     milestone.py       # Milestone (inmutable)
     state_change.py    # StateChange (registro de auditoría)
     users.py           # User, Admin, Representative, Client (tabla única) y ROLE_CLASSES
-    products.py        # Category, ProductType y Product (mixin CatalogName: name + name_key), normalize_name
+    products.py        # ProductType y Product (mixin CatalogName: name + name_key), normalize_name
     notifications.py   # Notification (entidad), protocolo NotificationStrategy, MailNotification, WhatsappNotification y default_strategies
     paging.py          # PageRequest y Page: paginación de listados, sin SQLAlchemy ni Flask
   services/            # Casos de uso: orquestan dominio, repositorios y notificaciones
     passwords.py       # PasswordHasher (protocolo) y WerkzeugPasswordHasher
     validation.py      # validadores de campos compartidos (text_error, id_error, flag_error, parse_id, raise_if_invalid)
     user_service.py    # UserService
-    catalog_service.py # CatalogService: ABM y listados de categorías y tipos de producto
+    catalog_service.py # CatalogService: ABM y listado de tipos de producto
     product_service.py # ProductService: alta, modificación, baja lógica y listados de productos
     ticket_service.py  # TicketService: alta, lectura, listados, transiciones, productos e hitos del ticket (add_milestone, list_milestones); protocolo TicketNotifier
     notification_service.py  # NotificationService(strategies, clock, commit): elige la estrategia, registra la notificación en el ticket y confirma
@@ -100,7 +100,6 @@ app/
     listing.py         # page_request (valida page y page_size) y search_text (un texto en blanco equivale a no enviarlo)
   repositories/        # Consultas con la Session de SQLAlchemy; devuelven y reciben entidades
     user_repository.py # SqlAlchemyUserRepository
-    category_repository.py      # SqlAlchemyCategoryRepository
     product_type_repository.py  # SqlAlchemyProductTypeRepository
     product_repository.py       # SqlAlchemyProductRepository (sin métodos de borrado)
     ticket_repository.py        # SqlAlchemyTicketRepository (add, get_visible, get_visible_with_milestones y listados; sin métodos de borrado)
@@ -110,10 +109,10 @@ app/
     api_docs.py        # /openapi.json y /docs
     auth.py            # POST /login, POST /logout, GET /me y POST /me/password
     users.py           # gestión y listados de usuarios, contraseñas y reactivación
-    catalog.py         # categorías, tipos de producto y productos (CatalogController)
+    catalog.py         # tipos de producto y productos (CatalogController)
     milestones.py      # POST y GET /tickets/{id}/milestones (MilestoneController)
     errors.py          # tabla DomainError → status y código JSON
-    serializers.py     # lectura del cuerpo JSON y representación de usuarios, categorías, tipos y productos
+    serializers.py     # lectura del cuerpo JSON y representación de usuarios, tipos y productos
     listing.py         # listing_json: serializa un listado como arreglo o como página
     ui.py              # GET / (sirve app/static/index.html); los archivos salen de /static/...
 tests/
