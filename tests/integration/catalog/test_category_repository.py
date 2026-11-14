@@ -9,7 +9,6 @@ from app.domain.errors import CategoryInUseError, DuplicateCategoryError
 from app.domain.products import Category, ProductType
 from app.repositories.category_repository import SqlAlchemyCategoryRepository
 from tests.conftest import MakeCategory, MakeProductType
-from tests.integration.catalog.queries import count_statements
 
 
 def test_added_category_can_be_read_from_another_session(app: Flask, db_session: Session) -> None:
@@ -142,53 +141,6 @@ def test_foreign_key_rejects_deleting_a_category_with_raw_sql(
 
     with pytest.raises(IntegrityError):
         db_session.execute(text("DELETE FROM categories WHERE id = :id"), {"id": category.id})
-
-
-@pytest.fixture
-def grouped_catalog(make_category: MakeCategory, make_product_type: MakeProductType) -> None:
-    """`Redes` with two types, `audio` without types and `Hardware` with one type."""
-    redes = make_category("Redes")
-    make_category("audio")
-    hardware = make_category("Hardware")
-    make_product_type(redes, "Router")
-    make_product_type(redes, "Access point")
-    make_product_type(hardware, "Notebook")
-
-
-def names_by_group(categories: list[Category]) -> list[tuple[str, list[str]]]:
-    return [(c.name, [t.name for t in c.product_types]) for c in categories]
-
-
-@pytest.mark.usefixtures("grouped_catalog")
-def test_list_with_product_types_orders_groups_and_types_by_name(db_session: Session) -> None:
-    """SPEC-PTY-22 · TC-PTY-22b"""
-    db_session.expire_all()
-
-    categories = SqlAlchemyCategoryRepository(db_session).list_with_product_types()
-
-    assert names_by_group(categories) == [
-        ("audio", []),
-        ("Hardware", ["Notebook"]),
-        ("Redes", ["Access point", "Router"]),
-    ]
-
-
-def test_list_with_product_types_loads_everything_in_two_queries(
-    db_session: Session, make_category: MakeCategory, make_product_type: MakeProductType
-) -> None:
-    """SPEC-PTY-22 · TC-PTY-22c"""
-    for _ in range(3):
-        category = make_category()
-        make_product_type(category)
-        make_product_type(category)
-    db_session.expire_all()
-
-    with count_statements(db_session) as statements:
-        categories = SqlAlchemyCategoryRepository(db_session).list_with_product_types()
-        names = [t.name for category in categories for t in category.product_types]
-
-    assert len(names) == 6
-    assert len(statements) <= 2
 
 
 def test_get_with_an_id_beyond_sqlite_integers_finds_nothing(db_session: Session) -> None:

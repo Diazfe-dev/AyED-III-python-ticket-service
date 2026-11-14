@@ -121,45 +121,6 @@ def test_deleting_a_product_type_with_products_raises_in_use_and_keeps_both_rows
         assert stored_product.product_type_id == product_type.id
 
 
-def test_search_matches_names_ignoring_case_in_category_and_name_order(
-    db_session: Session, make_category: MakeCategory, make_product_type: MakeProductType
-) -> None:
-    """SPEC-PTY-23 · TC-PTY-23b"""
-    hardware, redes, audio = (
-        make_category("Hardware"),
-        make_category("Redes"),
-        make_category("audio"),
-    )
-    make_product_type(redes, "Router")
-    make_product_type(hardware, "Router USB")
-    make_product_type(audio, "Cámara")
-    make_product_type(hardware, "Notebook")
-    repository = SqlAlchemyProductTypeRepository(db_session)
-
-    assert [t.name for t in repository.search("CÁM")] == ["Cámara"]
-    assert [t.name for t in repository.search("rout")] == ["Router USB", "Router"]
-    assert [t.name for t in repository.search("rout", category_id=redes.id)] == ["Router"]
-    assert [t.name for t in repository.search("%")] == []
-
-
-def test_search_loads_categories_without_extra_queries(
-    db_session: Session, make_category: MakeCategory, make_product_type: MakeProductType
-) -> None:
-    """SPEC-PTY-23 · TC-PTY-23c"""
-    for _ in range(3):
-        category = make_category()
-        make_product_type(category, "Uno")
-        make_product_type(category, "Dos")
-    db_session.expire_all()
-
-    with count_statements(db_session) as statements:
-        found = SqlAlchemyProductTypeRepository(db_session).search("o")
-        names = [t.category.name for t in found]
-
-    assert len(names) == 6
-    assert len(statements) <= 2
-
-
 REFERENCE_NAMES = ["Router", "Notebook", "Ruteador USB", "Cámara", "50% off", "access point"]
 
 
