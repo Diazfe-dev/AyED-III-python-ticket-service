@@ -1,5 +1,6 @@
 import pytest
 from flask import Flask
+from sqlalchemy import inspect
 from sqlalchemy.orm import Session
 
 from app.db import EXTENSION_KEY
@@ -152,3 +153,17 @@ def test_list_all_filters_by_name_ignoring_case_with_literal_wildcards(
     assert [t.name for t in repository.list_all(q="CÁM")] == ["Cámara"]
     assert [t.name for t in repository.list_all(q="%")] == ["50% off"]
     assert [t.name for t in repository.list_all(q="_")] == []
+
+
+def test_schema_has_no_categories_and_product_types_are_name_only(db_session: Session) -> None:
+    """SPEC-PTY-35 · TC-PTY-35d"""
+    inspector = inspect(db_session.get_bind())
+
+    assert "categories" not in inspector.get_table_names()
+    assert {column["name"] for column in inspector.get_columns("product_types")} == {
+        "id",
+        "name",
+        "name_key",
+    }
+    unique_columns = [c["column_names"] for c in inspector.get_unique_constraints("product_types")]
+    assert ["name_key"] in unique_columns

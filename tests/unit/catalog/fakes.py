@@ -1,48 +1,15 @@
 """In-memory test doubles for the catalog service: no Flask, no database."""
 
 from app.domain.paging import Page, PageRequest
-from app.domain.products import Category, Product, ProductType, normalize_name
+from app.domain.products import Product, ProductType, normalize_name
 
 
-def _by_name(entity: Category | ProductType | Product) -> tuple[str, int]:
+def _by_name(entity: ProductType | Product) -> tuple[str, int]:
     return entity.name_key, entity.id
 
 
-class FakeCategoryRepository:
-    """Dictionary-backed repository that assigns ids like the database would."""
-
-    def __init__(self) -> None:
-        self.categories: dict[int, Category] = {}
-        self._next_id = 1
-
-    def add(self, category: Category) -> None:
-        if category.id is None:
-            category.id = self._next_id
-            self._next_id += 1
-        self.categories[category.id] = category
-
-    def get(self, category_id: int) -> Category | None:
-        return self.categories.get(category_id)
-
-    def find_by_name(self, name: str) -> Category | None:
-        wanted = normalize_name(name)
-        found = (c for c in self.categories.values() if c.name_key == wanted)
-        return next(found, None)
-
-    def list_all(self, q: str | None = None) -> list[Category]:
-        wanted = "" if q is None else q.casefold()
-        found = (c for c in self.categories.values() if wanted in c.name_key)
-        return sorted(found, key=_by_name)
-
-    def has_product_types(self, category_id: int) -> bool:
-        return bool(self.categories[category_id].product_types)
-
-    def delete(self, category: Category) -> None:
-        del self.categories[category.id]
-
-
 class FakeProductTypeRepository:
-    """Dictionary-backed repository; `back_populates` keeps `Category.product_types` in sync."""
+    """Dictionary-backed repository."""
 
     def __init__(self) -> None:
         self.product_types: dict[int, ProductType] = {}
@@ -72,8 +39,6 @@ class FakeProductTypeRepository:
 
     def delete(self, product_type: ProductType) -> None:
         del self.product_types[product_type.id]
-        if product_type.category is not None:
-            product_type.category.product_types.remove(product_type)
 
 
 class FakeProductRepository:

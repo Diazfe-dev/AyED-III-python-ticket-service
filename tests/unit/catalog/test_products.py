@@ -1,25 +1,10 @@
-from app.domain.products import Category, Product, ProductType, normalize_name
+from app.domain.products import Product, ProductType, normalize_name
 
 
 def test_normalize_name_trims_and_casefolds_non_ascii_letters() -> None:
     """SPEC-PTY-26 · TC-PTY-26e"""
     assert normalize_name("  Hardware ") == "hardware"
     assert normalize_name("ÁUDIO") == "áudio"
-
-
-def test_category_keeps_trimmed_name_and_normalized_key() -> None:
-    """SPEC-PTY-02 · TC-PTY-02b"""
-    category = Category(name="  Hardware ")
-
-    assert category.name == "Hardware"
-    assert category.name_key == "hardware"
-
-
-def test_category_name_keeps_inner_spaces() -> None:
-    """SPEC-PTY-19 · TC-PTY-19a"""
-    category = Category(name="  Mesa de  ayuda ")
-
-    assert category.name == "Mesa de  ayuda"
 
 
 def test_product_type_has_trimmed_name_and_normalized_key() -> None:

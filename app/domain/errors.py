@@ -52,20 +52,8 @@ class InvalidCurrentPasswordError(DomainError):
     message = "The current password is incorrect."
 
 
-class DuplicateCategoryError(DomainError):
-    message = "A category with this name already exists."
-
-
-class CategoryInUseError(DomainError):
-    message = "The category has product types and cannot be deleted."
-
-
 class DuplicateProductTypeError(DomainError):
-    message = "A product type with this name already exists in the category."
-
-
-class CategoryNotFoundError(DomainError):
-    message = "Category not found."
+    message = "A product type with this name already exists."
 
 
 class ProductTypeNotFoundError(DomainError):
