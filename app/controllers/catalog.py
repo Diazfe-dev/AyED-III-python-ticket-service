@@ -1,4 +1,4 @@
-"""Catalog endpoints: categories, product types and products (the CatalogController)."""
+"""Catalog endpoints: product types and products (the CatalogController)."""
 
 from flask import Blueprint, request
 from flask.typing import ResponseReturnValue
@@ -7,7 +7,6 @@ from app.auth import admin_required, login_required
 from app.controllers.listing import listing_json
 from app.controllers.serializers import (
     category_group_json,
-    category_json,
     json_body,
     product_json,
     product_type_json,
@@ -18,34 +17,6 @@ bp = Blueprint("catalog", __name__)
 
 PRODUCT_TYPE_KEYS = ("name", "category_id")
 PRODUCT_KEYS = ("name", "product_type_id")
-
-
-@bp.get("/categories")
-@login_required
-def list_categories() -> ResponseReturnValue:
-    categories = get_catalog_service().list_categories(q=request.args.get("q"))
-    return [category_json(category) for category in categories]
-
-
-@bp.post("/categories")
-@admin_required
-def create_category() -> ResponseReturnValue:
-    category = get_catalog_service().create_category(json_body().get("name"))
-    return category_json(category), 201
-
-
-@bp.patch("/categories/<int:category_id>")
-@admin_required
-def update_category(category_id: int) -> ResponseReturnValue:
-    category = get_catalog_service().update_category(category_id, name=json_body().get("name"))
-    return category_json(category)
-
-
-@bp.delete("/categories/<int:category_id>")
-@admin_required
-def delete_category(category_id: int) -> ResponseReturnValue:
-    get_catalog_service().delete_category(category_id)
-    return "", 204
 
 
 @bp.post("/product-types")

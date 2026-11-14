@@ -26,6 +26,34 @@ def create_type(client: FlaskClient, **body: Any) -> Any:
     return client.post("/product-types", json=body)
 
 
+@pytest.mark.parametrize(
+    ("method", "path"),
+    [
+        ("GET", "/categories"),
+        ("POST", "/categories"),
+        ("PATCH", "/categories/1"),
+        ("DELETE", "/categories/1"),
+    ],
+)
+@pytest.mark.parametrize("session", ["admin", "anonymous"])
+def test_category_routes_do_not_exist(
+    session: str,
+    method: str,
+    path: str,
+    client: FlaskClient,
+    make_user: MakeUser,
+    login_as: LoginAs,
+) -> None:
+    """SPEC-PTY-35 · TC-PTY-35a"""
+    if session == "admin":
+        login_as(client, make_user(role="Admin"))
+
+    response = client.open(path, method=method)
+
+    assert response.status_code == 404
+    assert response.get_json() == {"error": "not_found"}
+
+
 def test_admin_creates_a_product_type(admin_client: FlaskClient, hardware: Category) -> None:
     """SPEC-PTY-03 · TC-PTY-03d"""
     response = create_type(admin_client, name="Notebook", category_id=hardware.id)

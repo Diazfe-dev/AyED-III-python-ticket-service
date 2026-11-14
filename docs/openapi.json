@@ -613,158 +613,6 @@
         ]
       }
     },
-    "/categories": {
-      "get": {
-        "summary": "List categories",
-        "description": "Any authenticated user. Every category, ordered by name without case. `q` keeps the categories whose name contains the text, without case. The list is not paginated: `page` and `page_size` are ignored.",
-        "operationId": "listCategories",
-        "tags": [
-          "catalog"
-        ],
-        "parameters": [
-          {
-            "$ref": "#/components/parameters/Q"
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Every category, ordered by name.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/Category"
-                  }
-                }
-              }
-            }
-          },
-          "401": {
-            "$ref": "#/components/responses/AuthenticationRequired"
-          }
-        }
-      },
-      "post": {
-        "summary": "Create a category",
-        "description": "Admin only. Creates a category (rubro). The name is required, must be text, is stored without surrounding spaces and must be unique without case.",
-        "operationId": "createCategory",
-        "tags": [
-          "catalog"
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/CategoryRequest"
-              }
-            }
-          }
-        },
-        "responses": {
-          "201": {
-            "description": "Category created.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Category"
-                }
-              }
-            }
-          },
-          "400": {
-            "$ref": "#/components/responses/ValidationFailed"
-          },
-          "401": {
-            "$ref": "#/components/responses/AuthenticationRequired"
-          },
-          "403": {
-            "$ref": "#/components/responses/Forbidden"
-          },
-          "409": {
-            "$ref": "#/components/responses/DuplicateCategory"
-          }
-        }
-      }
-    },
-    "/categories/{category_id}": {
-      "parameters": [
-        {
-          "$ref": "#/components/parameters/CategoryId"
-        }
-      ],
-      "patch": {
-        "summary": "Rename a category",
-        "description": "Admin only. A missing or `null` name keeps the current one; any other key is ignored. The name is validated like on create; renaming a category to its own name with other case is allowed.",
-        "operationId": "updateCategory",
-        "tags": [
-          "catalog"
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/UpdateCategoryRequest"
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Category updated.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Category"
-                }
-              }
-            }
-          },
-          "400": {
-            "$ref": "#/components/responses/ValidationFailed"
-          },
-          "401": {
-            "$ref": "#/components/responses/AuthenticationRequired"
-          },
-          "403": {
-            "$ref": "#/components/responses/Forbidden"
-          },
-          "404": {
-            "$ref": "#/components/responses/CategoryNotFound"
-          },
-          "409": {
-            "$ref": "#/components/responses/DuplicateCategory"
-          }
-        }
-      },
-      "delete": {
-        "summary": "Delete a category",
-        "description": "Admin only. Physical deletion of a category without product types.",
-        "operationId": "deleteCategory",
-        "tags": [
-          "catalog"
-        ],
-        "responses": {
-          "204": {
-            "description": "Category deleted."
-          },
-          "401": {
-            "$ref": "#/components/responses/AuthenticationRequired"
-          },
-          "403": {
-            "$ref": "#/components/responses/Forbidden"
-          },
-          "404": {
-            "$ref": "#/components/responses/CategoryNotFound"
-          },
-          "409": {
-            "$ref": "#/components/responses/CategoryInUse"
-          }
-        }
-      }
-    },
     "/product-types": {
       "get": {
         "summary": "List product types",
@@ -1737,45 +1585,6 @@
           }
         }
       },
-      "DuplicateCategory": {
-        "description": "Another category already has this name, compared without case (`duplicate_category`).",
-        "content": {
-          "application/json": {
-            "schema": {
-              "$ref": "#/components/schemas/Error"
-            },
-            "example": {
-              "error": "duplicate_category"
-            }
-          }
-        }
-      },
-      "CategoryNotFound": {
-        "description": "No category has this id (`category_not_found`).",
-        "content": {
-          "application/json": {
-            "schema": {
-              "$ref": "#/components/schemas/Error"
-            },
-            "example": {
-              "error": "category_not_found"
-            }
-          }
-        }
-      },
-      "CategoryInUse": {
-        "description": "The category still has product types and cannot be deleted (`category_in_use`).",
-        "content": {
-          "application/json": {
-            "schema": {
-              "$ref": "#/components/schemas/Error"
-            },
-            "example": {
-              "error": "category_in_use"
-            }
-          }
-        }
-      },
       "DuplicateProductType": {
         "description": "Another product type already has this name, compared without case (`duplicate_product_type`).",
         "content": {
@@ -2200,31 +2009,6 @@
           },
           "name": {
             "type": "string"
-          }
-        }
-      },
-      "CategoryRequest": {
-        "type": "object",
-        "required": [
-          "name"
-        ],
-        "properties": {
-          "name": {
-            "type": "string",
-            "minLength": 1,
-            "maxLength": 120,
-            "description": "Category name. Stored without surrounding spaces; unique without case."
-          }
-        }
-      },
-      "UpdateCategoryRequest": {
-        "type": "object",
-        "properties": {
-          "name": {
-            "type": "string",
-            "minLength": 1,
-            "maxLength": 120,
-            "description": "New name. Missing or `null` keeps the current one."
           }
         }
       },
@@ -2705,14 +2489,6 @@
     "parameters": {
       "UserId": {
         "name": "user_id",
-        "in": "path",
-        "required": true,
-        "schema": {
-          "type": "integer"
-        }
-      },
-      "CategoryId": {
-        "name": "category_id",
         "in": "path",
         "required": true,
         "schema": {

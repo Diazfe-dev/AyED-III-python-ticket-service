@@ -8,11 +8,8 @@ from sqlalchemy.orm import Session
 from app.domain.products import Category, Product, ProductType
 from tests.conftest import LoginAs, MakeCategory, MakeProduct, MakeProductType, MakeUser
 
-# (method, path, body); `{category}`, `{empty}` and `{type}` are ids of the `catalog` fixture.
+# (method, path, body); `{category}` and `{type}` are ids of the `catalog` fixture.
 WRITE_ENDPOINTS = [
-    ("POST", "/categories", {"name": "Redes"}),
-    ("PATCH", "/categories/{category}", {"name": "Redes"}),
-    ("DELETE", "/categories/{empty}", None),
     ("POST", "/product-types", {"name": "Router", "category_id": "{category}"}),
     ("PATCH", "/product-types/{type}", {"name": "Ultrabook"}),
     ("DELETE", "/product-types/{type}", None),
@@ -62,7 +59,7 @@ def test_representative_cannot_change_the_catalog(
     make_user: MakeUser,
     login_as: LoginAs,
 ) -> None:
-    """SPEC-PTY-11 · TC-PTY-11a"""
+    """SPEC-PTY-34 · TC-PTY-34a"""
     before = snapshot(db_session)
 
     response = call_as("Representative", endpoint, catalog, client, make_user, login_as)
@@ -81,7 +78,7 @@ def test_client_cannot_change_the_catalog(
     make_user: MakeUser,
     login_as: LoginAs,
 ) -> None:
-    """SPEC-PTY-11 · TC-PTY-11b"""
+    """SPEC-PTY-34 · TC-PTY-34b"""
     before = snapshot(db_session)
 
     response = call_as("Client", endpoint, catalog, client, make_user, login_as)
