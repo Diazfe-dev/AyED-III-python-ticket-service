@@ -3,13 +3,13 @@ const CLIENT_ACTIONS = ["milestone", "close", "reopen"];
 const ROLE_ACTIONS = {
   Admin: [],
   Client: CLIENT_ACTIONS,
-  Representative: [...CLIENT_ACTIONS, "associate", "remove", "startProgress"],
+  Representative: [...CLIENT_ACTIONS, "associate", "remove", "startProgress", "startWork"],
 };
 
 const STATE_BLOCKED = {
   New: ["reopen"],
-  InProgress: ["reopen"],
-  Closed: ["close", "milestone", "startProgress"],
+  InProgress: ["reopen", "startWork"],
+  Closed: ["close", "milestone", "startProgress", "startWork"],
 };
 
 export function ticketActions(role, state) {
