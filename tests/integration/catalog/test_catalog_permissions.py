@@ -126,7 +126,7 @@ def test_representative_cannot_change_products(
     make_user: MakeUser,
     login_as: LoginAs,
 ) -> None:
-    """SPEC-PRD-09 · TC-PRD-09a"""
+    """SPEC-PRD-36 · TC-PRD-36a"""
     before = product_rows(db_session)
 
     response = call_product_endpoint_as(
@@ -147,13 +147,64 @@ def test_client_cannot_change_products(
     make_user: MakeUser,
     login_as: LoginAs,
 ) -> None:
-    """SPEC-PRD-09 · TC-PRD-09b"""
+    """SPEC-PRD-37 · TC-PRD-37g"""
     before = product_rows(db_session)
 
     response = call_product_endpoint_as("Client", endpoint, products, client, make_user, login_as)
 
     assert response.status_code == 403
     assert product_rows(db_session) == before
+
+
+@pytest.mark.parametrize(
+    "endpoint",
+    [
+        ("PATCH", "/products/9999", {"name": "X"}),
+        ("POST", "/products/9999/deactivate", None),
+        ("PATCH", "/products/{product}", {"name": ""}),
+    ],
+    ids=["update-unknown", "deactivate-unknown", "update-malformed"],
+)
+def test_representative_gets_forbidden_before_not_found_or_a_malformed_body(
+    endpoint: tuple[str, str, Any],
+    products: dict[str, int],
+    client: FlaskClient,
+    db_session: Session,
+    make_user: MakeUser,
+    login_as: LoginAs,
+) -> None:
+    """SPEC-PRD-36 · TC-PRD-36b"""
+    before = product_rows(db_session)
+
+    response = call_product_endpoint_as(
+        "Representative", endpoint, products, client, make_user, login_as
+    )
+
+    assert response.status_code == 403
+    assert response.get_json() == {"error": "forbidden"}
+    assert product_rows(db_session) == before
+
+
+@pytest.mark.parametrize(
+    "endpoint",
+    [
+        ("PATCH", "/products/9999", {"name": "X"}),
+        ("POST", "/products/9999/deactivate", None),
+    ],
+    ids=["update-unknown", "deactivate-unknown"],
+)
+def test_client_gets_forbidden_before_not_found(
+    endpoint: tuple[str, str, Any],
+    products: dict[str, int],
+    client: FlaskClient,
+    make_user: MakeUser,
+    login_as: LoginAs,
+) -> None:
+    """SPEC-PRD-37 · TC-PRD-37h"""
+    response = call_product_endpoint_as("Client", endpoint, products, client, make_user, login_as)
+
+    assert response.status_code == 403
+    assert response.get_json() == {"error": "forbidden"}
 
 
 @pytest.mark.parametrize("role", ["Representative", "Client"])
