@@ -193,10 +193,6 @@ nav a[href="#/users"]::before {
   content: "group" / "";
 }
 
-nav a[href="#/categories"]::before {
-  content: "category" / "";
-}
-
 nav a[href="#/product-types"]::before {
   content: "label" / "";
 }

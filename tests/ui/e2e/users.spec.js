@@ -303,7 +303,7 @@ test("SPEC-UI-100 shows a mismatch in the reset form without a request (TC-UI-10
   expect(writes(api, "POST", "/users/5/password")).toHaveLength(0);
 });
 
-test("SPEC-UI-120 reloads the current page with the same q and filter after an action (TC-UI-120a)", async ({
+test("SPEC-UI-205 reloads the current page with the same q and filter after an action (TC-UI-205a)", async ({
   page,
 }) => {
   const api = await openUsers(page, byPage([LUIS], 45));

@@ -19,7 +19,6 @@ test("SPEC-UI-04 classifies every route of the table for every role (TC-UI-04a)"
     "#/tickets": { Representative: "tickets-list", Admin: "tickets-list", Client: "tickets-list" },
     "#/tickets/new": { Representative: "ticket-new" },
     "#/users": { Admin: "users" },
-    "#/categories": { Admin: "categories" },
     "#/product-types": { Admin: "product-types" },
     "#/products": { Admin: "products" },
     "#/account": { Representative: "account", Admin: "account", Client: "account" },
@@ -46,10 +45,9 @@ test("SPEC-UI-16 lists the representative navigation entries (TC-UI-16b)", () =>
   ]);
 });
 
-test("SPEC-UI-17 lists the administrator navigation entries (TC-UI-17b)", () => {
+test("SPEC-UI-206 lists the administrator navigation entries without categories (TC-UI-206b)", () => {
   assert.deepEqual(navItems("Admin"), [
     { label: "Usuarios", route: "#/users" },
-    { label: "Categorías", route: "#/categories" },
     { label: "Tipos de producto", route: "#/product-types" },
     { label: "Productos", route: "#/products" },
     { label: "Tickets", route: "#/tickets" },
@@ -71,7 +69,7 @@ test("SPEC-UI-19 sends a route the role does not allow to the role home (TC-UI-1
     ["Representative", "#/users"],
     ["Representative", "#/products"],
     ["Client", "#/tickets/new"],
-    ["Client", "#/categories"],
+    ["Client", "#/users"],
     ["Admin", "#/tickets/new"],
   ]) {
     assert.deepEqual(classify(hash, role), { kind: "forbidden", home: homeOf(role) });
@@ -79,6 +77,12 @@ test("SPEC-UI-19 sends a route the role does not allow to the role home (TC-UI-1
   assert.equal(homeOf("Admin"), "#/users");
   assert.equal(homeOf("Representative"), "#/tickets");
   assert.equal(homeOf("Client"), "#/tickets");
+});
+
+test("SPEC-UI-20 classifies the removed categories route as not found for every role (TC-UI-20c)", () => {
+  for (const role of ROLES) {
+    assert.deepEqual(classify("#/categories", role), { kind: "not_found", home: homeOf(role) }, role);
+  }
 });
 
 test("SPEC-UI-20 classifies unknown hashes as not found but the empty hash as home (TC-UI-20a)", () => {

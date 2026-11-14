@@ -15,12 +15,11 @@ const SCREENS = [
   { name: "ticket detail", role: "Representative", hash: "#/tickets/7", heading: "Ticket #7" },
   { name: "account", role: "Client", hash: "#/account", heading: "Mi cuenta" },
   { name: "users", role: "Admin", hash: "#/users", heading: "Usuarios" },
-  { name: "categories", role: "Admin", hash: "#/categories", heading: "Categorías" },
   { name: "product types", role: "Admin", hash: "#/product-types", heading: "Tipos de producto" },
   { name: "products", role: "Admin", hash: "#/products", heading: "Productos" },
 ];
 const EMPTY_LISTS = SCREENS.filter((screen) =>
-  ["users", "categories", "product types", "products"].includes(screen.name),
+  ["users", "product types", "products"].includes(screen.name),
 );
 
 const headingOf = (page, name) => page.getByRole("heading", { name, exact: true });

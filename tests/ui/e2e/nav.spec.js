@@ -17,10 +17,9 @@ test("SPEC-UI-16 shows the representative navigation (TC-UI-16a)", async ({ page
   await expectNavigation(page, "Representative", ["Tickets", "Nuevo ticket", "Mi cuenta"]);
 });
 
-test("SPEC-UI-17 shows the administrator navigation (TC-UI-17a)", async ({ page }) => {
+test("SPEC-UI-206 shows the administrator navigation without categories (TC-UI-206a)", async ({ page }) => {
   await expectNavigation(page, "Admin", [
     "Usuarios",
-    "Categorías",
     "Tipos de producto",
     "Productos",
     "Tickets",

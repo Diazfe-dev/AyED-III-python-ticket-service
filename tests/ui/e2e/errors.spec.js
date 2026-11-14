@@ -22,18 +22,18 @@ async function openDetail(page, role, detail, milestones = [], changes = []) {
   return api;
 }
 
-test("SPEC-UI-56 shows the duplicate category message on a 409 (TC-UI-56b)", async ({ page }) => {
+test("SPEC-UI-56 shows the duplicate product type message on a 409 (TC-UI-56b)", async ({ page }) => {
   const api = await installFakeApi(page);
   api.on("GET", "/me", { status: 200, body: ADMIN });
-  api.on("GET", /^\/categories(\?.*)?$/, { status: 200, body: [] });
-  await page.goto("/#/categories");
-  await expect(heading(page, "Categorías")).toBeVisible();
-  api.on("POST", "/categories", { status: 409, body: { error: "duplicate_category" } });
-  await page.getByRole("main").getByRole("button", { name: "Nueva categoría" }).click();
-  const dialog = page.getByRole("dialog", { name: "Nueva categoría" });
+  api.on("GET", /^\/product-types(\?.*)?$/, { status: 200, body: [] });
+  await page.goto("/#/product-types");
+  await expect(heading(page, "Tipos de producto")).toBeVisible();
+  api.on("POST", "/product-types", { status: 409, body: { error: "duplicate_product_type" } });
+  await page.getByRole("main").getByRole("button", { name: "Nuevo tipo de producto" }).click();
+  const dialog = page.getByRole("dialog", { name: "Nuevo tipo de producto" });
   await dialog.getByLabel("Nombre", { exact: true }).fill("Redes");
   await dialog.getByRole("button", { name: "Crear" }).click();
-  await expect(dialog.getByText("Ya existe una categoría con ese nombre.")).toBeVisible();
+  await expect(dialog.getByText("Ya existe un tipo de producto con ese nombre.")).toBeVisible();
 });
 
 test("SPEC-UI-58 shows the generic message and hides an internal detail on a 500 (TC-UI-58b)", async ({

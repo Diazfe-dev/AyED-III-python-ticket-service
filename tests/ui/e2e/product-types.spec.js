@@ -2,10 +2,8 @@ import { expect, test } from "@playwright/test";
 import { installFakeApi } from "./support/fake-api.js";
 import { USERS } from "./support/fixtures.js";
 
-const COMPUTING = { id: 3, name: "Computación" };
-const NETWORKS = { id: 5, name: "Redes" };
-const LAPTOP = { id: 4, name: "Notebook", category_id: 3 };
-const ROUTER = { id: 6, name: "Router", category_id: 5 };
+const LAPTOP = { id: 4, name: "Notebook" };
+const ROUTER = { id: 6, name: "Router" };
 const LIST_PATH = /^\/product-types(\?.*)?$/;
 
 const listRequests = (api) =>
@@ -16,23 +14,35 @@ const writes = (api, method) =>
 async function openProductTypes(page, items = [LAPTOP, ROUTER]) {
   const api = await installFakeApi(page);
   api.on("GET", "/me", { status: 200, body: USERS.Admin });
-  api.on("GET", /^\/categories(\?|$)/, { status: 200, body: [COMPUTING, NETWORKS] });
   api.on("GET", LIST_PATH, { status: 200, body: items });
   await page.goto("/#/product-types");
   await expect(page.getByRole("heading", { name: "Tipos de producto", exact: true })).toBeVisible();
   return api;
 }
 
-test("SPEC-UI-50 shows each product type in a table row with its category (TC-UI-50a)", async ({
+test("SPEC-UI-200 shows one row per product type in API order with Nombre and Acciones (TC-UI-200a)", async ({
+  page,
+}) => {
+  await openProductTypes(page, [
+    { id: 8, name: "Impresoras" },
+    { id: 4, name: "Portátiles" },
+  ]);
+  const table = page.getByRole("table", { name: "Tipos de producto", exact: true });
+  await expect(table.locator("thead th")).toHaveText(["Nombre", "Acciones"]);
+  await expect(table.locator("tbody tr")).toHaveCount(2);
+  await expect(table.locator("tbody tr").nth(0).locator("td").first()).toHaveText("Impresoras");
+  await expect(table.locator("tbody tr").nth(1).locator("td").first()).toHaveText("Portátiles");
+  await expect(page.locator("fieldset")).toHaveCount(0);
+  await expect(page.getByText("Categoría")).toHaveCount(0);
+});
+
+test("SPEC-UI-200 reads the product types with a single request and never asks for categories (TC-UI-200b)", async ({
   page,
 }) => {
   const api = await openProductTypes(page);
-  const notebook = page.getByRole("row").filter({ hasText: "Notebook" });
-  const router = page.getByRole("row").filter({ hasText: "Router" });
-  await expect(notebook).toContainText("Computación");
-  await expect(router).toContainText("Redes");
-  await expect(notebook).not.toContainText("Redes");
-  expect(listRequests(api).find((r) => /\/product-types$/.test(r.url))).toBeTruthy();
+  await expect(page.getByRole("row").filter({ hasText: "Notebook" })).toBeVisible();
+  expect(listRequests(api)).toHaveLength(1);
+  expect(api.requests.filter((r) => /\/categories/.test(r.url))).toHaveLength(0);
 });
 
 test("SPEC-UI-115 shows an empty message when there are no product types (TC-UI-115b)", async ({
@@ -52,22 +62,31 @@ test("SPEC-UI-89 searches with q and no page (TC-UI-89a)", async ({ page }) => {
   expect(new URL(listRequests(api).at(-1).url).search).toBe("?q=note");
 });
 
-test("SPEC-UI-90 creates a product type with the category from the selector (TC-UI-90a)", async ({
+test("SPEC-UI-201 creates a product type with only its name (TC-UI-201a)", async ({
   page,
 }) => {
   const api = await openProductTypes(page);
   api.on("POST", "/product-types", {
     status: 201,
-    body: { id: 9, name: "Monitor", category_id: 3 },
+    body: { id: 9, name: "Monitor" },
   });
   await page.getByRole("main").getByRole("button", { name: "Nuevo tipo de producto" }).click();
   const form = page.getByRole("dialog", { name: "Nuevo tipo de producto" });
-  await expect(form.getByRole("option", { name: "Redes" })).toHaveCount(1);
   await form.getByLabel("Nombre", { exact: true }).fill("Monitor");
-  await form.getByLabel("Categoría", { exact: true }).selectOption({ label: "Computación" });
   await form.getByRole("button", { name: "Crear" }).click();
   await expect.poll(() => writes(api, "POST").length).toBe(1);
-  expect(writes(api, "POST")[0].body).toEqual({ name: "Monitor", category_id: 3 });
+  expect(writes(api, "POST")[0].body).toEqual({ name: "Monitor" });
+});
+
+test("SPEC-UI-201 shows only the Nombre field in the creation form (TC-UI-201b)", async ({
+  page,
+}) => {
+  await openProductTypes(page);
+  await page.getByRole("main").getByRole("button", { name: "Nuevo tipo de producto" }).click();
+  const form = page.getByRole("dialog", { name: "Nuevo tipo de producto" });
+  await expect(form.getByLabel("Nombre", { exact: true })).toBeVisible();
+  await expect(form.locator("select")).toHaveCount(0);
+  await expect(form.locator("input, select, textarea")).toHaveCount(1);
 });
 
 test("SPEC-UI-90 shows the API error on a duplicate type (TC-UI-90a)", async ({ page }) => {
@@ -78,27 +97,27 @@ test("SPEC-UI-90 shows the API error on a duplicate type (TC-UI-90a)", async ({ 
   await form.getByLabel("Nombre", { exact: true }).fill("Notebook");
   await form.getByRole("button", { name: "Crear" }).click();
   await expect(form.getByRole("alert")).toHaveText(
-    "Ya existe un tipo de producto con ese nombre en la categoría.",
+    "Ya existe un tipo de producto con ese nombre.",
   );
 });
 
-test("SPEC-UI-91 edits the name and category of a product type (TC-UI-91a)", async ({ page }) => {
+test("SPEC-UI-202 edits only the name of a product type (TC-UI-202a)", async ({ page }) => {
   const api = await openProductTypes(page);
   api.on("PATCH", "/product-types/4", {
     status: 200,
-    body: { id: 4, name: "Laptop", category_id: 5 },
+    body: { id: 4, name: "Laptop" },
   });
   await page.getByRole("button", { name: "Editar Notebook" }).click();
   const edit = page.getByRole("dialog", { name: "Editar tipo de producto" });
   await edit.getByLabel("Nombre", { exact: true }).fill("Laptop");
-  await edit.getByLabel("Categoría", { exact: true }).selectOption({ label: "Redes" });
+  await expect(edit.locator("select")).toHaveCount(0);
   await edit.getByRole("button", { name: "Guardar" }).click();
   await expect.poll(() => writes(api, "PATCH").length).toBe(1);
   expect(writes(api, "PATCH")[0].url).toMatch(/\/product-types\/4$/);
-  expect(writes(api, "PATCH")[0].body).toEqual({ name: "Laptop", category_id: 5 });
+  expect(writes(api, "PATCH")[0].body).toEqual({ name: "Laptop" });
 });
 
-test("SPEC-UI-54 deletes a product type only after confirming (TC-UI-54b)", async ({ page }) => {
+test("SPEC-UI-204 deletes a product type only after confirming (TC-UI-204a)", async ({ page }) => {
   const api = await openProductTypes(page);
   api.on("DELETE", "/product-types/4", { status: 204 });
   await page.getByRole("button", { name: "Eliminar Notebook" }).click();
@@ -122,7 +141,7 @@ test("SPEC-UI-54 shows the API error when the type is in use (TC-UI-54b)", async
   );
 });
 
-test("SPEC-UI-120 reloads the full list with the same q after a deletion (TC-UI-120d)", async ({
+test("SPEC-UI-205 reloads the full list with the same q after a deletion (TC-UI-205d)", async ({
   page,
 }) => {
   const api = await openProductTypes(page);
