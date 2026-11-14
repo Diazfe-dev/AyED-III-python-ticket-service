@@ -44,7 +44,7 @@ test("SPEC-UI-211 the representative sees the start-work button in the header (T
 async function expectsNoStartWork(page, role, state) {
   await openDetail(page, role, state);
   await expect(startButton(page)).toHaveCount(0);
-  await expect(page.locator(".page-header")).not.toContainText("Comenzar a trabajar");
+  await expect(page.locator("#app")).not.toContainText("Comenzar a trabajar");
 }
 
 test("SPEC-UI-212 the representative sees no start-work on an InProgress ticket (TC-UI-212b)", async ({
