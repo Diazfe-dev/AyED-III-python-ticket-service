@@ -11,7 +11,7 @@ web
 Three roles weigh equally in design decisions (confirmed):
 
 - **Representative** (phone agent): creates tickets for customers and works the tickets assigned to them.
-- **Admin**: manages users, categories, product types and products; reads all tickets in read-only mode.
+- **Admin**: manages users, product types (the rubro) and products; reads all tickets in read-only mode.
 - **Client**: reads their own tickets and follows their progress.
 
 ## Product Purpose
@@ -24,7 +24,7 @@ Not established beyond the course context. Undecided; do not invent.
 
 ## Operating Context
 
-- Single-page app with hash routes (`#/tickets`, `#/users`, `#/categories`, `#/product-types`, `#/products`, `#/account`, `#/login`), screens per role.
+- Single-page app with hash routes (`#/tickets`, `#/users`, `#/product-types`, `#/products`, `#/account`, `#/login`), screens per role.
 - Served by Flask from `app/static/` (HTML, CSS, ES modules). No build step, no runtime dependencies, no external scripts, styles or fonts (SPEC-UI-06).
 - Source of truth for behavior: `specs/07-ui/spec.md` and `docs/REQUERIMIENTOS.md`.
 
