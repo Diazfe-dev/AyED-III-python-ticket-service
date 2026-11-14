@@ -4,7 +4,7 @@
 
 Specs cubiertas: SPEC-USR-01 a SPEC-USR-54 ([spec.md](spec.md)). SPEC-USR-11 está reemplazada por SPEC-USR-32 a 34, SPEC-USR-13 por SPEC-USR-36 y SPEC-USR-16 por SPEC-USR-49 (2026-11-12), y SPEC-USR-18 por SPEC-USR-51 a 54 (2026-11-14). RNF: 2 (autenticación), 3 (usuarios únicos), 7 (API documentada) y 10 (listados paginables).
 
-> **Re-sincronización del 2026-11-12** (nueva área [07-ui](../07-ui/spec.md)): identidad (`GET /me`), reactivación, cambio y restablecimiento de contraseña, `GET /users`, `GET /clients` según el rol, filtros `q` e `is_active`, orden por nombre, paginación y la lista cerrada de rutas públicas. Ver [Re-sincronización del 2026-11-12](#re-sincronización-del-2026-11-12) y las tasks T-USR-37 a 56. Las secciones anteriores describen el diseño original y no se reescriben; donde algo cambió, manda la sección nueva.
+> **Re-sincronización del 2026-11-12** (nueva área [07-ui](../ui/spec.md)): identidad (`GET /me`), reactivación, cambio y restablecimiento de contraseña, `GET /users`, `GET /clients` según el rol, filtros `q` e `is_active`, orden por nombre, paginación y la lista cerrada de rutas públicas. Ver [Re-sincronización del 2026-11-12](#re-sincronización-del-2026-11-12) y las tasks T-USR-37 a 56. Las secciones anteriores describen el diseño original y no se reescriben; donde algo cambió, manda la sección nueva.
 
 ## Enfoque
 

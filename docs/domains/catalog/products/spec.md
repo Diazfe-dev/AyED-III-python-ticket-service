@@ -1,6 +1,6 @@
 # 03 — Gestión de productos
 
-Origen: RF 1.3 (sin categoría desde el 2026-11-13) · Relacionados: RNF 10 · Diagramas: [secuencias](../../diagrams/sequences/03-products.md), [clases](../../diagrams/classes.md)
+Origen: RF 1.3 (sin categoría desde el 2026-11-13) · Relacionados: RNF 10 · Diagramas: [secuencias](sequences.md), [clases](../../../diagrams/classes.md)
 
 | ID | Tipo | Especificación | Origen |
 |----|------|----------------|--------|
@@ -54,7 +54,7 @@ Origen: RF 1.3 (sin categoría desde el 2026-11-13) · Relacionados: RNF 10 · D
 
 ## Decisiones
 
-Resueltas el 2026-11-09 y registradas en Engram (`tp-final/decision/*`) y en [MEMORY.md](../../MEMORY.md) (Cambios y motivación):
+Resueltas el 2026-11-09 y registradas en Engram (`tp-final/decision/*`) y en [MEMORY.md](../../../../MEMORY.md) (Cambios y motivación):
 
 1. La baja de productos es lógica (`is_active`). Un producto inactivo no se puede asociar a tickets nuevos (SPEC-TKT-08), pero sigue apareciendo en los existentes.
 
@@ -66,22 +66,22 @@ Aprobadas el 2026-11-10 (revisión transversal de huecos, mismo criterio que `02
 5. SPEC-PRD-06 depende de `04-tickets`: se verifica lo posible y el caso completo queda pendiente para esa área.
 6. Al aprobar el plan (2026-11-10): producto inexistente o id fuera de rango → `404` (SPEC-PRD-17), la baja de un producto inactivo es idempotente (SPEC-PRD-18), un producto inactivo se puede modificar y sigue inactivo (SPEC-PRD-19), filtros incompatibles → lista vacía (SPEC-PRD-20) y orden alfabético (SPEC-PRD-21). La reactivación de productos o usuarios queda fuera: ningún RF la pide.
 
-Aprobadas el 2026-11-12 (nueva área [07-ui](../07-ui/spec.md)):
+Aprobadas el 2026-11-12 (nueva área [07-ui](../../ui/spec.md)):
 
 7. **Reactivación (SPEC-PRD-22 a 25)**: levanta la exclusión de la decisión 6. Es idempotente y `Admin` únicamente, con el mismo criterio que SPEC-PRD-18 y SPEC-PRD-09; SPEC-PRD-09 no se edita porque no menciona la reactivación.
 8. **Filtros del listado (SPEC-PRD-26 a 29)**: `q` (texto contenido en el nombre) rige para `GET /products` y `GET /products/available` (para el selector de productos del ticket). `is_active` solo rige para `GET /products`: los disponibles son siempre activos (SPEC-PRD-10). Se combinan con `category_id` y `product_type_id` (SPEC-PRD-08 y 20) con AND. El orden alfabético de SPEC-PRD-21 se mantiene y es el orden de la paginación.
 
-Aprobadas el 2026-11-12 (validación de requerimientos de [07-ui](../07-ui/spec.md)):
+Aprobadas el 2026-11-12 (validación de requerimientos de [07-ui](../../ui/spec.md)):
 
 9. **Parámetros no admitidos en los disponibles (SPEC-PRD-30)**: `GET /products/available` solo admite `q`, `page` y `page_size`; cualquier otro (por ejemplo `is_active`, `category_id`) se ignora, como hoy. No es un error, porque los disponibles son siempre activos (SPEC-PRD-10).
 10. **`q` vacío**: en SPEC-PRD-26, un `q` vacío o con solo espacios equivale a no enviar `q` (SPEC-PLT-27).
 
-Aprobadas el 2026-11-13 (eliminación de las categorías, ver [02-product-types](../02-product-types/spec.md) decisión 8):
+Aprobadas el 2026-11-13 (eliminación de las categorías, ver [02-product-types](../product-types/spec.md) decisión 8):
 
 11. **Sin categoría en productos**: el profesor pidió solo producto y tipo de producto; el tipo es el rubro. Se reemplazan SPEC-PRD-07 → 31, 08 → 32, 15 → 33 y 16 → 34, y se elimina SPEC-PRD-20 (ya no hay filtro cruzado). La respuesta de un producto no trae categoría y `GET /products` solo filtra por tipo (`product_type_id`), `is_active` y `q`; un `category_id` enviado se ignora sin error, como cualquier parámetro desconocido. Las decisiones 2, 8 y 9 quedan como historial.
 
 Aprobadas el 2026-11-14 (el enunciado del curso no dice quién da de alta productos y clientes; es una decisión de producto del usuario):
 
-12. **El representante da de alta productos (SPEC-PRD-35 a 37; SPEC-PRD-09 reemplazada)**: el representante atiende al cliente por teléfono y, si el producto de la consulta no está cargado, lo registra en el momento en vez de pedírselo al administrador. Puede **crear** (nombre y tipo, con las validaciones del alta del administrador, SPEC-PRD-35); no puede modificar, dar de baja (SPEC-PRD-36) ni reactivar (SPEC-PRD-25, sin cambios) productos. Un `Client` no puede crear, modificar ni dar de baja (SPEC-PRD-37). El `Admin` conserva la gestión completa (SPEC-PRD-01, 04, 05, 22 y 23 sin cambios). Los tipos de producto siguen siendo solo del `Admin` ([02-product-types](../02-product-types/spec.md), SPEC-PTY-34): el representante elige entre los tipos existentes, que ya puede listar (SPEC-PTY-31). SPEC-PRD-09, que decía «solo `Admin` crea, modifica o da de baja», se reemplaza porque ya no es cierta para el alta.
-13. **Orden de validaciones (SPEC-PRD-35 a 37)**: el formato del cuerpo del alta (nombre, tipo) se valida antes que el rol, con el criterio de la decisión 19 de [04-tickets](../04-tickets/spec.md#decisiones); en modificación y baja, un rol no autorizado recibe `403` antes de cualquier consulta, incluso si el producto no existe (el `404` de SPEC-PRD-17 solo lo ve el `Admin`).
+12. **El representante da de alta productos (SPEC-PRD-35 a 37; SPEC-PRD-09 reemplazada)**: el representante atiende al cliente por teléfono y, si el producto de la consulta no está cargado, lo registra en el momento en vez de pedírselo al administrador. Puede **crear** (nombre y tipo, con las validaciones del alta del administrador, SPEC-PRD-35); no puede modificar, dar de baja (SPEC-PRD-36) ni reactivar (SPEC-PRD-25, sin cambios) productos. Un `Client` no puede crear, modificar ni dar de baja (SPEC-PRD-37). El `Admin` conserva la gestión completa (SPEC-PRD-01, 04, 05, 22 y 23 sin cambios). Los tipos de producto siguen siendo solo del `Admin` ([02-product-types](../product-types/spec.md), SPEC-PTY-34): el representante elige entre los tipos existentes, que ya puede listar (SPEC-PTY-31). SPEC-PRD-09, que decía «solo `Admin` crea, modifica o da de baja», se reemplaza porque ya no es cierta para el alta.
+13. **Orden de validaciones (SPEC-PRD-35 a 37)**: el formato del cuerpo del alta (nombre, tipo) se valida antes que el rol, con el criterio de la decisión 19 de [04-tickets](../../tickets/tickets/spec.md#decisiones); en modificación y baja, un rol no autorizado recibe `403` antes de cualquier consulta, incluso si el producto no existe (el `404` de SPEC-PRD-17 solo lo ve el `Admin`).
 14. **Impacto en lo implementado**: `POST /products` deja de ser solo para `Admin`. El contrato (`openapi.json`), el servicio de productos y los tests existentes de `403` del representante en el alta cambian al implementar este cambio.

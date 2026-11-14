@@ -16,7 +16,7 @@ The orchestrator gives you the area folder and, optionally, the requirements-val
 1. **Existing code** the area will touch or reuse: entities in `app/domain/`, services, repositories, controllers, `app/wiring.py`, `app/auth.py`, error table in `app/controllers/errors.py`, serializers.
 2. **Dependencies on other areas**: entities, services or errors already implemented elsewhere, and pending test cases that other areas deferred to this one (search `tasks.md` and `test-plan.md` of other areas, `MEMORY.md` and Engram).
 3. **Reusable helpers and test fixtures**: `app/services/validation.py`, `tests/conftest.py`, `tests/unit/fakes.py`, shared integration helpers.
-4. **Contract and diagrams**: related paths in `docs/openapi.json`, the area's sequence diagram, and the classes in `diagrams/classes.md`. Flag any mismatch with the code.
+4. **Contract and diagrams**: related paths in `docs/openapi.json`, the area's sequence diagram, and the classes in `docs/diagrams/classes.md`. Flag any mismatch with the code.
 5. **Status**: which of `plan.md`, `tasks.md`, `test-plan.md` exist and which tasks are `[ ]`, `[~]`, `[x]`.
 
 ## Rules

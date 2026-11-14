@@ -4,7 +4,7 @@ Cada test cita en su docstring la spec y el caso: `"""SPEC-PRD-13 · TC-PRD-13a"
 
 **Re-sincronización del 2026-11-13** (decisión 11: productos sin categoría): los casos de SPEC-PRD-07, 08, 15, 16 y 20 de la matriz original quedan solo como registro; los vigentes están en la sección [Productos sin categoría](#productos-sin-categoría-re-sincronización-del-2026-11-13), junto con la tabla de casos retirados. Los datos de referencia pasan a ser los tipos `"Notebook"`, `"Desktop"` e `"Impresora"`, sin categorías (T-PRD-45); los casos de otras specs que usaban `category_id` cambian sus datos en el lugar (marcados «datos ajustados 2026-11-13»).
 
-Fixtures existentes (`tests/conftest.py`): `app`, `client`, `schema`, `db_session`, `make_user`, `login_as`, `admin`, `admin_client`, `make_category` y `make_product_type` (ver [01-users](../01-users/test-plan.md) y [02-product-types](../02-product-types/test-plan.md)).
+Fixtures existentes (`tests/conftest.py`): `app`, `client`, `schema`, `db_session`, `make_user`, `login_as`, `admin`, `admin_client`, `make_category` y `make_product_type` (ver [01-users](../../users/test-plan.md) y [02-product-types](../product-types/test-plan.md)).
 
 Fixture nueva (`tests/conftest.py`):
 - `make_product`: fábrica `make_product(product_type, name=..., is_active=True)` que persiste un `Product` de ese tipo y hace commit. Sin nombre, genera uno único (`"Product 1"`, `"Product 2"`, …).
@@ -225,7 +225,7 @@ Casos borde nuevos del 2026-11-13 (productos sin categoría): `category_id` vál
 
 ## SPEC-PTY-08 (de `02-product-types`, implementada en esta área)
 
-TC-PTY-08a, 08b y 08c están definidos en el [test-plan de 02](../02-product-types/test-plan.md#matriz-spec--casos) y se implementan con T-PRD-21, T-PRD-10 y T-PRD-27. TC-PTY-08b tiene que exigir `FOREIGN KEY` en `__cause__`, igual que TC-PTY-14c, para que el test falle si falta `passive_deletes="all"`. Esta área suma un caso:
+TC-PTY-08a, 08b y 08c están definidos en el [test-plan de 02](../product-types/test-plan.md#matriz-spec--casos) y se implementan con T-PRD-21, T-PRD-10 y T-PRD-27. TC-PTY-08b tiene que exigir `FOREIGN KEY` en `__cause__`, igual que TC-PTY-14c, para que el test falle si falta `passive_deletes="all"`. Esta área suma un caso:
 
 | Spec | Caso | Nivel | Datos / preparación | Resultado esperado | Archivo |
 |------|------|-------|---------------------|--------------------|---------|

@@ -1,6 +1,6 @@
 # 00 — Plataforma
 
-Origen: RNF 1, RNF 2, RNF 7, RNF 8, RNF 10 y decisiones técnicas de [AGENTS.md](../../AGENTS.md) · Diagramas: [clases — capas](../../diagrams/classes.md#2-capas-de-aplicación)
+Origen: RNF 1, RNF 2, RNF 7, RNF 8, RNF 10 y decisiones técnicas de [AGENTS.md](../../../AGENTS.md) · Diagramas: [clases — capas](../../diagrams/classes.md#2-capas-de-aplicación)
 
 Comportamiento técnico transversal que necesitan todas las demás áreas: configuración, conexión a la base, ciclo de vida de la sesión y comandos de administración. No contiene reglas de negocio.
 
@@ -39,7 +39,7 @@ Comportamiento técnico transversal que necesitan todas las demás áreas: confi
 | SPEC-PLT-14 | Ubicuo | **Reemplazada por SPEC-PLT-23.** **El sistema deberá** exponer exactamente las rutas y métodos HTTP que describe su contrato OpenAPI, ni más ni menos. | RNF 7 |
 | SPEC-PLT-15 | No deseado | **Si** se solicita una ruta o un método HTTP que la API no expone (incluido un identificador no numérico en la URL), **entonces el sistema deberá** responder `404` o `405` con un cuerpo JSON de error. | RNF 7 |
 | SPEC-PLT-16 | No deseado | **Si** ocurre un error no manejado durante un request, **entonces el sistema deberá** responder `500` con un cuerpo JSON de error genérico, sin exponer detalles internos. | RNF 2, RNF 7 |
-| SPEC-PLT-23 | Ubicuo | **El sistema deberá** exponer exactamente las rutas y métodos HTTP que describe su contrato OpenAPI, más las rutas de la interfaz web de [07-ui](../07-ui/spec.md) (`GET /` y `GET /static/<ruta>`, SPEC-UI-01 y SPEC-UI-02), que quedan fuera del contrato por no ser parte de la API JSON, ni más ni menos. | RNF 7, RNF 8 |
+| SPEC-PLT-23 | Ubicuo | **El sistema deberá** exponer exactamente las rutas y métodos HTTP que describe su contrato OpenAPI, más las rutas de la interfaz web de [07-ui](../ui/spec.md) (`GET /` y `GET /static/<ruta>`, SPEC-UI-01 y SPEC-UI-02), que quedan fuera del contrato por no ser parte de la API JSON, ni más ni menos. | RNF 7, RNF 8 |
 
 ## Paginación opcional de listados
 
@@ -67,7 +67,7 @@ Convención común para todo listado que admite `q`: usuarios, clientes y repres
 
 ## Decisiones
 
-Aprobadas el 2026-11-10 y registradas en Engram (`tp-final/decision/*`) y en [MEMORY.md](../../MEMORY.md) (Cambios y motivación):
+Aprobadas el 2026-11-10 y registradas en Engram (`tp-final/decision/*`) y en [MEMORY.md](../../../MEMORY.md) (Cambios y motivación):
 
 1. La plataforma se trata como un área más (`00-platform`), para que el esqueleto respete spec-as-source y TDD sin crear excepciones a la constitución.
 2. `create-admin` (SPEC-USR-20) **no** forma parte del esqueleto: se implementa con el área `01-users`, cuando esa área tenga sus cuatro archivos.
@@ -83,19 +83,19 @@ Aprobadas el 2026-11-10 (revisión transversal de huecos):
 
 7. Todas las respuestas de error de la API son JSON, también las de rutas inexistentes (SPEC-PLT-15) y las de errores inesperados (SPEC-PLT-16). Antes Flask devolvía páginas HTML.
 
-Aprobadas el 2026-11-12 (nueva área [07-ui](../07-ui/spec.md) y paginación opcional):
+Aprobadas el 2026-11-12 (nueva área [07-ui](../ui/spec.md) y paginación opcional):
 
 8. La paginación es opcional y compatible hacia atrás (SPEC-PLT-17 y 18): sin `page` ni `page_size` el listado responde el arreglo plano de hoy, así que ningún cliente ni test existente cambia. Con alguno de los dos responde `{items, page, page_size, total}`. El `page_size` por defecto es 20 (SPEC-PLT-25) y el máximo 100 (SPEC-PLT-26). Un valor inválido es `400` `validation_error` (SPEC-PLT-20). Se descartó rechazar un `page_size` excesivo recortándolo en silencio.
 9. **SPEC-PLT-14 reemplazada por SPEC-PLT-23**: la UI agrega `GET /` y `GET /static/<ruta>`, que no son API JSON y no se describen en `openapi.json`. En vez de documentarlas como rutas del contrato, el contrato sigue siendo solo la API y SPEC-PLT-23 las excluye de forma explícita y exacta (sin comodines de "otras rutas"). El test de contrato (rutas expuestas = rutas del contrato) pasa a comparar contra `openapi.json` más esas dos rutas. Se descartó listarlas en `openapi.json` porque mezclaría HTML y archivos con el contrato de la API. SPEC-PLT-15 no cambia: una ruta que ni la API ni la UI exponen sigue respondiendo `404` o `405` JSON, incluido `/static/<archivo inexistente>` (SPEC-UI-03). Aprobada por el equipo el 2026-11-12.
 10. Las rutas de la UI (`GET /` y `/static/`) son públicas, como `/health`, `/openapi.json` y `/docs` (decisión 6): el HTML y los archivos no contienen datos y la autenticación vive en la API. Es una excepción más a la exigencia de sesión: SPEC-USR-16 (reemplazada por SPEC-USR-49) ya admitía rutas públicas, y SPEC-USR-49 las nombra una por una.
 
-Aprobadas el 2026-11-12 (validación de requerimientos de [07-ui](../07-ui/spec.md)):
+Aprobadas el 2026-11-12 (validación de requerimientos de [07-ui](../ui/spec.md)):
 
 11. **`page` y `page_size` por defecto (SPEC-PLT-19, 24, 25 y 26)**: SPEC-PLT-19 agrupaba tres comportamientos; queda solo con la numeración desde 1 y el resto se separa en specs nuevas. `page` vale 1 si se omite (SPEC-PLT-24), `page_size` vale 20 si se omite (SPEC-PLT-25) y el máximo es 100 (SPEC-PLT-26). El comportamiento no cambia.
 12. **`q` vacío (SPEC-PLT-27)**: un `q` vacío o con solo espacios equivale a no enviar `q` en todos los listados con búsqueda (SPEC-USR-43 y 46, SPEC-PTY-32, SPEC-PRD-26, SPEC-TKT-41). Se define una sola vez acá y las demás áreas la referencian en sus decisiones.
 13. **Listados que no se paginan**: tipos de producto (SPEC-PTY-33, que reemplaza a SPEC-PTY-24; decisión del usuario), hitos de un ticket (SPEC-MLS-13) y cambios de estado de un ticket (SPEC-TKT-47). Ignoran `page` y `page_size` y siguen respondiendo el arreglo plano.
 14. **Rutas públicas (SPEC-USR-49 reemplaza a SPEC-USR-16)**: la lista de rutas sin sesión es cerrada: `POST /login`, `GET /`, `GET /static/<ruta>`, `GET /health`, `GET /docs` y `GET /openapi.json`. Cualquier otra ruta que expone la API responde `401` sin sesión.
 
-Aprobada el 2026-11-13 (eliminación de las categorías, ver [02-product-types](../02-product-types/spec.md) decisión 8):
+Aprobada el 2026-11-13 (eliminación de las categorías, ver [02-product-types](../catalog/product-types/spec.md) decisión 8):
 
 15. **Referencias a categorías**: el profesor pidió solo producto y tipo de producto; el tipo es el rubro. Esta área no cambia de comportamiento: se actualizan las referencias de la convención de listados sin paginar (SPEC-PTY-24 → 33) y de `q` (SPEC-PTY-21 a 23 → 32). No quedan listados de categorías.

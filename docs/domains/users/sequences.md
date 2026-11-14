@@ -1,6 +1,6 @@
 # Secuencias — 01 Usuarios y accesos
 
-Spec: [specs/01-users/spec.md](../../specs/01-users/spec.md)
+Spec: [docs/domains/users/spec.md](spec.md)
 
 Convenciones comunes a todos los diagramas:
 

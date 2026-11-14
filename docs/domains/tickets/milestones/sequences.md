@@ -1,12 +1,12 @@
 # Secuencias — 05 Hitos
 
-Spec: [specs/05-milestones/spec.md](../../specs/05-milestones/spec.md)
+Spec: [docs/domains/tickets/milestones/spec.md](spec.md)
 
 ## 1. Registro de hito por el representante (con transición opcional)
 
 Specs: SPEC-MLS-01, 03, 04, 05, 06, 11 · SPEC-TKT-09, 14, 32 · SPEC-NTF-06, 08
 
-Orden de las reglas (decisión 11): formato `400` → `Admin` `403` → ticket visible `404` → estado `Closed` `409`. El service lee `clock()` una vez y pasa `now` al dominio. Los pasos `NS.notify` son de [06-notifications](06-notifications.md): `TicketService` los ejecuta después del `commit()` y solo si este termina con éxito (SPEC-NTF-15).
+Orden de las reglas (decisión 11): formato `400` → `Admin` `403` → ticket visible `404` → estado `Closed` `409`. El service lee `clock()` una vez y pasa `now` al dominio. Los pasos `NS.notify` son de [06-notifications](../../notifications/sequences.md): `TicketService` los ejecuta después del `commit()` y solo si este termina con éxito (SPEC-NTF-15).
 
 ```mermaid
 sequenceDiagram
@@ -67,7 +67,7 @@ sequenceDiagram
 
 Specs: SPEC-MLS-02, 03, 04, 05, 06, 11 · SPEC-NTF-09, 15
 
-El cliente puede mandar `start_progress`, pero se ignora: `request_progress` solo se invoca si el autor es el representante asignado (dec. 5 y 6). El paso `NS.notify` es de [06-notifications](06-notifications.md) y solo se ejecuta después de un `commit()` exitoso (SPEC-NTF-15).
+El cliente puede mandar `start_progress`, pero se ignora: `request_progress` solo se invoca si el autor es el representante asignado (dec. 5 y 6). El paso `NS.notify` es de [06-notifications](../../notifications/sequences.md) y solo se ejecuta después de un `commit()` exitoso (SPEC-NTF-15).
 
 ```mermaid
 sequenceDiagram

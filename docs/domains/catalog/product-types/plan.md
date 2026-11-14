@@ -4,7 +4,7 @@ Specs cubiertas desde el 2026-11-13: SPEC-PTY-07, 08 y 25 a 35 ([spec.md](spec.m
 
 > **Re-sincronización del 2026-11-13** (decisión 8 de la spec: se elimina la entidad `Category`; el tipo de producto **es** el rubro): manda la sección [Eliminación de las categorías](#eliminación-de-las-categorías-2026-11-13) y las tasks T-PTY-42 a 54. Todo lo que las secciones anteriores dicen sobre `Category`, `categories`, `CategoryRepository`, `category_id`, `CategoryGroup` y los endpoints `/categories` queda como historial del diseño original.
 
-> **Re-sincronización del 2026-11-12** (nueva área [07-ui](../07-ui/spec.md)): búsqueda `q` en `GET /categories` y `GET /product-types`, sin paginación. Ver [Búsqueda por nombre](#búsqueda-por-nombre-2026-11-12) y las tasks T-PTY-34 a 41. Las secciones anteriores describen el diseño original; donde algo cambió, manda la sección nueva.
+> **Re-sincronización del 2026-11-12** (nueva área [07-ui](../../ui/spec.md)): búsqueda `q` en `GET /categories` y `GET /product-types`, sin paginación. Ver [Búsqueda por nombre](#búsqueda-por-nombre-2026-11-12) y las tasks T-PTY-34 a 41. Las secciones anteriores describen el diseño original; donde algo cambió, manda la sección nueva.
 
 ## Enfoque
 

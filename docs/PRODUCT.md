@@ -26,7 +26,7 @@ Not established beyond the course context. Undecided; do not invent.
 
 - Single-page app with hash routes (`#/tickets`, `#/users`, `#/product-types`, `#/products`, `#/account`, `#/login`), screens per role.
 - Served by Flask from `app/static/` (HTML, CSS, ES modules). No build step, no runtime dependencies, no external scripts, styles or fonts (SPEC-UI-06).
-- Source of truth for behavior: `specs/07-ui/spec.md` and `docs/REQUERIMIENTOS.md`.
+- Source of truth for behavior: `docs/domains/ui/spec.md` and `docs/REQUERIMIENTOS.md`.
 
 ## Capabilities and Constraints
 

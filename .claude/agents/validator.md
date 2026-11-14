@@ -24,7 +24,7 @@ The orchestrator gives you the area folder and the implementer report. Read `AGE
 4. **Tasks**: every task in scope is `[x]` and its done criterion holds.
 5. **Contract**: routes in `app.url_map` and `paths` in `docs/openapi.json` match both ways.
 6. **Architecture**: no Flask in `app/domain/`, no `Session` in controllers, no business logic in controllers or repositories, no `if` on state or channel names, no update/delete paths for milestones or state changes, no raw SQL by string interpolation, no `print()` or commented code.
-7. **Diagrams**: `diagrams/classes.md` and the area's sequence diagram reflect the implemented classes and flows.
+7. **Diagrams**: `docs/diagrams/classes.md` and the area's sequence diagram reflect the implemented classes and flows.
 8. **Memory**: `MEMORY.md` reflects the new state and has a "Cambios y motivación" entry for the change that states what changed and why (report it if not; the orchestrator updates it), and every new decision or pitfall of the change exists in Engram (`mem_search`, project `tp-final`, topic keys `tp-final/decision/*` / `tp-final/pitfall/*`; report any that is missing).
 
 ## Rules

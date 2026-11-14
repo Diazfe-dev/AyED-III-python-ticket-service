@@ -2,7 +2,7 @@
 
 Cada test cita en su docstring la spec y el caso: `"""SPEC-MLS-05 · TC-MLS-05a"""`. Los casos de `04-tickets` que se completan o agregan acá citan su propia spec: `"""SPEC-TKT-09 · TC-TKT-09b"""`, `"""SPEC-TKT-27 · TC-TKT-27f"""`. Los casos que verifican una decisión de [spec.md](spec.md) la citan como **(dec. N)**.
 
-Fixtures existentes (`tests/conftest.py`): `app`, `client`, `schema`, `db_session`, `make_user`, `login_as`, `admin`, `admin_client`, `make_product_type`, `make_product` y `make_ticket` (`make_category` hasta T-MLS-27, 2026-11-13: los productos de los datos se crean sin categoría) (ver [04-tickets](../04-tickets/test-plan.md)).
+Fixtures existentes (`tests/conftest.py`): `app`, `client`, `schema`, `db_session`, `make_user`, `login_as`, `admin`, `admin_client`, `make_product_type`, `make_product` y `make_ticket` (`make_category` hasta T-MLS-27, 2026-11-13: los productos de los datos se crean sin categoría) (ver [04-tickets](../tickets/test-plan.md)).
 
 Fixture nuevo (`tests/integration/milestones/conftest.py`):
 - `world`: `ana` y `beto` (clientes), `raul` y `rosa` (representantes), el producto `xps` y el ticket de `ana` y `raul` creado con `make_ticket(ana, raul, [xps])` (estado `New`, con su primer hito). Mismos datos que el `world` de `tests/integration/tickets/test_tickets_permissions.py`, sin importarlo.
@@ -115,7 +115,7 @@ Tres barreras, como en `StateChange` (TC-TKT-16a a 16k): (a) listeners del ORM, 
 
 | Spec | Caso | Nivel | Datos / preparación | Resultado esperado | Archivo |
 |------|------|-------|---------------------|--------------------|---------|
-| TKT-09 | TC-TKT-09b | integration | Pendiente desde [04-tickets](../04-tickets/test-plan.md). Ticket `New`; sesión de `raul`; `POST /tickets/{id}/milestones` con `{"content": "Empiezo", "start_progress": true}` | `201` con el hito; `GET /tickets/{id}` responde `state == "InProgress"`; hay un `StateChange` nuevo `InProgress` con `user_id == raul.id` y `timestamp` igual al `created_at` del hito, en la misma operación | `tests/integration/milestones/test_milestones_api.py` |
+| TKT-09 | TC-TKT-09b | integration | Pendiente desde [04-tickets](../tickets/test-plan.md). Ticket `New`; sesión de `raul`; `POST /tickets/{id}/milestones` con `{"content": "Empiezo", "start_progress": true}` | `201` con el hito; `GET /tickets/{id}` responde `state == "InProgress"`; hay un `StateChange` nuevo `InProgress` con `user_id == raul.id` y `timestamp` igual al `created_at` del hito, en la misma operación | `tests/integration/milestones/test_milestones_api.py` |
 | TKT-09 | TC-TKT-09c | unit | Ticket `New`; `ticket.request_progress(raul, t1)` | `state_name == "InProgress"` y un `StateChange(raul, "InProgress", t1)` nuevo | `tests/unit/milestones/test_milestone.py` |
 | TKT-09 | TC-TKT-09d | unit | Parametrizado: `add_milestone(ticket.id, "Hola", raul, start_progress=v)` con `v` en `None`, `"yes"`, `"true"`, `1` y `0` **(dec. 7)** | `ValidationError` con `fields == {"start_progress": "invalid"}`; `visible_lookups` vacío y sin `commit` | `tests/unit/milestones/test_milestone_service.py` |
 | TKT-09 | TC-TKT-09e | unit | Ticket `New`; `add_milestone(ticket.id, "Empiezo", raul, start_progress=True)` con `FakeClock` | El ticket pasa a `InProgress` con un `StateChange` de `raul` en el instante del reloj; el hito se guarda; un solo `commit` | `tests/unit/milestones/test_milestone_service.py` |

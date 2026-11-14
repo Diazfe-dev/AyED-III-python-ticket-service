@@ -1,6 +1,6 @@
 # Secuencias — 06 Notificaciones
 
-Spec: [specs/06-notifications/spec.md](../../specs/06-notifications/spec.md)
+Spec: [docs/domains/notifications/spec.md](spec.md)
 
 `NotificationService(strategies, clock, commit).notify(recipient, actor, ticket, message)` es el único punto de entrada. `TicketService` lo llama como última acción de la operación, **después** de su propio `commit()`, mediante `_notify_counterpart` (cierre, reapertura e hitos) o directo al cliente (creación). Los mensajes salen de las funciones de `app/services/notification_messages.py`.
 

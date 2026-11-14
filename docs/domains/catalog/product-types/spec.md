@@ -1,6 +1,6 @@
 # 02 — Gestión de tipos de producto
 
-Origen: RF 1.2 (RF 1.2.3 eliminado; RF 1.2.4 para la búsqueda) · Diagramas: [secuencias](../../diagrams/sequences/02-product-types.md), [clases](../../diagrams/classes.md)
+Origen: RF 1.2 (RF 1.2.3 eliminado; RF 1.2.4 para la búsqueda) · Diagramas: [secuencias](sequences.md), [clases](../../../diagrams/classes.md)
 
 Jerarquía de clasificación: `ProductType` (el tipo de producto es el rubro) → `Product`. Desde el 2026-11-13 no existe `Category` (decisión 8).
 
@@ -63,7 +63,7 @@ Specs de la entidad `Category`, eliminada el 2026-11-13. Se conservan marcadas p
 
 ## Decisiones
 
-Resueltas el 2026-11-09 y registradas en Engram (`tp-final/decision/*`) y en [MEMORY.md](../../MEMORY.md) (Cambios y motivación):
+Resueltas el 2026-11-09 y registradas en Engram (`tp-final/decision/*`) y en [MEMORY.md](../../../../MEMORY.md) (Cambios y motivación):
 
 1. Las categorías tienen ABM completo (RF 1.2.3). Su baja es física y se rechaza si tienen tipos asociados.
 
@@ -73,11 +73,11 @@ Resueltas el 2026-11-10, al planificar el área:
 3. SPEC-PTY-07 y 08 dependen de `Product` (área `03-products`): en esta área se verifica lo posible y el caso completo queda pendiente para `03-products`, como TC-USR-10d. La clave foránea con `ON DELETE RESTRICT` funciona como red de seguridad en la base.
 4. Al aprobar el plan (2026-11-10): los nombres de tipo tampoco distinguen mayúsculas (PTY-05 y 16), el listado agrupado incluye categorías vacías (PTY-09), los nombres se guardan sin espacios en los extremos (PTY-19) y un `category_id` mal formado es un error de validación `400`, no un `404` (PTY-20). Las specs editadas todavía no estaban implementadas.
 
-Aprobadas el 2026-11-12 (nueva área [07-ui](../07-ui/spec.md)):
+Aprobadas el 2026-11-12 (nueva área [07-ui](../../ui/spec.md)):
 
-5. **Búsqueda `q` en categorías y tipos (SPEC-PTY-21 y 23)**: coincidencia por texto contenido en el nombre, sin distinguir mayúsculas. Son listados cortos, así que **no** se paginan (la convención de [00-platform](../00-platform/spec.md#paginación-opcional-de-listados) no aplica y `page` y `page_size` se ignoran). SPEC-PTY-09 se reemplaza por SPEC-PTY-22 (mismo comportamiento, ahora acotado a "sin `q`") porque con `q` las categorías sin coincidencias se omiten (SPEC-PTY-23). Sin `q`, ambos listados se comportan como hasta ahora.
+5. **Búsqueda `q` en categorías y tipos (SPEC-PTY-21 y 23)**: coincidencia por texto contenido en el nombre, sin distinguir mayúsculas. Son listados cortos, así que **no** se paginan (la convención de [00-platform](../../platform/spec.md#paginación-opcional-de-listados) no aplica y `page` y `page_size` se ignoran). SPEC-PTY-09 se reemplaza por SPEC-PTY-22 (mismo comportamiento, ahora acotado a "sin `q`") porque con `q` las categorías sin coincidencias se omiten (SPEC-PTY-23). Sin `q`, ambos listados se comportan como hasta ahora.
 
-Aprobadas el 2026-11-12 (validación de requerimientos de [07-ui](../07-ui/spec.md)):
+Aprobadas el 2026-11-12 (validación de requerimientos de [07-ui](../../ui/spec.md)):
 
 6. **Sin paginación (SPEC-PTY-24)**: decisión del usuario. Se le ofreció paginar categorías y tipos de producto y eligió no hacerlo: son listados cortos. `GET /categories` y `GET /product-types` ignoran `page` y `page_size` (no responden `400` ni el objeto `{items, ...}`) y siguen aceptando `q`. Es lo que ya decía la decisión 5; ahora tiene spec propia.
 7. **`q` vacío**: en SPEC-PTY-21 a 23, un `q` vacío o con solo espacios equivale a no enviar `q` (SPEC-PLT-27).

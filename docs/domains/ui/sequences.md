@@ -1,6 +1,6 @@
 # Secuencias — 07 Interfaz web
 
-Spec: [specs/07-ui/spec.md](../../specs/07-ui/spec.md)
+Spec: [docs/domains/ui/spec.md](spec.md)
 
 La interfaz es un front plano (módulos ES sin build) que Flask sirve desde `app/static/`. No tiene dominio, services ni repositorios: todo dato y toda regla vienen de la API de 00 a 05. Las piezas que aparecen en los diagramas:
 

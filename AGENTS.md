@@ -11,8 +11,8 @@ Sistema de gestión de tickets de soporte (TP final de Algoritmos III). Un repre
 Fuentes de verdad, en este orden:
 
 1. [docs/REQUERIMIENTOS.md](docs/REQUERIMIENTOS.md): requerimientos funcionales (RF) y no funcionales (RNF).
-2. [specs/](specs/): una carpeta por área con `spec.md` (RF descompuestos en EARS, `SPEC-<ÁREA>-<NN>`), `plan.md`, `tasks.md` y `test-plan.md`. Bajo **spec-as-source**, `spec.md` es la fuente de verdad del comportamiento y el código se deriva de ella.
-3. [diagrams/](diagrams/): diagramas en **Mermaid**: [use-cases.md](diagrams/use-cases.md) (modelo de casos de uso), [classes.md](diagrams/classes.md) (modelo de dominio y capas) y [sequences/](diagrams/sequences/) (un archivo por área de specs).
+2. [docs/domains/](docs/domains/): una carpeta por dominio (`catalog` y `tickets` agrupan dos áreas cada una) con `spec.md` con `spec.md` (RF descompuestos en EARS, `SPEC-<ÁREA>-<NN>`), `plan.md`, `tasks.md` y `test-plan.md`. Bajo **spec-as-source**, `spec.md` es la fuente de verdad del comportamiento y el código se deriva de ella.
+3. Diagramas en **Mermaid**: [docs/diagrams/use-cases.md](docs/diagrams/use-cases.md) (modelo de casos de uso), [docs/diagrams/classes.md](docs/diagrams/classes.md) (modelo de dominio y capas) y un `sequences.md` por área junto a su `spec.md` (en `docs/domains/`).
 4. [docs/openapi.json](docs/openapi.json): contrato OpenAPI 3.1 de la API HTTP, escrito a mano (*contract-first*). Se sirve en `/openapi.json` y se navega con Swagger UI en `/docs`.
 
 Si el código y los diagramas no coinciden, no lo resuelvas por tu cuenta: avisá la discrepancia y actualizá el diagrama en el mismo PR que el código.
@@ -120,21 +120,22 @@ tests/
   unit/                # dominio y servicios, sin Flask ni disco (fakes.py: dobles compartidos, como CommitSpy)
   integration/         # repositorios contra SQLite en memoria y endpoints con test client
   ui/                  # interfaz: test_ui_routes.py y test_traceability.py (pytest), js/ (node --test) y e2e/ (Playwright, con server.py)
-specs/
-  README.md            # Sintaxis EARS, convenciones e índice de áreas
-  01-users/            # Una carpeta por área (USR, PTY, PRD, TKT, MLS, NTF)
-    spec.md            # QUÉ: specs EARS del área (fuente de verdad)
-    plan.md            # CÓMO: plan de implementación
-    tasks.md           # PASOS: tareas ordenadas y su estado
-    test-plan.md       # VERIFICACIÓN: matriz spec → casos de prueba
-  02-product-types/ … 07-ui/
-diagrams/              # UML en Mermaid (no borrar, mantener sincronizado con specs y código)
-  use-cases.md         # Modelo de casos de uso: actores, casos por paquete y descripciones
-  classes.md           # Diagrama de clases: modelo de dominio y capas
-  sequences/           # Diagramas de secuencia, un archivo por área (NN-<área>.md)
 docs/
+  README.md            # Sintaxis EARS, convenciones e índice de áreas
   constitution.md      # Principios innegociables (máxima precedencia)
+  REQUERIMIENTOS.md    # RF y RNF
   openapi.json         # Contrato OpenAPI 3.1 de la API (contract-first)
+  PRODUCT.md, DESIGN.md # Contexto de producto y sistema de diseño (la herramienta impeccable los busca en docs/)
+  diagrams/            # UML en Mermaid (no borrar, mantener sincronizado con specs y código)
+    use-cases.md       # Modelo de casos de uso: actores, casos por paquete y descripciones
+    classes.md         # Diagrama de clases: modelo de dominio y capas
+  domains/             # Un dominio por carpeta: platform, users, catalog, tickets, notifications, ui
+    <dominio>/         # catalog/ y tickets/ agrupan dos áreas: catalog/{product-types,products}, tickets/{tickets,milestones}
+      spec.md          # QUÉ: specs EARS del área (fuente de verdad)
+      plan.md          # CÓMO: plan de implementación
+      tasks.md         # PASOS: tareas ordenadas y su estado
+      test-plan.md     # VERIFICACIÓN: matriz spec → casos de prueba
+      sequences.md     # Diagramas de secuencia del área (no en platform)
 package.json           # Solo devDependencies (@playwright/test); scripts test:js y test:e2e
 playwright.config.js   # Playwright: Chromium y servidor de Flask de tests/ui/e2e/server.py
 .github/workflows/ci.yml # CI: jobs python, js y e2e
@@ -143,7 +144,7 @@ MEMORY.md              # Estado, cambios con su motivación y próximos pasos (d
 
 ## Spec-Driven Development (spec-as-source)
 
-El proyecto usa **Spec-Driven Development** con el enfoque **spec-as-source**: la spec es el artefacto principal y el código es una derivación de ella. La sintaxis EARS y las convenciones de IDs están en [specs/README.md](specs/README.md).
+El proyecto usa **Spec-Driven Development** con el enfoque **spec-as-source**: la spec es el artefacto principal y el código es una derivación de ella. La sintaxis EARS y las convenciones de IDs están en [docs/README.md](docs/README.md).
 
 ### Principios
 
@@ -154,7 +155,7 @@ El proyecto usa **Spec-Driven Development** con el enfoque **spec-as-source**: l
 
 ### Estructura de cada área
 
-Cada carpeta `specs/NN-<área>/` tiene como máximo estos cuatro archivos. `spec.md` existe siempre. Los otros tres se crean **cuando se empieza a trabajar el área**, en este orden y antes de escribir código: `plan.md` → `tasks.md` → `test-plan.md`. Un área sin los cuatro archivos no se puede implementar.
+Cada carpeta de área (`docs/domains/<dominio>/` o `docs/domains/<dominio>/<área>/`) tiene como máximo estos cuatro archivos, más `sequences.md` con los diagramas de secuencia del área. `spec.md` existe siempre. Los otros tres se crean **cuando se empieza a trabajar el área**, en este orden y antes de escribir código: `plan.md` → `tasks.md` → `test-plan.md`. Un área sin los cuatro archivos no se puede implementar.
 
 | Archivo | Responde | Contenido obligatorio |
 |---------|----------|-----------------------|
@@ -302,7 +303,7 @@ test(auth): reject login with wrong password
 fix(milestone): order milestones chronologically
 ```
 
-- Tipos: `feat`, `fix`, `test`, `refactor`, `docs`, `chore`, `ci`, `spec` (cambios en `specs/`: spec, plan, tasks o test-plan).
+- Tipos: `feat`, `fix`, `test`, `refactor`, `docs`, `chore`, `ci`, `spec` (cambios en `docs/domains/`: spec, plan, tasks o test-plan).
 - Scopes sugeridos: `auth`, `user`, `ticket`, `state`, `milestone`, `notification`, `product`, `db`, `ci`.
 - Sin trailers de coautoría de IA (`Co-Authored-By`) ni otras atribuciones automáticas.
 - No mezclar refactors con cambios de comportamiento en un mismo commit.
