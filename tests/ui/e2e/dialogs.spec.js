@@ -11,8 +11,6 @@ const account = (id, name, role, channel = "mail") => ({
   is_active: true,
 });
 const LUIS = account(5, "Luis Mora", "Client");
-const COMPUTING = { id: 3, name: "Computación" };
-const NETWORKS = { id: 5, name: "Redes" };
 const LAPTOP = { id: 4, name: "Notebook" };
 const ROUTER = { id: 6, name: "Router" };
 const LENOVO = {
@@ -20,7 +18,6 @@ const LENOVO = {
   name: "Lenovo T14",
   is_active: true,
   product_type: LAPTOP,
-  category: COMPUTING,
 };
 const ANA = { id: 11, name: "Ana Gómez" };
 const NOTEBOOK = { id: 21, name: "Notebook X" };
@@ -64,7 +61,6 @@ async function installScreen(page, role) {
   const api = await installFakeApi(page);
   api.on("GET", "/me", { status: 200, body: USERS[role] });
   api.on("GET", "/users", { status: 200, body: pageOf([LUIS]) });
-  api.on("GET", /^\/categories(\?|$)/, { status: 200, body: [COMPUTING, NETWORKS] });
   api.on("GET", /^\/product-types(\?|$)/, { status: 200, body: [LAPTOP, ROUTER] });
   api.on("GET", "/products", { status: 200, body: pageOf([LENOVO]) });
   api.on("GET", "/clients", { status: 200, body: [ANA] });

@@ -29,10 +29,9 @@ async function open(page, { role, hash }) {
     body: pageOf([{ id: 5, name: "Luis", email: "l@example.com", role: "Client", is_active: true }]),
   });
   api.on("GET", /^\/tickets\?/, { status: 200, body: pageOf([ticket(1, "New", CREATED_AT)]) });
-  api.on("GET", /^\/categories(\?|$)/, { status: 200, body: [{ id: 3, name: "Computación" }] });
   api.on("GET", /^\/product-types(\?|$)/, {
     status: 200,
-    body: [{ id: 4, name: "Notebook", category_id: 3 }],
+    body: [{ id: 4, name: "Notebook" }],
   });
   api.on("GET", "/products", {
     status: 200,
@@ -41,8 +40,7 @@ async function open(page, { role, hash }) {
         id: 9,
         name: "Lenovo",
         is_active: true,
-        product_type: { id: 4, name: "Notebook", category_id: 3 },
-        category: { id: 3, name: "Computación" },
+        product_type: { id: 4, name: "Notebook" },
       },
     ]),
   });

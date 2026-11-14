@@ -4,8 +4,6 @@ import { page as pageOf, ticket, USERS } from "./support/fixtures.js";
 
 test.use({ timezoneId: "UTC" });
 
-const COMPUTING = { id: 3, name: "Computación" };
-const NETWORKS = { id: 5, name: "Redes" };
 const CREATED_AT = "2026-01-01T12:00:00+00:00";
 
 const account = (id) => ({
@@ -59,8 +57,7 @@ async function open(page, screen, { total = 57, role = screen.role ?? "Admin" } 
           id: from + i + 1,
           name: `Producto ${String(from + i + 1).padStart(3, "0")}`,
           is_active: true,
-          product_type: { id: 4, name: "Notebook", category_id: 3 },
-          category: COMPUTING,
+          product_type: { id: 4, name: "Notebook" },
         })),
       total,
     ),
