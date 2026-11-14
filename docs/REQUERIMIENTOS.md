@@ -4,7 +4,7 @@
 
 ### 1.1 Gestión de usuarios y accesos
 
-1. El sistema deberá permitir la gestión (alta, baja y modificación) de usuarios. La baja será lógica: el usuario queda inactivo y no puede iniciar sesión, pero se conserva su historial.
+1. El sistema deberá permitir la gestión (alta, baja y modificación) de usuarios, a cargo del Administrador. La baja será lógica: el usuario queda inactivo y no puede iniciar sesión, pero se conserva su historial. El Representante solo puede dar de alta usuarios con rol Cliente (RF 1.1.10).
 2. El sistema deberá listar usuarios de cualquier rol, incluido el de Administrador, distinguiéndolos explícitamente del rol de Representante a nivel de sistema, con búsqueda por nombre o email y filtro por estado.
 3. El sistema deberá gestionar representantes.
 4. El sistema deberá listar representantes, distinguiéndolos explícitamente del rol de Cliente a nivel de sistema.
@@ -13,6 +13,7 @@
 7. El sistema deberá permitir a cualquier usuario autenticado cambiar su propia contraseña, y al Administrador restablecer la de cualquier usuario sin conocer la anterior.
 8. El sistema deberá permitir a un usuario autenticado consultar su propia identidad (nombre, email y rol).
 9. El sistema deberá permitir al Representante listar los clientes activos, con su identificador y nombre únicamente, para elegir el cliente de un ticket.
+10. El sistema deberá permitir al Representante dar de alta usuarios con rol Cliente, para registrar al cliente que lo llama por teléfono. El Representante no podrá dar de alta usuarios de otro rol ni modificar, dar de baja, reactivar ni restablecer la contraseña de ningún usuario: esas operaciones son del Administrador.
 
 ### 1.2 Gestión de tipos de producto
 
@@ -23,11 +24,12 @@
 
 ### 1.3 Gestión de productos
 
-1. El sistema deberá permitir la gestión (alta, baja y modificación) de productos. La baja será lógica: el producto inactivo se conserva en los tickets existentes, pero no puede asociarse a tickets nuevos.
+1. El sistema deberá permitir la gestión (alta, baja y modificación) de productos, a cargo del Administrador. La baja será lógica: el producto inactivo se conserva en los tickets existentes, pero no puede asociarse a tickets nuevos. El Representante solo puede dar de alta productos (RF 1.3.6).
 2. El sistema deberá permitir asociar tipos de producto a productos.
 3. El sistema deberá permitir listar productos.
 4. El sistema deberá permitir al Administrador reactivar productos inactivos.
 5. El sistema deberá permitir buscar productos por nombre y filtrar el listado por estado, además de por tipo de producto.
+6. El sistema deberá permitir al Representante dar de alta productos (nombre y tipo de producto), para registrar sobre la marcha el producto de la consulta. El Representante no podrá modificar, dar de baja ni reactivar productos: esas operaciones son del Administrador.
 
 ### 1.4 Gestión del ciclo de vida del ticket
 
@@ -57,7 +59,7 @@
 ### 1.7 Interfaz web
 
 1. El sistema deberá ofrecer una interfaz web para los tres roles (Representante, Administrador y Cliente), servida por la propia API.
-2. El sistema deberá ofrecer al Representante una pantalla para gestionar los tickets que tiene asignados: listarlos con filtros, ver su detalle con hitos e historial de estados, crear tickets eligiendo cliente y productos activos, registrar hitos, cerrar, reabrir y asociar o quitar productos.
+2. El sistema deberá ofrecer al Representante una pantalla para gestionar los tickets que tiene asignados: listarlos con filtros, ver su detalle con hitos e historial de estados, crear tickets eligiendo cliente y productos activos, registrar hitos, comenzar a trabajar un ticket nuevo con un botón explícito, cerrar, reabrir y asociar o quitar productos, y para dar de alta clientes (RF 1.1.10) y productos (RF 1.3.6).
 3. El sistema deberá ofrecer al Administrador pantallas para administrar usuarios (incluidas cuentas de Administrador), tipos de producto y productos, y para consultar todos los tickets en solo lectura.
 4. El sistema deberá ofrecer al Cliente un panel para listar y ver sus propios tickets (hitos y estados), responder, cerrarlos y reabrirlos.
 5. El sistema deberá permitir iniciar y cerrar sesión desde la interfaz, mostrar el acceso solo cuando hay sesión válida y permitir cambiar la contraseña propia.

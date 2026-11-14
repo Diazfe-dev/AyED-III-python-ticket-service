@@ -52,5 +52,5 @@ Cada área es una carpeta `NN-<área>/`. `spec.md` existe siempre. Los demás ar
 ## Actores
 
 - **Administrador** (rol `Admin`, RF 1.1.5): gestiona usuarios, tipos de producto y productos, y consulta todos los tickets en solo lectura (RF 1.4.8).
-- **Representante**: crea y gestiona tickets de sus clientes.
+- **Representante**: crea y gestiona tickets de sus clientes, y da de alta clientes y productos (sin modificarlos ni darlos de baja).
 - **Cliente**: consulta e interactúa solo con sus propios tickets.
