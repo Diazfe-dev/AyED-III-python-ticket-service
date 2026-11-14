@@ -767,8 +767,8 @@
     },
     "/product-types": {
       "get": {
-        "summary": "List product types grouped by category",
-        "description": "Any authenticated user. Without `category_id`, every category (empty ones included) ordered by name, each with its product types ordered by name. With `category_id`, a list with only that category's group. `q` keeps the product types whose name contains the text, without case, and omits the categories left without matches. The list is not paginated: `page` and `page_size` are ignored.",
+        "summary": "List product types",
+        "description": "Any authenticated user. A flat array of every product type ordered by name. `q` keeps the product types whose name contains the text, without case. The list is not paginated: `page` and `page_size` are ignored, and so is any other query parameter (such as `category_id`).",
         "operationId": "listProductTypes",
         "tags": [
           "catalog"
@@ -776,27 +776,17 @@
         "parameters": [
           {
             "$ref": "#/components/parameters/Q"
-          },
-          {
-            "name": "category_id",
-            "in": "query",
-            "required": false,
-            "description": "Positive integer of an existing category. Anything else is `invalid` (`400`).",
-            "schema": {
-              "type": "integer",
-              "minimum": 1
-            }
           }
         ],
         "responses": {
           "200": {
-            "description": "Groups of product types.",
+            "description": "Product types.",
             "content": {
               "application/json": {
                 "schema": {
                   "type": "array",
                   "items": {
-                    "$ref": "#/components/schemas/CategoryWithProductTypes"
+                    "$ref": "#/components/schemas/ProductType"
                   }
                 }
               }
@@ -807,15 +797,12 @@
           },
           "401": {
             "$ref": "#/components/responses/AuthenticationRequired"
-          },
-          "404": {
-            "$ref": "#/components/responses/CategoryNotFound"
           }
         }
       },
       "post": {
         "summary": "Create a product type",
-        "description": "Admin only. Creates a product type in an existing category. `name` and `category_id` are validated together (`400`); then the category must exist (`404`) and the name must be free inside it (`409`).",
+        "description": "Admin only. Creates a product type. `name` is validated (`400`) and must be free in the whole catalog, compared without case (`409`). Any other key is ignored.",
         "operationId": "createProductType",
         "tags": [
           "catalog"
@@ -850,9 +837,6 @@
           "403": {
             "$ref": "#/components/responses/Forbidden"
           },
-          "404": {
-            "$ref": "#/components/responses/CategoryNotFound"
-          },
           "409": {
             "$ref": "#/components/responses/DuplicateProductType"
           }
@@ -866,8 +850,8 @@
         }
       ],
       "patch": {
-        "summary": "Rename or move a product type",
-        "description": "Admin only. Missing or `null` fields keep their value; any other key is ignored. The final name must be free in the target category, compared without case.",
+        "summary": "Rename a product type",
+        "description": "Admin only. A missing or `null` name keeps its value; any other key is ignored. The final name must be free in the whole catalog, compared without case.",
         "operationId": "updateProductType",
         "tags": [
           "catalog"
@@ -903,7 +887,7 @@
             "$ref": "#/components/responses/Forbidden"
           },
           "404": {
-            "$ref": "#/components/responses/ProductTypeOrCategoryNotFound"
+            "$ref": "#/components/responses/ProductTypeNotFound"
           },
           "409": {
             "$ref": "#/components/responses/DuplicateProductType"
@@ -1793,7 +1777,7 @@
         }
       },
       "DuplicateProductType": {
-        "description": "The category already has a product type with this name, compared without case (`duplicate_product_type`).",
+        "description": "Another product type already has this name, compared without case (`duplicate_product_type`).",
         "content": {
           "application/json": {
             "schema": {
@@ -1801,19 +1785,6 @@
             },
             "example": {
               "error": "duplicate_product_type"
-            }
-          }
-        }
-      },
-      "ProductTypeOrCategoryNotFound": {
-        "description": "No product type has this id (`product_type_not_found`), or the target category does not exist (`category_not_found`).",
-        "content": {
-          "application/json": {
-            "schema": {
-              "$ref": "#/components/schemas/Error"
-            },
-            "example": {
-              "error": "product_type_not_found"
             }
           }
         }
@@ -2261,8 +2232,7 @@
         "type": "object",
         "required": [
           "id",
-          "name",
-          "category_id"
+          "name"
         ],
         "properties": {
           "id": {
@@ -2270,29 +2240,20 @@
           },
           "name": {
             "type": "string"
-          },
-          "category_id": {
-            "type": "integer"
           }
         }
       },
       "CreateProductTypeRequest": {
         "type": "object",
         "required": [
-          "name",
-          "category_id"
+          "name"
         ],
         "properties": {
           "name": {
             "type": "string",
             "minLength": 1,
             "maxLength": 120,
-            "description": "Stored without surrounding spaces; unique without case inside its category."
-          },
-          "category_id": {
-            "type": "integer",
-            "minimum": 1,
-            "description": "Positive integer of an existing category. Anything else is `invalid`."
+            "description": "Stored without surrounding spaces; unique without case in the whole catalog."
           }
         }
       },
@@ -2304,33 +2265,6 @@
             "minLength": 1,
             "maxLength": 120,
             "description": "New name. Missing or `null` keeps the current one."
-          },
-          "category_id": {
-            "type": "integer",
-            "minimum": 1,
-            "description": "Category to move the type to. Missing or `null` keeps the current one; anything but a positive integer is `invalid`."
-          }
-        }
-      },
-      "CategoryWithProductTypes": {
-        "type": "object",
-        "required": [
-          "id",
-          "name",
-          "product_types"
-        ],
-        "properties": {
-          "id": {
-            "type": "integer"
-          },
-          "name": {
-            "type": "string"
-          },
-          "product_types": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/ProductType"
-            }
           }
         }
       },
