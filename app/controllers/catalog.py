@@ -65,7 +65,6 @@ def create_product() -> ResponseReturnValue:
 @login_required
 def list_products() -> ResponseReturnValue:
     products = get_product_service().list_products(
-        category_id=request.args.get("category_id"),
         product_type_id=request.args.get("product_type_id"),
         **_listing_args("q", "is_active", "page", "page_size"),
     )
