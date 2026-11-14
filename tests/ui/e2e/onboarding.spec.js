@@ -163,3 +163,83 @@ test("SPEC-UI-221 closes the dialog and confirms without reloading the tickets (
   await expect(page.getByRole("status")).toHaveText("Cliente creado.");
   expect(ticketReads(api).length).toBe(reads);
 });
+
+const productDialog = (page) => dialogNamed(page, "Nuevo producto");
+const productPosts = (api) =>
+  api.requests.filter((r) => r.method === "POST" && new URL(r.url).pathname === "/products");
+
+async function openProduct(page) {
+  await page.getByRole("button", { name: "Nuevo producto", exact: true }).click();
+  await expect(productDialog(page)).toBeVisible();
+  return productDialog(page);
+}
+
+async function fillProduct(dialog) {
+  await dialog.getByLabel("Nombre").fill("Lenovo T14");
+  await dialog.getByLabel("Tipo").selectOption({ label: "Portátiles" });
+}
+
+test("SPEC-UI-223 posts the product with its name and type (TC-UI-223a)", async ({ page }) => {
+  const api = await openTickets(page);
+  api.on("POST", "/products", { status: 201, body: { id: 9 } });
+  const dialog = await openProduct(page);
+  await fillProduct(dialog);
+  await dialog.getByRole("button", { name: "Crear" }).click();
+  await expect.poll(() => productPosts(api).length).toBe(1);
+  expect(productPosts(api)[0].body).toEqual({ name: "Lenovo T14", product_type_id: 4 });
+});
+
+async function failsProduct(page, reply, expectations) {
+  const api = await openTickets(page);
+  api.on("POST", "/products", reply);
+  const dialog = await openProduct(page);
+  await fillProduct(dialog);
+  await dialog.getByRole("button", { name: "Crear" }).click();
+  await expectations(dialog);
+  await expect(dialog).toBeVisible();
+  await expect(dialog.getByLabel("Nombre")).toHaveValue("Lenovo T14");
+}
+
+test("SPEC-UI-223 marks the invalid product name inside the dialog (TC-UI-223b)", async ({
+  page,
+}) => {
+  const reply = { status: 400, body: { error: "validation_error", fields: { name: "required" } } };
+  await failsProduct(page, reply, async (dialog) => {
+    await expect(dialog.getByLabel("Nombre")).toHaveAttribute("aria-invalid", "true");
+    await expect(dialog.locator(".field", { has: page.getByLabel("Nombre") })).toContainText(
+      "Este campo es obligatorio",
+    );
+  });
+});
+
+test("SPEC-UI-223 shows the duplicate product error inside the dialog (TC-UI-223b)", async ({
+  page,
+}) => {
+  await failsProduct(page, { status: 409, body: { error: "duplicate_product" } }, async (dialog) => {
+    await expect(dialog.getByRole("alert")).toHaveText(
+      "Ya existe un producto con ese nombre en el tipo de producto.",
+    );
+  });
+});
+
+test("SPEC-UI-223 shows the missing product type error inside the dialog (TC-UI-223b)", async ({
+  page,
+}) => {
+  await failsProduct(page, { status: 404, body: { error: "product_type_not_found" } }, async (dialog) => {
+    await expect(dialog.getByRole("alert")).toHaveText("El tipo de producto no existe.");
+  });
+});
+
+test("SPEC-UI-224 closes the dialog and confirms without reloading the tickets (TC-UI-224b)", async ({
+  page,
+}) => {
+  const api = await openTickets(page);
+  api.on("POST", "/products", { status: 201, body: { id: 9 } });
+  const dialog = await openProduct(page);
+  await fillProduct(dialog);
+  const reads = ticketReads(api).length;
+  await dialog.getByRole("button", { name: "Crear" }).click();
+  await expect(productDialog(page)).toHaveCount(0);
+  await expect(page.getByRole("status")).toHaveText("Producto creado.");
+  expect(ticketReads(api).length).toBe(reads);
+});
