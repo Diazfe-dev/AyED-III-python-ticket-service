@@ -2,7 +2,10 @@ import { formatDateTime } from "../core/dates.js";
 import { roleLabel, stateLabel } from "../core/labels.js";
 import { translateError } from "../core/messages.js";
 import { ticketActions } from "../core/ticket-actions.js";
+import { pageHeader } from "../dom/layout.js";
 import { clear, el, emptyResults, loadingIndicator } from "../dom/render.js";
+
+const START_WORK_MESSAGE = "El representante comenzó a trabajar en tu consulta.";
 
 export function title({ id }) {
   return `Ticket #${id}`;
@@ -66,7 +69,9 @@ function searchPath(query) {
 
 export function mount({ root, params, user, request, showError, showStatus }) {
   const content = el("div", {}, [loadingIndicator()]);
-  root.append(el("h1", {}, [title(params)]), content);
+  const header = pageHeader({ title: title(params) });
+  root.append(header.element, content);
+  let startWork = null;
   const base = `/tickets/${params.id}`;
 
   async function load() {
@@ -76,6 +81,8 @@ export function mount({ root, params, user, request, showError, showStatus }) {
       request("GET", `${base}/state-changes`, undefined, "state-changes"),
     ]);
     clear(content);
+    startWork?.remove();
+    startWork = null;
     const failed = responses.find((response) => !response.ok);
     if (failed) {
       showError(translateError(failed).message);
@@ -83,6 +90,10 @@ export function mount({ root, params, user, request, showError, showStatus }) {
     }
     const [ticket, milestones, changes] = responses.map((response) => response.body);
     const actions = ticketActions(user.role, ticket.state);
+    if (actions.includes("startWork")) {
+      startWork = startWorkButton();
+      header.element.append(startWork);
+    }
     content.append(
       summary(ticket, actions.includes("remove"), (control, product) =>
         perform(control, () => request("DELETE", `${base}/products/${product.id}`)),
@@ -109,28 +120,24 @@ export function mount({ root, params, user, request, showError, showStatus }) {
     await load();
   }
 
-  function milestoneForm(actions) {
+  function startWorkButton() {
+    const button = el("button", { type: "button", class: "primary-action" }, ["Comenzar a trabajar"]);
+    button.addEventListener("click", () =>
+      perform(button, () =>
+        request("POST", `${base}/milestones`, { content: START_WORK_MESSAGE, start_progress: true }),
+      ),
+    );
+    return button;
+  }
+
+  function milestoneForm() {
     const content_ = el("textarea", { id: "milestone-content", name: "content", rows: "3", required: true });
-    const fields = [el("div", { class: "field" }, [el("label", { for: "milestone-content" }, ["Mensaje"]), content_])];
-    let startProgress = null;
-    if (actions.includes("startProgress")) {
-      startProgress = el("input", { type: "checkbox", id: "milestone-start", name: "start_progress" });
-      fields.push(
-        el("div", { class: "field" }, [
-          startProgress,
-          el("label", { for: "milestone-start" }, ["Comenzar a trabajar"]),
-        ]),
-      );
-    }
+    const field = el("div", { class: "field" }, [el("label", { for: "milestone-content" }, ["Mensaje"]), content_]);
     const submit = el("button", { type: "submit" }, ["Agregar hito"]);
-    const form = el("form", { "aria-label": "Agregar hito", novalidate: true }, [...fields, submit]);
+    const form = el("form", { "aria-label": "Agregar hito", novalidate: true }, [field, submit]);
     form.addEventListener("submit", (event) => {
       event.preventDefault();
-      const body = { content: content_.value };
-      if (startProgress?.checked) {
-        body.start_progress = true;
-      }
-      perform(submit, () => request("POST", `${base}/milestones`, body));
+      perform(submit, () => request("POST", `${base}/milestones`, { content: content_.value }));
     });
     return form;
   }
@@ -181,7 +188,7 @@ export function mount({ root, params, user, request, showError, showStatus }) {
   function actionSections(actions) {
     const sections = [];
     if (actions.includes("milestone")) {
-      sections.push(milestoneForm(actions));
+      sections.push(milestoneForm());
     }
     const buttons = [];
     for (const [action, label, path] of [
