@@ -1,5 +1,7 @@
 # 03 — Productos · Plan de implementación
 
+> **Re-sincronización del 2026-11-14** (decisiones 12 a 14 de la spec: el representante da de alta productos): SPEC-PRD-09 reemplazada por SPEC-PRD-36 y 37, y SPEC-PRD-35 nueva. Manda la sección [Alta por el representante](#alta-por-el-representante-2026-11-14) y las tasks T-PRD-47 a 51. Lo que las secciones anteriores dicen de `admin_required` en `POST /products` y de SPEC-PRD-09 es historial. La división en etapas está al final de [01-users/tasks.md](../01-users/tasks.md).
+
 > **Re-sincronización del 2026-11-13** (decisión 11 de la spec: productos sin categoría): SPEC-PRD-07, 08, 15 y 16 reemplazadas por 31, 32, 33 y 34; SPEC-PRD-20 eliminada. Manda la sección [Productos sin categoría](#productos-sin-categoría-2026-11-13) y las tasks T-PRD-41 a 46. Lo que las secciones anteriores dicen sobre `Category`, `category_id`, `CategoryRepository` en `ProductService`, el `join` de categoría y `WITH_TYPE_AND_CATEGORY` es historial.
 
 > **Re-sincronización del 2026-11-12** (nueva área [07-ui](../07-ui/spec.md)): reactivación (SPEC-PRD-22 a 25), `q`, `is_active` y paginación en los listados (SPEC-PRD-26 a 29) y parámetros ignorados en los disponibles (SPEC-PRD-30). Ver [Reactivación, búsqueda y paginación](#reactivación-búsqueda-y-paginación-2026-11-12) y las tasks T-PRD-29 a 40. Las secciones anteriores describen el diseño original; donde algo cambió (por ejemplo, la reactivación que antes figuraba fuera de alcance), manda la sección nueva. RNF 10 (listados paginables) se suma a los cubiertos.
@@ -213,6 +215,59 @@ Sin cambios en el modelo de datos de `products` (nunca tuvo `category_id`).
 | `product_json` sin categoría cambia el cuerpo de los tickets (04) y los asserts de cuerpo completo fallan | T-PRD-42 ajusta en el mismo ciclo los asserts de TC-TKT-28c en `tests/integration/tickets/test_tickets_api.py` (cambio de 03, no de la spec de 04). |
 | El `count` de la paginación o el control de N+1 cambian al quitar el `join` | TC-PRD-29a, 29d, 29e y 31c siguen en verde en T-PRD-44. |
 | La interfaz arma la tabla de productos con `product.category.name` y falla con la respuesta nueva | T-UI-52 (07) quita la columna, en el PR de la interfaz. |
+
+## Alta por el representante (2026-11-14)
+
+Specs cubiertas desde esta fecha: SPEC-PRD-01 a 06, 10 a 14, 17 a 19 y 21 a 37 (sin 07, 08, 09, 15 y 16, reemplazadas, ni 20, eliminada). SPEC-PRD-35 reutiliza las reglas del alta del administrador (02, 03, 11, 13, 14 y 33); SPEC-PRD-25 (reactivar, solo `Admin`) no cambia. RNF 2 (permisos) y 7 (contrato de `POST /products`).
+
+### Componentes por capa (cambios)
+
+| Capa | Archivo | Cambio | Specs |
+|------|---------|--------|-------|
+| Dominio | — | Sin cambios (`PermissionDeniedError` ya existe) | — |
+| Services | `app/services/product_service.py` | `create_product(name, product_type_id, *, actor: User \| None = None)`. Orden: (1) formato de `name` y `product_type_id` juntos (`ValidationError`, igual que hoy); (2) rol de quien llama: si `actor.role` no está en `PRODUCT_CREATORS = frozenset({"Admin", "Representative"})` → `PermissionDeniedError`; (3) existencia del tipo (`ProductTypeNotFoundError`); (4) nombre libre en el tipo (`DuplicateProductError`); (5) alta y `commit`. Con `actor=None` (llamada del sistema: la siembra de `tests/ui/e2e/server.py` y los tests unitarios existentes) no se aplica el paso 2 | PRD-35, 37, 01 |
+| Controllers | `app/controllers/catalog.py` | `POST /products` pasa de `admin_required` a `login_required` y llama a `create_product(..., actor=authenticated_user())` (importa `authenticated_user` de `app/auth.py`). `PATCH /products/{id}`, `deactivate` y `activate` siguen con `admin_required` | PRD-35, 36, 37 |
+| Contrato | `docs/openapi.json` | `POST /products`: la descripción y la respuesta `403` dicen que lo pueden usar el `Admin` y el `Representative`, que un `Client` recibe `403` y que el `400` de formato precede al `403`, que a su vez precede al `404` `product_type_not_found` y al `409` `duplicate_product`. `PATCH` y `deactivate`: la descripción del `403` dice que todo no-`Admin` lo recibe antes del `404`. Sin cambios de `paths` ni esquemas | RNF 7, PRD-35, 36, 37 |
+
+Sin cambios en el modelo de datos.
+
+### Interfaz HTTP (cambiada)
+
+| Método y ruta | Acceso | Éxito | Errores | Specs |
+|---------------|--------|-------|---------|-------|
+| `POST /products` | sesión: `Admin` o `Representative` | `201` `Product` | `400` (antes que el rol), `401`, `403` `forbidden` (`Client`), `404` `product_type_not_found` y `409` `duplicate_product` (después del rol) | PRD-01 a 03, 11, 13, 14, 33, 35, 37 |
+| `PATCH /products/{id}`, `POST /products/{id}/deactivate` | admin (sin cambios) | sin cambios | `403` para todo no-`Admin`, antes del `400` y del `404` | PRD-36, 37 |
+
+**Orden de validación de `POST /products`** (decisión 13): (0) `401` sin sesión; (1) formato de `name` y `product_type_id` juntos → `400`; (2) rol de quien llama → `403`; (3) tipo inexistente → `404`; (4) nombre repetido en el tipo → `409`; (5) alta. Un `Client` con un cuerpo válido y un tipo inexistente recibe `403`, no `404`.
+
+### Decisiones técnicas
+
+| Decisión | Motivo y alternativas descartadas |
+|----------|-----------------------------------|
+| El permiso del alta vive en `ProductService.create_product` (`PRODUCT_CREATORS`) y no en un decorador | La decisión 13 exige validar el formato antes que el rol, y un decorador corre antes del controller. Mismo diseño que `CREATABLE_ROLES` de 01-users (plan de 01, sección del 2026-11-14). Se descartó un decorador por roles (pondría el `403` antes del `400`). |
+| `actor` opcional con nombre; `None` significa llamada del sistema | La siembra de Playwright crea productos con el service y los tests unitarios existentes llaman a `create_product(name, product_type_id)`; un `actor` obligatorio obligaría a reescribirlos sin cambio de comportamiento. TC-PRD-37d (HTTP) falla si `POST /products` no pasa el actor. |
+| Un `Client` con un cuerpo mal formado recibe `400` | Decisión 13 (el formato del alta antes que el rol, con el criterio de la decisión 19 de 04-tickets). Misma lectura que G-03 de 01-users; ver G-01 de esta sección. |
+| Los casos de SPEC-PRD-09 se re-trazan: la parte de `PATCH` y `deactivate` de TC-PRD-09a pasa a TC-PRD-36a y la de TC-PRD-09b a 37g; la parte `POST /products` se quita (la cubren 35c y 37d) | Convención de AGENTS.md. `POST /products` tiene que salir de `PRODUCT_WRITE_ENDPOINTS` en el mismo ciclo en que el controller cambia de decorador, porque con un representante pasa a responder `201`. |
+| Orden de las tasks: contrato (T-PRD-47) → service (T-PRD-48) → controller (T-PRD-49) → re-trazado (T-PRD-50) → diagramas (T-PRD-51) | Mismo motivo que en 01-users: la regla entra al service antes de abrir el decorador, así un `Client` nunca puede crear productos en un estado intermedio y cada task deja la suite en verde. |
+
+### Riesgos
+
+| Riesgo | Mitigación |
+|--------|------------|
+| Un `Client` crea productos porque el controller no pasa el `actor` | TC-PRD-37d y 37f (HTTP) en T-PRD-49. |
+| El representante modifica o da de baja productos | `admin_required` sigue en `PATCH` y `deactivate`; TC-PRD-36a y 36b (incluido el `403` antes del `404`). |
+| Un rol no autorizado distingue productos existentes de inexistentes por el `404` | `admin_required` responde antes de buscar (TC-PRD-36b y 37h). |
+
+### Dependencias con otras áreas
+
+- T-PRD-47 sigue a T-USR-57 en la cadena de `docs/openapi.json` y T-PRD-51 a T-USR-61 en la de `diagrams/classes.md`.
+- 07-ui consume `POST /products` desde el diálogo «Nuevo producto» (T-UI-65 espera a T-PRD-49) y `GET /product-types` para el selector (SPEC-PTY-31, sin cambios).
+
+### Huecos y preguntas (2026-11-14)
+
+| ID | Specs | Pregunta | Comportamiento del plan | Estado |
+|----|-------|----------|-------------------------|--------|
+| G-01 | PRD-37; decisión 13 | Igual que G-03 de 01-users: SPEC-PRD-37 dice que un `Client` que intenta crear recibe `403`, y la decisión 13 pone el formato antes que el rol. ¿Un `Client` con un cuerpo mal formado recibe `400` o `403`? | `400` (decisión 13). Alternativa: `403` primero para el `Client`. Impacto: TC-PRD-37b y 37e | **Resuelto** (2026-11-14, usuario): opción A, formato `400` antes que el rol `403` (decisión 13) |
 
 ## Dependencias con otras áreas
 

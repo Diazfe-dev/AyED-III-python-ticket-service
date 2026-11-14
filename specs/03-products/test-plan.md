@@ -186,7 +186,42 @@ Los tests de 15a a 15d, 15f y 15g no cambian de datos: solo pasan a citar SPEC-P
 | TC-PRD-07b, 07c, 08e | PRD-07, 08 | Re-trazados a 31b, 31c y 32b | T-PRD-44 |
 | TC-PRD-08d, 08f, 20b | PRD-08, 20 | Eliminados | T-PRD-44 |
 
-Casos borde nuevos: `category_id` válido, inexistente o mal formado en `GET /products`, solo o junto al tipo, se ignora (TC-PRD-32d); respuesta de producto sin categoría (TC-PRD-31d); listado sin N+1 con una sentencia menos (TC-PRD-31c). Los casos borde de abajo que citan 08, 15e, 15h, 16 o 20 son historial.
+### Alta por el representante (re-sincronización del 2026-11-14)
+
+Decisiones 12 a 14. SPEC-PRD-09 está reemplazada por 36 y 37: TC-PRD-09a y 09b (arriba) quedan como registro y se re-trazan según la tabla de casos retirados de esta sección. Actores de los casos unitarios: `admin = Admin(...)`, `rosa = Representative(...)` y `ana = Client(...)`, transitorios. Datos: los de 07a sin categorías. En los casos HTTP, «la tabla `products` no cambia» se comprueba con `product_rows(db_session)` antes y después.
+
+| Spec | Caso | Nivel | Datos / preparación | Resultado esperado | Archivo | Task |
+|------|------|-------|---------------------|--------------------|---------|------|
+| PRD-01 | TC-PRD-01e | unit | `create_product("XPS 15", notebook.id, actor=admin)` | Crea el producto activo y hace un `commit`: el `Admin` conserva el alta | `tests/unit/catalog/test_product_service.py` | T-PRD-48 |
+| PRD-35 | TC-PRD-35a | unit | `create_product("XPS 15", notebook.id, actor=rosa)` | Devuelve un `Product` activo en `"Notebook"`, guardado en el repositorio, con un `commit` | `tests/unit/catalog/test_product_service.py` | T-PRD-48 |
+| PRD-35 | TC-PRD-35b | unit | `actor=rosa`: nombre `"   "`; `product_type_id="abc"`; `product_type_id=9999`; `" xps 13 "` en `"Notebook"` (ya existe `"xps 13"`) | `ValidationError` `{"name": "required"}`; `ValidationError` `{"product_type_id": "invalid"}`; `ProductTypeNotFoundError`; `DuplicateProductError`; en los cuatro, nada agregado y sin `commit` (las mismas reglas que el alta del administrador) | `tests/unit/catalog/test_product_service.py` | T-PRD-48 |
+| PRD-35 | TC-PRD-35c | integration | Sesión de un `Representative`; `POST /products` con `{"name": "  XPS 15 ", "product_type_id": <notebook>}` | `201` `{"id": <int>, "name": "XPS 15", "is_active": true, "product_type": {"id": <notebook>, "name": "Notebook"}}` y la fila existe | `tests/integration/catalog/test_products_api.py` | T-PRD-49 |
+| PRD-35 | TC-PRD-35d | integration | Sesión de un `Representative`: sin `name`; `product_type_id: 9999`; `{"name": "XPS 13", ...}` en `"Notebook"` (ya existe `"xps 13"`) | `400` con `fields == {"name": "required"}`; `404` `{"error": "product_type_not_found"}`; `409` `{"error": "duplicate_product"}`; la tabla `products` no cambia | `tests/integration/catalog/test_products_api.py` | T-PRD-49 |
+| PRD-35 | TC-PRD-35e | integration | Después de 35c, la misma sesión; `GET /products/available?q=xps 15` | El producto nuevo aparece entre los disponibles (puede asociarse a un ticket) | `tests/integration/catalog/test_products_api.py` | T-PRD-49 |
+| PRD-36 | TC-PRD-36a | integration | Parametrizado: sesión de un `Representative`; `PATCH /products/{id}` con `{"name": "XPS 15"}` y `POST /products/{id}/deactivate` sobre un producto existente (antes TC-PRD-09a sin `POST /products`) | `403` `{"error": "forbidden"}` en los dos; la tabla `products` no cambia | `tests/integration/catalog/test_catalog_permissions.py` | T-PRD-50 |
+| PRD-36 | TC-PRD-36b | integration | **(dec. 13)** Sesión de un `Representative`: `PATCH /products/9999` con `{"name": "X"}`, `POST /products/9999/deactivate` y `PATCH /products/{existente}` con `{"name": ""}` | `403` `forbidden` en los tres, nunca `404` `product_not_found` ni `400`: el `403` va antes de buscar y de leer el cuerpo | `tests/integration/catalog/test_catalog_permissions.py` | T-PRD-50 |
+| PRD-37 | TC-PRD-37a | unit | `create_product("XPS 15", notebook.id, actor=ana)` | `PermissionDeniedError`; nada agregado y sin `commit` | `tests/unit/catalog/test_product_service.py` | T-PRD-48 |
+| PRD-37 | TC-PRD-37b | unit | `create_product("", "abc", actor=ana)` **(dec. 13; G-01)** | `ValidationError` con `{"name": "required", "product_type_id": "invalid"}`: el formato precede al rol | `tests/unit/catalog/test_product_service.py` | T-PRD-48 |
+| PRD-37 | TC-PRD-37c | unit | `create_product("XPS 15", 9999, actor=ana)` **(dec. 13)** | `PermissionDeniedError` (no `ProductTypeNotFoundError`): el rol va antes de buscar el tipo | `tests/unit/catalog/test_product_service.py` | T-PRD-48 |
+| PRD-37 | TC-PRD-37d | integration | Sesión de un `Client`; `POST /products` con `{"name": "XPS 15", "product_type_id": <notebook>}` | `403` `{"error": "forbidden"}`; la tabla `products` no cambia | `tests/integration/catalog/test_products_api.py` | T-PRD-49 |
+| PRD-37 | TC-PRD-37e | integration | Sesión de un `Client`; `POST /products` con `{"product_type_id": "abc"}` **(dec. 13; G-01)** | `400` `validation_error` con `{"name": "required", "product_type_id": "invalid"}`; la tabla no cambia | `tests/integration/catalog/test_products_api.py` | T-PRD-49 |
+| PRD-37 | TC-PRD-37f | integration | Sesión de un `Client`; `POST /products` con un nombre válido y `product_type_id: 9999` **(dec. 13)** | `403` `forbidden`, no `404` | `tests/integration/catalog/test_products_api.py` | T-PRD-49 |
+| PRD-37 | TC-PRD-37g | integration | Igual que 36a con la sesión de un `Client` (antes TC-PRD-09b sin `POST /products`) | `403` en los dos; la tabla `products` no cambia | `tests/integration/catalog/test_catalog_permissions.py` | T-PRD-50 |
+| PRD-37 | TC-PRD-37h | integration | **(dec. 13)** Sesión de un `Client`: `PATCH /products/9999` con `{"name": "X"}` y `POST /products/9999/deactivate` | `403` `forbidden` en los dos, nunca `404` | `tests/integration/catalog/test_catalog_permissions.py` | T-PRD-50 |
+
+#### Casos retirados (2026-11-14)
+
+| Casos | Spec de origen | Destino | Task |
+|-------|----------------|---------|------|
+| TC-PRD-09a y 09b (parte `POST /products`) | PRD-09 | Eliminada de la parametrización (`PRODUCT_WRITE_ENDPOINTS`): la cubren TC-PRD-35c (representante, ahora `201`) y 37d (`Client`) | T-PRD-49 |
+| TC-PRD-09a (partes `PATCH` y `deactivate`) | PRD-09 | Re-trazado a 36a | T-PRD-50 |
+| TC-PRD-09b (partes `PATCH` y `deactivate`) | PRD-09 | Re-trazado a 37g | T-PRD-50 |
+
+Casos que no cambian y siguen en verde con el decorador nuevo de `POST /products`: TC-PRD-01d, 02b, 02c, 03b, 11c, 13g, 14b y 33f (todos con `admin_client`), TC-PRD-25a (reactivar sigue siendo solo del `Admin`) y TC-USR-49a (`POST /products` sin sesión sigue en `401`).
+
+Casos borde nuevos del 2026-11-14: representante con nombre en blanco, tipo mal formado, inexistente o nombre repetido (TC-PRD-35b, 35d); `Client` con cuerpo válido (`403`), mal formado (`400`, G-01) o con un tipo inexistente (`403`, no `404`) (TC-PRD-37b a 37f); no-`Admin` sobre un producto inexistente o con un cuerpo mal formado en la modificación y la baja (`403`, TC-PRD-36b y 37h).
+
+Casos borde nuevos del 2026-11-13 (productos sin categoría): `category_id` válido, inexistente o mal formado en `GET /products`, solo o junto al tipo, se ignora (TC-PRD-32d); respuesta de producto sin categoría (TC-PRD-31d); listado sin N+1 con una sentencia menos (TC-PRD-31c). Los casos borde de abajo que citan 08, 15e, 15h, 16 o 20 son historial.
 
 ## SPEC-PTY-08 (de `02-product-types`, implementada en esta área)
 
@@ -229,7 +264,7 @@ TC-PTY-08a, 08b y 08c están definidos en el [test-plan de 02](../02-product-typ
 
 | RNF | Casos |
 |-----|-------|
-| RNF 2 (autenticación y permisos) | TC-PRD-09a y 09b (`403` para no admins en los 3 endpoints de escritura), TC-PRD-25a (`403` en la reactivación), TC-USR-16d (`401` sin sesión en los 5 endpoints; hoy TC-USR-49a, también el de reactivación), y TC-PRD-07d, 08g y 10c (las lecturas solo piden sesión) |
+| RNF 2 (autenticación y permisos) | TC-PRD-09a y 09b (`403` para no admins en los 3 endpoints de escritura; desde el 2026-11-14 re-trazados a 36a y 37g, sin `POST /products`), TC-PRD-25a (`403` en la reactivación), TC-PRD-35a a 37h (alta del representante, `403` del `Client` y de la modificación y la baja), TC-USR-16d (`401` sin sesión en los 5 endpoints; hoy TC-USR-49a, también el de reactivación), y TC-PRD-07d, 08g y 10c (las lecturas solo piden sesión) |
 | RNF 5 (conservación del historial, parcial) | TC-PRD-06a, 06b y 06c (TC-PRD-06d en `tests/integration/tickets/test_cross_area.py`, hecho en `04-tickets`) |
-| RNF 7 (documentación de la API) | TC-PLT-14a y 14b en cada task de endpoint (T-PRD-22 a 27); TC-PLT-23a y 23b en T-PRD-36 a 38 |
+| RNF 7 (documentación de la API) | TC-PLT-14a y 14b en cada task de endpoint (T-PRD-22 a 27); TC-PLT-23a y 23b en T-PRD-36 a 38; T-PRD-47 (descripciones de `POST`, `PATCH` y `deactivate`) con TC-PLT-23a y 23b en verde |
 | RNF 10 (listados paginables) | TC-PRD-29a a 29h |

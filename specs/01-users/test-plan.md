@@ -20,6 +20,8 @@ Contraseña válida de referencia en los casos: `"password1"` (9 caracteres).
 
 Re-sincronización del 2026-11-12: casos nuevos para SPEC-USR-27 a 50 (sección [Identidad, activación, contraseñas y listados](#identidad-activación-contraseñas-y-listados-re-sincronización-del-2026-11-12)). Los casos de las specs reemplazadas no se borran ni se renumeran: TC-USR-11a a 11c pasan a TC-USR-34a a 34c, TC-USR-13a a TC-USR-36a y TC-USR-16a a 16d a TC-USR-49c, 49d, 49e y 49a. TC-USR-12a y 12b se reescriben sobre `search` y `list_users` (mismo comportamiento) y TC-USR-18b deja de incluir `GET /clients`. `FakeUserRepository` suma `search` y pierde `list_by_role` (T-USR-42).
 
+Re-sincronización del 2026-11-14 (decisiones 22 a 24): casos nuevos para SPEC-USR-51 a 54 en la sección [Alta de clientes por el representante](#alta-de-clientes-por-el-representante-re-sincronización-del-2026-11-14). SPEC-USR-18 está reemplazada: sus casos (TC-USR-18a a 18e, en las tablas de abajo) quedan como registro y se re-trazan a SPEC-USR-53 según la tabla de casos retirados de esa sección.
+
 ## Matriz spec → casos
 
 | Spec | Caso | Nivel | Datos / preparación | Resultado esperado | Archivo |
@@ -203,6 +205,47 @@ Datos de referencia de los listados: clientes `"ana"` (`ana@x.com`, activa), `"B
 | USR-50 | TC-USR-50a | unit | `list_clients(rosa, is_active="true")`, `list_clients(rosa, is_active="false")` y `list_clients(rosa, is_active="yes")` | `PermissionDeniedError` en los dos primeros (no se ignora el parámetro); `ValidationError` `{"is_active": "invalid"}` en el tercero (el `400` precede al `403`) | `tests/unit/users/test_user_service.py` |
 | USR-50 | TC-USR-50b | integration | Sesión de `rosa`; `GET /clients?is_active=true` y `GET /clients?is_active=maybe` | `403` `{"error": "forbidden"}` y `400` `validation_error` con `{"is_active": "invalid"}` | `tests/integration/users/test_users_api.py` |
 
+### Alta de clientes por el representante (re-sincronización del 2026-11-14)
+
+Actores de los casos unitarios: `admin = Admin(...)`, `rosa = Representative(...)` y `ana = Client(...)`, transitorios y con id asignado por `FakeUserRepository`. Cuerpo de referencia del alta: `{"name": "Nora", "email": "nora@x.com", "password": "password1", "role": "Client"}`. En los casos HTTP, «sin usuario creado» se comprueba con `count_users(db_session)` antes y después.
+
+| Spec | Caso | Nivel | Datos / preparación | Resultado esperado | Archivo | Task |
+|------|------|-------|---------------------|--------------------|---------|------|
+| USR-01 | TC-USR-01e | unit | Parametrizado por rol (`Admin`, `Representative`, `Client`): `create_user(..., role=r, actor=admin)` | Crea un usuario activo de cada rol: el `Admin` conserva el alta de cualquier rol | `tests/unit/users/test_user_service.py` | T-USR-58 |
+| USR-20 | TC-USR-20f | unit | `create_user("Root", "root@x.com", "Admin", "password1")` sin `actor` (llamada del sistema, como `create-admin`) | Crea el `Admin` y hace un `commit`: sin `actor` no se aplica la tabla de permisos | `tests/unit/users/test_user_service.py` | T-USR-58 |
+| USR-51 | TC-USR-51a | unit | `create_user(<cuerpo de referencia>, actor=rosa)` | Devuelve un `Client` activo, con `password_hash == "hashed:password1"` y canal `mail`, guardado en el repositorio y con un `commit` | `tests/unit/users/test_user_service.py` | T-USR-58 |
+| USR-51 | TC-USR-51b | unit | `actor=rosa`, rol `Client`: sin nombre y contraseña de 7 caracteres; canal `"sms"`; email de un usuario existente en otra combinación de mayúsculas | `ValidationError` con `{"name": "required", "password": "too_short"}`; con `{"preferred_channel": "invalid"}`; `DuplicateUserError`; en los tres, nada agregado y sin `commit` (las mismas reglas que el alta del administrador) | `tests/unit/users/test_user_service.py` | T-USR-58 |
+| USR-51 | TC-USR-51c | integration | Sesión de `rosa`; `POST /users` con el cuerpo de referencia; después `GET /clients?q=nora` con la misma sesión | `201` con la representación de `User`, `role: "Client"`, `is_active: true` y `preferred_channel: "mail"`; la fila existe; el cliente nuevo aparece en el listado del representante (SPEC-USR-32) | `tests/integration/users/test_users_api.py` | T-USR-59 |
+| USR-51 | TC-USR-51d | integration | Sesión de `rosa`, rol `Client`: contraseña de 7 caracteres; `preferred_channel: "sms"`; email de un usuario existente en mayúsculas | `400` con `fields.password == "too_short"`; `400` con `fields.preferred_channel == "invalid"`; `409` `{"error": "duplicate_email"}`; sin usuario creado en ninguno | `tests/integration/users/test_users_api.py` | T-USR-59 |
+| USR-52 | TC-USR-52a | unit | Parametrizado: `create_user(..., role=r, actor=rosa)` con `r` en `Admin` y `Representative` | `PermissionDeniedError`; nada agregado, sin `commit` y sin llamar a `hasher.hash` | `tests/unit/users/test_user_service.py` | T-USR-58 |
+| USR-52 | TC-USR-52b | unit | `actor=rosa`: rol `"Root"`; rol `"Admin"` con contraseña de 7 caracteres **(dec. 23)** | `ValidationError` con `{"role": "invalid"}` y con `{"password": "too_short"}` (no `PermissionDeniedError`): el formato va antes que el rol | `tests/unit/users/test_user_service.py` | T-USR-58 |
+| USR-52 | TC-USR-52c | unit | Existe `nora@x.com`; `create_user(..., email="NORA@x.com", role="Admin", actor=rosa)` **(dec. 23)** | `PermissionDeniedError` (no `DuplicateUserError`): el rol va antes que la consulta del email | `tests/unit/users/test_user_service.py` | T-USR-58 |
+| USR-52 | TC-USR-52d | integration | Parametrizado: sesión de `rosa`; `POST /users` con el cuerpo de referencia y `role` en `Admin` y `Representative` | `403` `{"error": "forbidden"}`; sin usuario creado | `tests/integration/users/test_users_api.py` | T-USR-59 |
+| USR-52 | TC-USR-52e | integration | Sesión de `rosa`; `POST /users` con `role: "Root"` y con `role: "Admin"` sin `name` **(dec. 23)** | `400` `{"error": "validation_error", "fields": {"role": "invalid"}}` y `400` con `{"name": "required"}`: nunca `403` con un cuerpo mal formado; sin usuario creado | `tests/integration/users/test_users_api.py` | T-USR-59 |
+| USR-52 | TC-USR-52f | integration | Existe `nora@x.com`; sesión de `rosa`; `POST /users` con ese email en mayúsculas y `role: "Admin"` | `403` `forbidden` y no `409`: el representante no descubre emails con un rol prohibido; sigue habiendo un solo usuario con ese email | `tests/integration/users/test_users_api.py` | T-USR-59 |
+| USR-53 | TC-USR-53a | integration | Parametrizado: sesión de un `Representative`; `PATCH /users/{id}` con `{"name": "Otro"}` y `POST /users/{id}/deactivate` sobre otro usuario activo (antes TC-USR-18b sin `POST /users` ni `GET /representatives`) | `403` `{"error": "forbidden"}` en los dos; la fila no cambia | `tests/integration/users/test_users_api.py` | T-USR-60 |
+| USR-53 | TC-USR-53b | integration | Igual que 53a con la sesión de un `Client` (antes TC-USR-18c sin `POST /users`, `GET /representatives` ni `GET /clients`) | `403` en los dos; la fila no cambia | `tests/integration/users/test_users_api.py` | T-USR-60 |
+| USR-53 | TC-USR-53c | integration | Parametrizado por rol (`Representative`, `Client`) y por endpoint (`POST /users/{id}/activate`, `POST /users/{id}/password` con `{"new_password": "newpassword"}`) sobre un usuario inactivo (antes TC-USR-18e sin `GET /users`) | `403` `forbidden` en todos; el usuario sigue inactivo y su hash no cambia | `tests/integration/users/test_users_api.py` | T-USR-60 |
+| USR-53 | TC-USR-53d | integration | Ruta de prueba con `admin_required` y la sesión de un `Client` (antes TC-USR-18a) | `403` `{"error": "forbidden"}` | `tests/integration/users/test_auth.py` | T-USR-60 |
+| USR-53 | TC-USR-53e | integration | Ruta de prueba con `admin_required` y la sesión de un `Admin` (antes TC-USR-18d) | `200` | `tests/integration/users/test_auth.py` | T-USR-60 |
+| USR-53 | TC-USR-53f | integration | **(dec. 23)** Parametrizado por rol (`Representative`, `Client`): `PATCH /users/9999`, `POST /users/9999/deactivate`, `POST /users/9999/activate` y `POST /users/9999/password` con un cuerpo válido; y `PATCH /users/{existente}` con `{"name": ""}` | `403` `forbidden` en todos, nunca `404` `user_not_found` ni `400` `validation_error`: el `403` del no-`Admin` va antes de buscar y de leer el cuerpo | `tests/integration/users/test_users_api.py` | T-USR-60 |
+| USR-54 | TC-USR-54a | unit | Parametrizado: `create_user(<cuerpo de referencia>, role=r, actor=ana)` con `r` en `Client` y `Admin` | `PermissionDeniedError`; nada agregado y sin `commit` | `tests/unit/users/test_user_service.py` | T-USR-58 |
+| USR-54 | TC-USR-54b | unit | `create_user(name=None, ..., actor=ana)` **(dec. 23; G-03)** | `ValidationError` con `{"name": "required"}`: el formato precede al rol también para el `Client` | `tests/unit/users/test_user_service.py` | T-USR-58 |
+| USR-54 | TC-USR-54c | integration | Sesión de un `Client`; `POST /users` con el cuerpo de referencia | `403` `{"error": "forbidden"}`; sin usuario creado | `tests/integration/users/test_users_api.py` | T-USR-59 |
+| USR-54 | TC-USR-54d | integration | Sesión de un `Client`; `POST /users` con `{}` **(dec. 23; G-03)** | `400` `validation_error` con los cuatro campos obligatorios en `required`; sin usuario creado | `tests/integration/users/test_users_api.py` | T-USR-59 |
+
+#### Casos retirados (2026-11-14)
+
+| Casos | Spec de origen | Destino | Task |
+|-------|----------------|---------|------|
+| TC-USR-18b y 18c (parte `POST /users`) | USR-18 | Eliminada de la parametrización: la cubren TC-USR-52d (representante) y 54c (`Client`) | T-USR-59 |
+| TC-USR-18b (parte `PATCH` y `deactivate`) y 18c (ídem) | USR-18 | Re-trazados a 53a y 53b | T-USR-60 |
+| TC-USR-18b y 18c (partes `GET /representatives` y `GET /clients`), 18e (parte `GET /users`) | USR-18 | Eliminadas de la parametrización: las cubre TC-USR-35b (SPEC-USR-35, sin cambios) | T-USR-60 |
+| TC-USR-18e (partes `activate` y `password`) | USR-18 | Re-trazado a 53c | T-USR-60 |
+| TC-USR-18a y 18d | USR-18 | Re-trazados a 53d y 53e | T-USR-60 |
+
+Casos que no cambian y siguen en verde con el decorador nuevo de `POST /users`: TC-USR-01d, 02c, 04d, 05f, 06c, 19c, 23c y 25d (todos con `admin_client`), TC-USR-20a a 20e (`create-admin`, sin actor) y TC-USR-49a (`POST /users` sin sesión sigue en `401`).
+
 ## Casos borde
 
 - Email duplicado con otra combinación de mayúsculas y espacios: TC-USR-04a y 04d.
@@ -234,13 +277,17 @@ Datos de referencia de los listados: clientes `"ana"` (`ana@x.com`, activa), `"B
 - Nombres iguales con distinta capitalización en el orden y en páginas consecutivas: TC-USR-48a y 48c.
 - Página más allá de la última: TC-USR-47e.
 - Lista cerrada de rutas públicas, también para las rutas de la UI: TC-USR-49a y 49b.
+- Representante que pide un rol inexistente (`400`), uno prohibido (`403`) o uno prohibido con un email existente (`403`, no `409`): TC-USR-52b, 52c, 52e y 52f.
+- `Client` con un cuerpo válido (`403`) y con uno mal formado (`400`, G-03): TC-USR-54a a 54d.
+- No-`Admin` sobre un usuario inexistente o con un cuerpo mal formado en modificación, baja, reactivación y restablecimiento: `403` antes del `404` y del `400`: TC-USR-53f.
+- `create-admin` sin actor sigue creando un `Admin`: TC-USR-20f.
 
 ## RNF cubiertos
 
 | RNF | Casos |
 |-----|-------|
-| RNF 2 (autenticación robusta) | TC-USR-02a, 02b, 02c, 14b, 14c, 15a a 15e, 17a, 17b, 18a a 18e, 19a a 19c, 20e, 24a a 24c, 25a a 25f, 27a, 33a, 33b, 35a a 35c, 37a a 42b (incluido 40e), 46a a 46c, 49a a 49e, 50a, 50b (16a a 16d reemplazados por 49a y 49c a 49e) |
-| RNF 3 (usuarios únicos) | TC-USR-03a a 03c, 04a a 04d, 08a a 08c |
+| RNF 2 (autenticación robusta) | TC-USR-02a, 02b, 02c, 14b, 14c, 15a a 15e, 17a, 17b, 18a a 18e, 19a a 19c, 20e, 24a a 24c, 25a a 25f, 27a, 33a, 33b, 35a a 35c, 37a a 42b (incluido 40e), 46a a 46c, 49a a 49e, 50a, 50b (16a a 16d reemplazados por 49a y 49c a 49e); desde el 2026-11-14, 51a a 54d (18a a 18e re-trazados a 53a a 53e) |
+| RNF 3 (usuarios únicos) | TC-USR-03a a 03c, 04a a 04d, 08a a 08c, 51b, 51d y 52f |
 | RNF 5 y 6 (conservación del historial, parcial) | TC-USR-10a, 10b, 10c (TC-USR-10d en `tests/integration/tickets/test_cross_area.py`, hecho en `04-tickets`) |
-| RNF 7 (documentación de la API) | TC-PLT-14a y 14b en cada task de endpoint (T-USR-18 a 23); TC-PLT-23a y 23b en T-USR-48 a 53 |
+| RNF 7 (documentación de la API) | TC-PLT-14a y 14b en cada task de endpoint (T-USR-18 a 23); TC-PLT-23a y 23b en T-USR-48 a 53; T-USR-57 (descripción de `POST /users`) con TC-PLT-23a y 23b en verde |
 | RNF 10 (listados paginables) | TC-USR-33b, 47a a 47f y 48c |
