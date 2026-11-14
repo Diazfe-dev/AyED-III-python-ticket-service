@@ -25,6 +25,8 @@ export const OWN_MESSAGES = Object.freeze({
   passwordUpdated: "Contraseña actualizada.",
   passwordReset: "Contraseña restablecida.",
   userCreated: "Usuario creado.",
+  clientCreated: "Cliente creado.",
+  productCreated: "Producto creado.",
   sessionExpired: "Tu sesión venció. Inicia sesión nuevamente.",
 });
 
