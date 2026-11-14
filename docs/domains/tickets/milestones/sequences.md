@@ -44,7 +44,7 @@ sequenceDiagram
             opt start_progress y actor es el representante asignado
                 TS->>T: request_progress(actor, now)
                 T->>S: request_progress(ticket, actor, now)
-                Note over S: NewState transiciona y devuelve True; State por defecto (InProgress) devuelve False sin error (dec. 5 y 6)
+                Note over S: NewState transiciona y devuelve True, State por defecto (InProgress) devuelve False sin error (dec. 5 y 6)
                 S->>S: NewState.in_progress(ticket, actor, now)
                 S->>T: _enter(InProgressState, actor, now) (SPEC-TKT-09)
                 T->>T: <<create>> StateChange(actor, InProgress, now) (SPEC-TKT-14)

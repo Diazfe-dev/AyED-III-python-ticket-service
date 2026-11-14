@@ -150,7 +150,7 @@ sequenceDiagram
         S-->>A: render("not-found") sin pedidos
     end
     A->>Q: openScreen(requests): instancia de pantalla nueva
-    Note over A,Q: Una instancia por pantalla mostrada, también al volver a la misma ruta; no al recargar dentro de la pantalla (SPEC-UI-136)
+    Note over A,Q: Una instancia por pantalla mostrada, también al volver a la misma ruta, no al recargar dentro de la pantalla (SPEC-UI-136)
     A->>SH: renderShell(usuario): navegación por rol (SPEC-UI-16, 18)
     A->>P: mount(context)
     Note over P,API: Ejemplo: #/tickets/new (SPEC-UI-30, 31, 32)
@@ -190,7 +190,7 @@ sequenceDiagram
     A->>C: logoutClient.request(POST, /logout)
     C->>API: POST /logout (retrasado)
     B->>I: clic, submit o hash distinto
-    I-->>B: cancelado; hashChanged en closing no produce efectos (SPEC-UI-131, 133)
+    I-->>B: cancelado, hashChanged en closing no produce efectos (SPEC-UI-131, 133)
     Note over C: El cliente de pantallas tiene canSend() falso en closing: no envía nada (SPEC-UI-133)
     API-->>C: respuesta de un pedido anterior (época vieja)
     A->>S: transition(closing, apiAnswered epoch vieja)
@@ -223,7 +223,7 @@ sequenceDiagram
     S-->>A: anonymous{notice: true}, epoch + 1 + render("login", {notice: true}) + replaceHash("#/login") (SPEC-UI-12, 128)
     Note over A,Q: Un 401 de la época vigente avisa «Tu sesión venció. Inicia sesión nuevamente.» aunque su pedido haya quedado reemplazado: verdict devuelve "deliver" para 401, pero la máquina ya decidió
     A->>A: la respuesta no se entrega a la pantalla (current es falso para 401)
-    Note over S: Un 401 de una época vieja se ignora sin aviso (SPEC-UI-130); POST /login, POST /logout y el GET /me de carga no pasan por esta regla
+    Note over S: Un 401 de una época vieja se ignora sin aviso (SPEC-UI-130), POST /login, POST /logout y el GET /me de carga no pasan por esta regla
 ```
 
 ## 6. Listado paginable con filtros
@@ -259,7 +259,7 @@ sequenceDiagram
     A->>Q: verdict(tag 1, 200): latest.list != 1
     Q-->>A: "ignore"
     A->>A: sin datos, sin error y sin quitar el indicador de carga vigente (SPEC-UI-135)
-    Note over L: Lista vacía: «No hay resultados» (SPEC-UI-115); un error de la API se traduce con messages.js (SPEC-UI-119)
+    Note over L: Lista vacía: «No hay resultados» (SPEC-UI-115), un error de la API se traduce con messages.js (SPEC-UI-119)
     Note over A,Q: Una respuesta 401 de la consulta 1 no se ignora: la máquina la trata como sesión vencida (SPEC-UI-12, 135)
 ```
 
@@ -289,7 +289,7 @@ sequenceDiagram
     TA-->>P: acciones permitidas por rol y estado (SPEC-UI-40, 41, 77 a 79, 211 a 213, 216, 217)
     P->>P: dibuja estado, productos, hitos y cambios en el orden de la API, fechas dd/mm/aaaa HH:mm (SPEC-UI-28, 29)
     B->>P: «Comenzar a trabajar» (solo representante con el ticket en New), «Cerrar», «Reabrir», «Agregar hito», «Asociar» o «Quitar» (SPEC-UI-34, 36, 37, 38, 39, 214)
-    Note over P,API: «Comenzar a trabajar» envía POST .../milestones con el contenido fijo «El representante comenzó a trabajar en tu consulta.» y start_progress verdadero; el formulario de hito no ofrece casilla y envía el hito sin start_progress (SPEC-UI-214, 216)
+    Note over P,API: «Comenzar a trabajar» envía POST .../milestones con el contenido fijo «El representante comenzó a trabajar en tu consulta.» y start_progress verdadero, el formulario de hito no ofrece casilla y envía el hito sin start_progress (SPEC-UI-214, 216)
     P->>P: perform(): deshabilita el botón mientras dura la acción (SPEC-UI-43)
     P->>A: request(POST o DELETE, ...) sin clave
     A->>Q: issue(requests, POST): escritura, no toca latest
@@ -396,7 +396,7 @@ sequenceDiagram
         P->>A: request(GET, /product-types, key "product-types")
         A->>API: GET /product-types
         API-->>A: 200 {items}
-        P->>D: openProductDialog: campos nombre y tipo; el hash no cambia
+        P->>D: openProductDialog: campos nombre y tipo, el hash no cambia
     end
     B->>D: «Crear»
     alt cliente (SPEC-UI-220)
