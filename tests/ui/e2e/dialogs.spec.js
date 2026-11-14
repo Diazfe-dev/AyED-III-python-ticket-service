@@ -36,14 +36,6 @@ const SCREENS = [
     edit: { row: "Luis Mora", title: "Editar usuario", submit: "Guardar" },
   },
   {
-    name: "categories",
-    role: "Admin",
-    hash: "#/categories",
-    heading: "Categorías",
-    create: { button: "Nueva categoría", submit: "Crear" },
-    edit: { row: "Computación", title: "Editar categoría", submit: "Guardar" },
-  },
-  {
     name: "product types",
     role: "Admin",
     hash: "#/product-types",
@@ -165,11 +157,6 @@ test("SPEC-UI-157 opens the edit dialog with the values of the row as field text
   await expect(user.getByLabel("Canal")).toHaveValue("mail");
   await expect(user.locator("b")).toHaveCount(0);
 
-  await page.goto("/#/categories");
-  await rowOf(page, "Computación").getByRole("button", { name: "Editar" }).click();
-  await expect(dialogOf(page).getByLabel("Nombre")).toHaveValue("Computación");
-  await page.keyboard.press("Escape");
-
   await page.goto("/#/product-types");
   await rowOf(page, "Router").getByRole("button", { name: "Editar" }).click();
   await expect(dialogOf(page).getByLabel("Nombre")).toHaveValue("Router");
@@ -204,7 +191,6 @@ test("SPEC-UI-159 shows each form in a native modal dialog with a labelled title
 }) => {
   const titles = new Map([
     ["Nuevo usuario", "Crear"],
-    ["Nueva categoría", "Crear"],
     ["Nuevo tipo de producto", "Crear"],
     ["Nuevo producto", "Crear"],
     ["Nuevo ticket", "Crear"],
@@ -372,7 +358,7 @@ test("SPEC-UI-163 shows field marks and the API message inside the open dialog a
 test("SPEC-UI-163 shows the API error inside the dialog of every other form (TC-UI-163b)", async ({
   page,
 }) => {
-  const api = await openScreen(page, SCREENS[2]);
+  const api = await openScreen(page, SCREENS[1]);
   api.on("POST", "/product-types", { status: 409, body: { error: "duplicate_product_type" } });
   await mainButton(page, "Nuevo tipo de producto").click();
   await dialogOf(page).getByLabel("Nombre").fill("Notebook");
@@ -382,7 +368,7 @@ test("SPEC-UI-163 shows the API error inside the dialog of every other form (TC-
   );
   await expect(dialogOf(page).getByLabel("Nombre")).toHaveValue("Notebook");
 
-  const productsApi = await openScreen(page, SCREENS[3]);
+  const productsApi = await openScreen(page, SCREENS[2]);
   productsApi.on("POST", "/products", { status: 409, body: { error: "duplicate_product" } });
   await mainButton(page, "Nuevo producto").click();
   await dialogOf(page).getByLabel("Nombre").fill("Lenovo T14");
@@ -412,13 +398,13 @@ test("SPEC-UI-164 closes the dialog on success without a message when the spec d
   page,
 }) => {
   const api = await openScreen(page, SCREENS[1]);
-  api.on("POST", "/categories", { status: 201, body: { id: 9, name: "Impresión" } });
-  await mainButton(page, "Nueva categoría").click();
+  api.on("POST", "/product-types", { status: 201, body: { id: 9, name: "Impresión" } });
+  await mainButton(page, "Nuevo tipo de producto").click();
   await dialogOf(page).getByLabel("Nombre").fill("Impresión");
   await dialogOf(page).getByRole("button", { name: "Crear" }).click();
   await expect(dialogOf(page)).toHaveCount(0);
   await expect(page.locator("#status")).toHaveText("");
-  await expect.poll(() => callsTo(api, "/categories").length).toBe(2);
+  await expect.poll(() => callsTo(api, "/product-types").length).toBe(2);
 });
 
 test("SPEC-UI-165 disables every control of the dialog and ignores Escape while the submit is pending (TC-UI-165a)", async ({
@@ -496,16 +482,16 @@ test("SPEC-UI-167 ignores the response of a dialog that a hash change closed (TC
   await gate.requested;
   const usersCalls = callsTo(api, "/users").length;
   await page.evaluate(() => {
-    window.location.hash = "#/categories";
+    window.location.hash = "#/product-types";
   });
-  await expect(heading(page, "Categorías")).toBeVisible();
+  await expect(heading(page, "Tipos de producto")).toBeVisible();
   await expect(dialogOf(page)).toHaveCount(0);
   gate.release(201, account(9, "Rosa Paz", "Client"));
   await expect.poll(() => api.requests.find((r) => r.method === "POST").status).toBe(201);
   await settle(page);
   await expect(page.locator("#status")).toHaveText("");
   expect(callsTo(api, "/users")).toHaveLength(usersCalls);
-  expect(await hashOf(page)).toBe("#/categories");
+  expect(await hashOf(page)).toBe("#/product-types");
 });
 
 test("SPEC-UI-167 ignores a late error and a lost connection of a closed dialog (TC-UI-167b)", async ({
@@ -517,8 +503,8 @@ test("SPEC-UI-167 ignores a late error and a lost connection of a closed dialog 
     (gate) => gate.abort(),
   ]) {
     const api = await openScreen(page, SCREENS[1]);
-    const gate = api.defer("POST", "/categories");
-    await mainButton(page, "Nueva categoría").click();
+    const gate = api.defer("POST", "/product-types");
+    await mainButton(page, "Nuevo tipo de producto").click();
     await dialogOf(page).getByLabel("Nombre").fill("Impresión");
     await dialogOf(page).getByRole("button", { name: "Crear" }).click();
     await gate.requested;
@@ -538,7 +524,7 @@ test("SPEC-UI-167 ignores a late error and a lost connection of a closed dialog 
 test("SPEC-UI-167 treats each opening of the dialog as a new instance (TC-UI-167c)", async ({
   page,
 }) => {
-  const api = await openScreen(page, SCREENS[4]);
+  const api = await openScreen(page, SCREENS[3]);
   const gate = api.defer("POST", "/tickets");
   await mainButton(page, "Nuevo ticket").click();
   await dialogOf(page).getByLabel("Primer mensaje").fill("No enciende");
@@ -655,7 +641,7 @@ test("SPEC-UI-171 fits the dialog in 360 px and scrolls inside it when it is tal
   page,
 }) => {
   await page.setViewportSize({ width: 360, height: 320 });
-  for (const screen of [SCREENS[0], SCREENS[4]]) {
+  for (const screen of [SCREENS[0], SCREENS[3]]) {
     await openScreen(page, screen);
     await mainButton(page, screen.create.button).click();
     const metrics = await dialogOf(page).evaluate((node) => {

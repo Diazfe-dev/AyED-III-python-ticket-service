@@ -17,11 +17,6 @@ const account = (id) => ({
   is_active: true,
 });
 const accounts = (from, to) => Array.from({ length: to - from + 1 }, (_, i) => account(from + i));
-const categories = (count) =>
-  Array.from({ length: count }, (_, i) => ({
-    id: i + 1,
-    name: `Categoría ${String(i + 1).padStart(3, "0")}`,
-  }));
 const typesOf = (count) =>
   Array.from({ length: count }, (_, i) => ({
     id: i + 1,
@@ -35,7 +30,6 @@ const SERVER_PAGED = [
   { name: "tickets", role: "Representative", hash: "#/tickets", path: "/tickets", table: "Tickets" },
 ];
 const IN_MEMORY = [
-  { name: "categories", hash: "#/categories", path: "/categories", table: "Categorías" },
   { name: "product types", hash: "#/product-types", path: "/product-types", table: "Tipos de producto" },
 ];
 
@@ -89,10 +83,7 @@ async function openMemory(page, screen, count = 45) {
   await page.goto("about:blank");
   const api = await installFakeApi(page);
   api.on("GET", "/me", { status: 200, body: USERS.Admin });
-  api.on("GET", /^\/categories(\?|$)/, {
-    status: 200,
-    body: screen.path === "/categories" ? categories(count) : [COMPUTING, NETWORKS],
-  });
+  api.on("GET", /^\/categories(\?|$)/, { status: 200, body: [COMPUTING, NETWORKS] });
   api.on("GET", /^\/product-types(\?|$)/, { status: 200, body: typesOf(count) });
   await page.goto(`/${screen.hash}`);
   await expect(page.locator(".loading")).toHaveCount(0);
@@ -110,7 +101,6 @@ test("SPEC-UI-139 shows each listing as a native table with column headers and a
     { screen: SERVER_PAGED[0], last: "Acciones" },
     { screen: SERVER_PAGED[1], last: "Acciones" },
     { screen: IN_MEMORY[0], last: "Acciones" },
-    { screen: IN_MEMORY[1], last: "Acciones" },
   ];
   for (const { screen, last } of expectations) {
     if (screen.role) {
@@ -218,27 +208,10 @@ test("SPEC-UI-142 shows 0 de 0 for an empty listing (TC-UI-142d)", async ({ page
   await expect(footer(page)).toContainText("0 de 0");
 });
 
-test("SPEC-UI-143 asks for the full categories without paging and slices them in the browser (TC-UI-143a)", async ({
-  page,
-}) => {
-  const api = await openMemory(page, IN_MEMORY[0], 45);
-  const first = calls(api, "/categories")[0];
-  expect(new URL(first.url).search).toBe("");
-  await expect(bodyRows(page)).toHaveCount(20);
-  await expect(bodyRows(page).first()).toContainText("Categoría 001");
-  await expect(footer(page)).toContainText("1–20 de 45");
-  await expect(footer(page).getByRole("button", { name: "Anterior" })).toBeDisabled();
-  await footer(page).getByRole("button", { name: "Siguiente" }).click();
-  await footer(page).getByRole("button", { name: "Siguiente" }).click();
-  await expect(bodyRows(page)).toHaveCount(5);
-  await expect(footer(page)).toContainText("41–45 de 45");
-  await expect(footer(page).getByRole("button", { name: "Siguiente" })).toBeDisabled();
-});
-
 test("SPEC-UI-144 flattens the product types into rows with a category column in API order (TC-UI-144b)", async ({
   page,
 }) => {
-  const api = await openMemory(page, IN_MEMORY[1], 5);
+  const api = await openMemory(page, IN_MEMORY[0], 5);
   const typeCalls = calls(api, "/product-types");
   expect(new URL(typeCalls[0].url).search).toBe("");
   const table = page.getByRole("table", { name: "Tipos de producto", exact: true });
@@ -260,7 +233,7 @@ test("SPEC-UI-144 flattens the product types into rows with a category column in
 test("SPEC-UI-144 paginates the flat product type list like the categories (TC-UI-144c)", async ({
   page,
 }) => {
-  await openMemory(page, IN_MEMORY[1], 45);
+  await openMemory(page, IN_MEMORY[0], 45);
   await expect(bodyRows(page)).toHaveCount(20);
   await expect(footer(page)).toContainText("1–20 de 45");
 });
@@ -296,7 +269,7 @@ test("SPEC-UI-146 shows page 1 of the API result when a new search text is enter
     await sizeSelect(page).selectOption("10");
     await footer(page).getByRole("button", { name: "Siguiente" }).click();
     await expect(footer(page)).toContainText("11–20 de 45");
-    const found = screen.path === "/categories" ? categories(15) : typesOf(15);
+    const found = typesOf(15);
     api.on("GET", `${screen.path}?q=00`, { status: 200, body: found });
     await page.getByLabel("Buscar", { exact: true }).fill("00");
     await page.getByRole("button", { name: "Buscar", exact: true }).click();
@@ -304,40 +277,6 @@ test("SPEC-UI-146 shows page 1 of the API result when a new search text is enter
     expect(new URL(calls(api, screen.path).at(-1).url).search).toBe("?q=00");
     await expect(sizeSelect(page)).toHaveValue("10");
   }
-});
-
-test("SPEC-UI-147 shows the last valid page after a reload leaves the page out of range (TC-UI-147b)", async ({
-  page,
-}) => {
-  const api = await openMemory(page, IN_MEMORY[0], 21);
-  api.on("DELETE", "/categories/21", { status: 204 });
-  await footer(page).getByRole("button", { name: "Siguiente" }).click();
-  await expect(footer(page)).toContainText("21–21 de 21");
-  api.on("GET", /^\/categories(\?|$)/, { status: 200, body: categories(20) });
-  const before = calls(api, "/categories").length;
-  await page.getByRole("button", { name: "Eliminar Categoría 021" }).click();
-  await page.getByRole("dialog").getByRole("button", { name: "Confirmar" }).click();
-  await expect(footer(page)).toContainText("1–20 de 20");
-  await expect(bodyRows(page)).toHaveCount(20);
-  expect(calls(api, "/categories")).toHaveLength(before + 1);
-});
-
-test("SPEC-UI-147 keeps the page and the size when the reloaded list still reaches them (TC-UI-147c)", async ({
-  page,
-}) => {
-  const api = await openMemory(page, IN_MEMORY[0], 45);
-  api.on("DELETE", "/categories/25", { status: 204 });
-  await sizeSelect(page).selectOption("10");
-  await footer(page).getByRole("button", { name: "Siguiente" }).click();
-  await footer(page).getByRole("button", { name: "Siguiente" }).click();
-  await expect(footer(page)).toContainText("21–30 de 45");
-  api.on("GET", /^\/categories(\?|$)/, { status: 200, body: categories(45).slice(1) });
-  const before = calls(api, "/categories").length;
-  await page.getByRole("button", { name: "Eliminar Categoría 025" }).click();
-  await page.getByRole("dialog").getByRole("button", { name: "Confirmar" }).click();
-  await expect(footer(page)).toContainText("21–30 de 44");
-  await expect(sizeSelect(page)).toHaveValue("10");
-  expect(calls(api, "/categories")).toHaveLength(before + 1);
 });
 
 test("SPEC-UI-26 requests the chosen page_size and keeps it in later pages (TC-UI-26f)", async ({
@@ -369,7 +308,7 @@ test("SPEC-UI-120 reloads the current page with the chosen page_size after an ac
 test("SPEC-UI-50 shows the product types in the table with their category (TC-UI-50b)", async ({
   page,
 }) => {
-  const api = await openMemory(page, IN_MEMORY[1], 2);
+  const api = await openMemory(page, IN_MEMORY[0], 2);
   await expect(page.getByRole("row").filter({ hasText: "Tipo 001" })).toContainText("Computación");
   await expect(page.getByRole("row").filter({ hasText: "Tipo 002" })).toContainText("Redes");
   expect(calls(api, "/product-types").length).toBeGreaterThan(0);

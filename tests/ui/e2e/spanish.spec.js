@@ -3,9 +3,8 @@ import { installFakeApi } from "./support/fake-api.js";
 import { ENGLISH_WORDS, USERS, page as pageOf, ticket } from "./support/fixtures.js";
 
 const CREATED = "2026-01-01T12:00:00+00:00";
-const CATEGORY = { id: 2, name: "Hardware" };
-const TYPE = { id: 3, name: "Redes", category: CATEGORY };
-const PRODUCT = { id: 9, name: "Router X", is_active: true, product_type: TYPE, category: CATEGORY };
+const TYPE = { id: 3, name: "Redes" };
+const PRODUCT = { id: 9, name: "Router X", is_active: true, product_type: TYPE };
 const ACCOUNT = {
   id: 5,
   name: "Luis Mora",
@@ -19,7 +18,6 @@ const AUTHOR = { id: 2, name: "Raúl Pérez", role: "Representative" };
 const SCREENS = {
   Admin: [
     "#/users",
-    "#/categories",
     "#/product-types",
     "#/products",
     "#/tickets",
@@ -56,7 +54,6 @@ async function seed(page, role) {
     body: [{ state: "InProgress", user: AUTHOR, timestamp: CREATED }],
   });
   api.on("GET", "/users", { status: 200, body: pageOf([ACCOUNT]) });
-  api.on("GET", /^\/categories(\?.*)?$/, { status: 200, body: [CATEGORY] });
   api.on("GET", "/product-types", { status: 200, body: [TYPE] });
   api.on("GET", "/products", { status: 200, body: pageOf([PRODUCT]) });
   api.on("GET", "/products/available", { status: 200, body: pageOf([PRODUCT]) });

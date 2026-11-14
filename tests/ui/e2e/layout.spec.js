@@ -5,7 +5,6 @@ import { page as pageOf, ticket, USERS } from "./support/fixtures.js";
 const CREATED_AT = "2026-01-01T12:00:00+00:00";
 const ROLE_SCREENS = [
   { id: 149, name: "users", role: "Admin", hash: "#/users", title: "Usuarios", action: "Nuevo usuario" },
-  { id: 150, name: "categories", role: "Admin", hash: "#/categories", title: "Categorías", action: "Nueva categoría" },
   {
     id: 151,
     name: "product types",
@@ -77,22 +76,16 @@ test("SPEC-UI-149 shows the users header with its h1 and primary button (TC-UI-1
   await expectHeader(page, ROLE_SCREENS[0]);
 });
 
-test("SPEC-UI-150 shows the categories header with its h1 and primary button (TC-UI-150a)", async ({
+test("SPEC-UI-151 shows the product types header with its h1 and primary button (TC-UI-151a)", async ({
   page,
 }) => {
   await expectHeader(page, ROLE_SCREENS[1]);
 });
 
-test("SPEC-UI-151 shows the product types header with its h1 and primary button (TC-UI-151a)", async ({
-  page,
-}) => {
-  await expectHeader(page, ROLE_SCREENS[2]);
-});
-
 test("SPEC-UI-152 shows the products header with its h1 and primary button (TC-UI-152a)", async ({
   page,
 }) => {
-  await expectHeader(page, ROLE_SCREENS[3]);
+  await expectHeader(page, ROLE_SCREENS[2]);
 });
 
 test("SPEC-UI-153 shows Tickets and Nuevo ticket for a representative on both routes (TC-UI-153a)", async ({

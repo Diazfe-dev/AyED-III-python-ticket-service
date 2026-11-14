@@ -2,13 +2,11 @@ import { expect, test } from "@playwright/test";
 import { installFakeApi, loginAs } from "./support/fake-api.js";
 import { CLIENT, REP, ticket } from "./support/fixtures.js";
 
-const CATEGORY = { id: 2, name: "Hardware" };
 const PRODUCT = {
   id: 9,
   name: "Router X",
   is_active: true,
-  product_type: { id: 3, name: "Redes", category: CATEGORY },
-  category: CATEGORY,
+  product_type: { id: 3, name: "Redes" },
 };
 const DETAIL = {
   ...ticket(7, "InProgress", "2026-01-01T12:00:00+00:00"),

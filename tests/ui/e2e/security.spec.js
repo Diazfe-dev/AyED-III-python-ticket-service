@@ -9,7 +9,6 @@ const SECRET_PARAMS = ["token", "api_key", "secret"];
 const ROLE_SCREENS = {
   Admin: [
     "#/users",
-    "#/categories",
     "#/product-types",
     "#/products",
     "#/tickets",

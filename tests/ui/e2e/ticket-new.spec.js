@@ -3,14 +3,12 @@ import { installFakeApi, loginAs } from "./support/fake-api.js";
 
 const ANA = { id: 11, name: "Ana Gómez" };
 const ANITA = { id: 12, name: "Anita Torres" };
-const CATEGORY = { id: 2, name: "Hardware" };
-const PRODUCT_TYPE = { id: 3, name: "Portátiles", category: CATEGORY };
+const PRODUCT_TYPE = { id: 3, name: "Portátiles" };
 const NOTEBOOK = {
   id: 21,
   name: "Notebook X",
   is_active: true,
   product_type: PRODUCT_TYPE,
-  category: CATEGORY,
 };
 const NOTEBOOK_PRO = { ...NOTEBOOK, id: 22, name: "Notebook Pro" };
 const MONITOR = { ...NOTEBOOK, id: 23, name: "Monitor 24" };
