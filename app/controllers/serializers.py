@@ -9,7 +9,6 @@ from app.domain.products import Category, Product, ProductType
 from app.domain.state_change import StateChange
 from app.domain.ticket import Ticket
 from app.domain.users import User
-from app.services.catalog_service import CategoryGroup
 
 
 def json_body() -> dict[str, Any]:
@@ -39,13 +38,6 @@ def product_type_json(product_type: ProductType) -> dict[str, Any]:
         "id": product_type.id,
         "name": product_type.name,
         "category_id": product_type.category_id,
-    }
-
-
-def category_group_json(group: CategoryGroup) -> dict[str, Any]:
-    """A category with its product types, already ordered by name."""
-    return category_json(group.category) | {
-        "product_types": [product_type_json(t) for t in group.product_types]
     }
 
 

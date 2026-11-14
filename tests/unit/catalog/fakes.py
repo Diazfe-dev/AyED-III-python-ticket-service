@@ -34,12 +34,6 @@ class FakeCategoryRepository:
         found = (c for c in self.categories.values() if wanted in c.name_key)
         return sorted(found, key=_by_name)
 
-    def list_with_product_types(self) -> list[Category]:
-        categories = self.list_all()
-        for category in categories:
-            category.product_types.sort(key=_by_name)
-        return categories
-
     def has_product_types(self, category_id: int) -> bool:
         return bool(self.categories[category_id].product_types)
 
@@ -75,14 +69,10 @@ class FakeProductTypeRepository:
     def has_products(self, product_type_id: int) -> bool:
         return bool(self.product_types[product_type_id].products)
 
-    def search(self, q: str, category_id: int | None = None) -> list[ProductType]:
-        wanted = q.casefold()
-        found = [
-            t
-            for t in self.product_types.values()
-            if wanted in t.name_key and category_id in (None, t.category.id)
-        ]
-        return sorted(found, key=lambda t: (*_by_name(t.category), *_by_name(t)))
+    def list_all(self, q: str | None = None) -> list[ProductType]:
+        wanted = "" if q is None else q.casefold()
+        found = (t for t in self.product_types.values() if wanted in t.name_key)
+        return sorted(found, key=_by_name)
 
     def delete(self, product_type: ProductType) -> None:
         del self.product_types[product_type.id]

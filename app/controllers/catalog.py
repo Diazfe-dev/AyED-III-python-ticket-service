@@ -6,7 +6,6 @@ from flask.typing import ResponseReturnValue
 from app.auth import admin_required, login_required
 from app.controllers.listing import listing_json
 from app.controllers.serializers import (
-    category_group_json,
     json_body,
     product_json,
     product_type_json,
@@ -48,10 +47,8 @@ def delete_product_type(product_type_id: int) -> ResponseReturnValue:
 @bp.get("/product-types")
 @login_required
 def list_product_types() -> ResponseReturnValue:
-    groups = get_catalog_service().list_product_types(
-        request.args.get("category_id"), q=request.args.get("q")
-    )
-    return [category_group_json(group) for group in groups]
+    product_types = get_catalog_service().list_product_types(q=request.args.get("q"))
+    return [product_type_json(product_type) for product_type in product_types]
 
 
 @bp.post("/products")

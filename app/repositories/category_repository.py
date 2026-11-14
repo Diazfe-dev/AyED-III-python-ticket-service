@@ -2,7 +2,7 @@
 
 from sqlalchemy import exists, select
 from sqlalchemy.exc import IntegrityError
-from sqlalchemy.orm import Session, selectinload
+from sqlalchemy.orm import Session
 
 from app.db import fits_integer_column
 from app.domain.errors import CategoryInUseError, DuplicateCategoryError
@@ -43,11 +43,6 @@ class SqlAlchemyCategoryRepository:
         statement = select(Category)
         if q is not None:
             statement = statement.where(Category.name_key.contains(q.casefold(), autoescape=True))
-        return list(self._session.scalars(statement.order_by(*BY_NAME)))
-
-    def list_with_product_types(self) -> list[Category]:
-        """Every category, empty ones included, with its product types loaded in one query."""
-        statement = select(Category).options(selectinload(Category.product_types))
         return list(self._session.scalars(statement.order_by(*BY_NAME)))
 
     def has_product_types(self, category_id: int) -> bool:
