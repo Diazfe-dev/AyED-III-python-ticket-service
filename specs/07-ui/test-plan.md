@@ -708,6 +708,80 @@ TC-UI-205a y 205e re-trazan 120a y 120e (la recarga de usuarios y el módulo pur
 
 Conteo tras la integración con el PR #29: de las filas de caso de esta tabla y de las anteriores, se retiran 32 (18 de la primera re-sincronización más 14 del PR #29: TC-UI-50b, 143a unit, 143a e2e, 144a, 144b, 144c, 145a unit, 145a e2e, 146a unit, 146a e2e, 147a, 147b, 147c y 150a) y se agregan 27 (17 de la primera re-sincronización y 10 de la 207a a 210c). Quedan 343 filas de caso vigentes (99 `node --test`, 228 Playwright y 16 `pytest`) sobre 165 specs vigentes. El conteo se hace por filas de caso (un caso con el mismo ID en dos niveles son dos filas); el Resumen de abajo conserva la cifra del PR #29 (346), que contaba dos filas de menos.
 
+## Comenzar a trabajar y alta por el representante (re-sincronización del 2026-11-14)
+
+Decisiones 77 a 80. Specs nuevas SPEC-UI-211 a 224; reemplazadas 21 → 217, 35 → 211 y 216, 80 → 213 y 216, 81 → 214 y 153 → 218. Los casos de las reemplazadas (en las tablas de arriba) quedan como registro y se retiran o re-trazan según la tabla de casos retirados de esta sección. Datos simulados: tickets `New`, `InProgress` y `Closed` de `fixtures.js`, ticket 7 en el detalle; contenido fijo del hito: «El representante comenzó a trabajar en tu consulta.»; tipos `{"id": 4, "name": "Portátiles"}` y `{"id": 5, "name": "Impresoras"}`. Cada prueba registra sus manejadores (`POST /tickets/7/milestones`, `POST /users`, `POST /products`, `GET /product-types`); `fake-api.js` no cambia.
+
+| Spec | Caso | Nivel | Datos / preparación | Resultado esperado | Archivo | Task |
+|------|------|-------|---------------------|--------------------|---------|------|
+| UI-211 | TC-UI-211a | unit | `ticketActions("Representative", "New")` | Incluye `startWork` | `js/ticket-actions.test.js` | T-UI-57 |
+| UI-211 | TC-UI-211b | e2e | Representante, ticket 7 `New`; también con la ventana de 360 px | El encabezado del detalle (no el formulario de hito) tiene el botón «Comenzar a trabajar»; a 360 px la página no tiene desplazamiento horizontal | `e2e/start-work.spec.js` | T-UI-58 |
+| UI-212 | TC-UI-212a | unit | `ticketActions("Representative", s)` con `s` en `InProgress` y `Closed` | Sin `startWork` | `js/ticket-actions.test.js` | T-UI-57 |
+| UI-212 | TC-UI-212b | e2e | Representante, tickets `InProgress` y `Closed` | No hay ningún botón ni texto «Comenzar a trabajar» | `e2e/start-work.spec.js` | T-UI-58 |
+| UI-213 | TC-UI-213a | unit | `ticketActions(r, s)` con `r` en `Client` y `Admin` y `s` en los tres estados | Sin `startWork` en los seis | `js/ticket-actions.test.js` | T-UI-57 |
+| UI-213 | TC-UI-213b | e2e | Cliente y administrador, ticket `New` | No hay botón ni texto «Comenzar a trabajar» en el detalle | `e2e/start-work.spec.js` | T-UI-58 |
+| UI-214 | TC-UI-214a | e2e | Representante, ticket `New`; pulsa «Comenzar a trabajar»; `POST` `201` y las lecturas siguientes devuelven `InProgress`, el hito nuevo y un cambio de estado | Un `POST /tickets/7/milestones` con cuerpo exactamente `{"content": "El representante comenzó a trabajar en tu consulta.", "start_progress": true}`; después se piden otra vez las tres lecturas; se ve «En curso», el hito con ese contenido y el botón ya no está | `e2e/start-work.spec.js` | T-UI-58 |
+| UI-214 | TC-UI-214b | e2e | `POST` retenido con `api.defer` | El botón está deshabilitado mientras dura el pedido; un clic con `force: true` no envía un segundo `POST` | `e2e/start-work.spec.js` | T-UI-58 |
+| UI-215 | TC-UI-215a | e2e | Parametrizado: el `POST` responde `409` `invalid_transition`, `403` `forbidden` y `500` con cuerpo de error JSON | Se muestra «Esa acción no está permitida en el estado actual del ticket.», «No tiene permiso para realizar esta acción.» y «Ocurrió un error inesperado. Intente nuevamente.»; no se vuelven a pedir las lecturas; el estado sigue «Nuevo» y los hitos no cambian; el botón queda habilitado | `e2e/start-work.spec.js` | T-UI-59 |
+| UI-215 | TC-UI-215b | e2e | El `POST` se aborta (`route.abort`) | «No se pudo conectar con el servidor. Intente nuevamente.»; lo mostrado no cambia y el botón queda habilitado | `e2e/start-work.spec.js` | T-UI-59 |
+| UI-216 | TC-UI-216a | e2e | Representante y cliente, ticket `New` | El formulario de hito no tiene casilla ni etiqueta «Comenzar a trabajar» (ningún `input[type=checkbox]` en el formulario) | `e2e/ticket-actions.spec.js` | T-UI-60 |
+| UI-216 | TC-UI-216b | e2e | Representante y cliente envían un hito «Revisando» | El cuerpo es exactamente `{"content": "Revisando"}`, sin `start_progress` | `e2e/ticket-actions.spec.js` | T-UI-60 |
+| UI-217 | TC-UI-217a | unit | `ticketActions(role, state)` para los tres roles y los tres estados (antes 21a) | Solo cambian por rol y por las reglas de SPEC-UI-77, 78, 79, 211 y 212; la función no recibe dueño ni representante | `js/ticket-actions.test.js` | T-UI-60 |
+| UI-217 | TC-UI-217b | e2e | Igual que 21b (representante, `InProgress`, «Cerrar» responde `409`) | Igual que 21b | `e2e/ticket-actions.spec.js` | T-UI-60 |
+| UI-217 | TC-UI-217c | e2e | Igual que 21c (cliente, `New`, «Agregar hito» responde `403`) | Igual que 21c | `e2e/ticket-actions.spec.js` | T-UI-60 |
+| UI-218 | TC-UI-218a | e2e | Representante en `#/tickets` y en `#/tickets/new` | `h1` «Tickets» y los botones del encabezado, en orden, «Nuevo ticket», «Nuevo cliente» y «Nuevo producto»; solo «Nuevo ticket» tiene el estilo de acción principal (los otros dos, el secundario) | `e2e/layout.spec.js` | T-UI-63 |
+| UI-218 | TC-UI-218b | e2e | Administrador y cliente en `#/tickets` (antes 153b) | `h1` «Tickets» sin botones en el encabezado; ni «Nuevo cliente» ni «Nuevo producto» en la página | `e2e/layout.spec.js` | T-UI-63 |
+| UI-219 | TC-UI-219a | e2e | Representante en `#/tickets`; pulsa «Nuevo cliente» | Se abre un `dialog` modal titulado «Nuevo cliente» con los campos etiquetados nombre, email, contraseña y canal preferido (opcional), vacíos, sin selector de rol, con «Cancelar» y «Crear»; el foco va al primer campo; `location.hash` sigue en `#/tickets`; ningún pedido a la API al abrir | `e2e/onboarding.spec.js` | T-UI-63 |
+| UI-220 | TC-UI-220a | e2e | Completa nombre «Nora Díaz», email y contraseña y pulsa «Crear»; después, en otra apertura, elige el canal WhatsApp | `POST /users` con exactamente `{"name": "Nora Díaz", "email": ..., "password": ..., "role": "Client"}`; con el canal, el mismo cuerpo más `"preferred_channel": "whatsapp"` | `e2e/onboarding.spec.js` | T-UI-64 |
+| UI-220 | TC-UI-220b | e2e | Parametrizado: `400` `validation_error` con `{"name": "required", "email": "invalid"}`; `409` `duplicate_email`; `403` `forbidden` | Marcas «Este campo es obligatorio» y «El valor ingresado no es válido» en sus campos; «Ya existe un usuario con ese email.»; «No tiene permiso para realizar esta acción.»; en los tres, el diálogo sigue abierto, conserva nombre y email y la contraseña queda vacía | `e2e/onboarding.spec.js` | T-UI-64 |
+| UI-221 | TC-UI-221a | unit | `OWN_MESSAGES.clientCreated` | «Cliente creado.» | `js/messages.test.js` | T-UI-62 |
+| UI-221 | TC-UI-221b | e2e | `POST /users` responde `201` | El diálogo se cierra, «Cliente creado.» aparece en la región `role="status"` y no hay otro `GET /tickets` después del `POST` | `e2e/onboarding.spec.js` | T-UI-64 |
+| UI-222 | TC-UI-222a | e2e | Representante en `#/tickets`; pulsa «Nuevo producto»; `GET /product-types` devuelve los dos tipos | Se pide `GET /product-types`; se abre el `dialog` «Nuevo producto» con nombre vacío y el selector de tipo con «Impresoras» y «Portátiles»; `location.hash` sigue en `#/tickets` | `e2e/onboarding.spec.js` | T-UI-63 |
+| UI-223 | TC-UI-223a | e2e | Nombre «Lenovo T14» y tipo «Portátiles»; pulsa «Crear» | `POST /products` con exactamente `{"name": "Lenovo T14", "product_type_id": 4}` | `e2e/onboarding.spec.js` | T-UI-65 |
+| UI-223 | TC-UI-223b | e2e | Parametrizado: `400` `validation_error` con `{"name": "required"}`; `409` `duplicate_product`; `404` `product_type_not_found` | Marca en el nombre; «Ya existe un producto con ese nombre en el tipo de producto.»; «El tipo de producto no existe.»; el diálogo sigue abierto y conserva lo escrito | `e2e/onboarding.spec.js` | T-UI-65 |
+| UI-224 | TC-UI-224a | unit | `OWN_MESSAGES.productCreated` | «Producto creado.» | `js/messages.test.js` | T-UI-62 |
+| UI-224 | TC-UI-224b | e2e | `POST /products` responde `201` | El diálogo se cierra, «Producto creado.» aparece en la región `role="status"` y no hay otro `GET /tickets` después del `POST` | `e2e/onboarding.spec.js` | T-UI-65 |
+
+Casos que cambian en el lugar (sin cambiar su exigencia): TC-UI-135h deja de marcar la casilla (T-UI-60); la fila del representante en `#/tickets` de la tabla de pantallas de `e2e/layout.spec.js`, que usan TC-UI-148a y 154a, espera los tres botones (T-UI-63); TC-UI-159a recorre diez diálogos, 161a suma los dos disparadores secundarios y 55a abre los dos diálogos nuevos y el detalle con el botón (T-UI-66); TC-UI-121c suma las cinco reemplazadas nuevas al subconjunto que comprueba (23 filas marcadas, T-UI-67).
+
+Casos borde de esta sección: botón solo en `New` y solo para el representante (211a a 213b); pedido pendiente y clic forzado (214b); errores `409`, `403`, `5xx` y sin conexión sin tocar lo mostrado (215a, 215b); canal opcional ausente o elegido (220a); errores de campo y de la API con la contraseña vaciada (220b); alta sin recarga del listado (221b, 224b); `#/tickets/new` con los tres botones (218a).
+
+RNF que cubre esta sección: RNF 2 (TC-UI-220b: contraseña vaciada; 213b: el cliente no puede comenzar a trabajar desde la interfaz), RNF 8 y 9 (todos, con `node --test` y Playwright).
+
+#### Casos retirados (2026-11-14)
+
+| Casos | Spec de origen | Destino | Task |
+|-------|----------------|---------|------|
+| TC-UI-35a, 35b, 80a, 80b, 81a, 81b | UI-35, 80, 81 (la casilla del formulario de hito) | Eliminados: los reemplazan 211a, 211b, 213a, 213b, 214a y 216b | T-UI-60 |
+| TC-UI-21a, 21b, 21c | UI-21 | Re-trazados a 217a (reescrito: listas con `startWork`), 217b y 217c | T-UI-60 |
+| TC-UI-153a | UI-153 | Eliminado (exigía un solo botón): lo reemplaza 218a | T-UI-63 |
+| TC-UI-153b | UI-153 | Re-trazado a 218b | T-UI-63 |
+
+Trazabilidad spec → casos (complemento de la tabla de arriba; **N** = `node --test`, **W** = Playwright):
+
+| Spec | Casos | Mecanismo | Task |
+|------|-------|-----------|------|
+| UI-211 | 211a, 211b | N, W | T-UI-57, 58 |
+| UI-212 | 212a, 212b | N, W | T-UI-57, 58 |
+| UI-213 | 213a, 213b | N, W | T-UI-57, 58 |
+| UI-214 | 214a, 214b | W | T-UI-58 |
+| UI-215 | 215a, 215b | W | T-UI-59 |
+| UI-216 | 216a, 216b | W | T-UI-60 |
+| UI-217 | 217a, 217b, 217c | N, W | T-UI-60 |
+| UI-218 | 218a, 218b | W | T-UI-63 |
+| UI-219 | 219a | W | T-UI-63 |
+| UI-220 | 220a, 220b | W | T-UI-64 |
+| UI-221 | 221a, 221b | N, W | T-UI-62, 64 |
+| UI-222 | 222a | W | T-UI-63 |
+| UI-223 | 223a, 223b | W | T-UI-65 |
+| UI-224 | 224a, 224b | N, W | T-UI-62, 65 |
+
+Las filas UI-21, 35, 80, 81 y 153 de la tabla de trazabilidad de arriba son historial desde el 2026-11-14.
+
+Conteo: se retiran 11 filas de caso (3 `node --test`: 21a, 35b, 80a; 8 Playwright: 21b, 21c, 35a, 80b, 81a, 81b, 153a, 153b) y se agregan 27 (6 `node --test`: 211a, 212a, 213a, 217a, 221a, 224a; 21 Playwright). Quedan **359** filas de caso vigentes: 16 `pytest`, 102 `node --test` y 241 Playwright, sobre 174 specs vigentes (197 filas: 7 eliminadas y 16 reemplazadas).
+
 ## Resumen
+
+**Desde el 2026-11-14**: 359 casos vigentes sobre 174 specs vigentes (16 `pytest`, 102 `node --test`, 241 Playwright); ver la sección [Comenzar a trabajar y alta por el representante](#comenzar-a-trabajar-y-alta-por-el-representante-re-sincronización-del-2026-11-14). El párrafo siguiente es la cifra anterior.
 
 343 casos vigentes en esta rama sobre 165 specs vigentes (183 filas de spec: 7 eliminadas y 11 reemplazadas, sin caso propio; las vigentes tienen al menos un caso, las de la fila de Playwright de la tabla de verificación al menos uno de Playwright y las de la fila de `node --test` al menos uno de `node --test`; SPEC-UI-135 y 136 están en las dos filas): **16** `pytest` (integration, con TC-UI-121c), **99** `node --test` (unit) y **228** Playwright (e2e). Cifras del PR #29 antes de quitar las categorías, para referencia: 346 casos sobre 171 specs (15 `pytest`, 98 `node --test`, 233 Playwright; por filas de caso son 348). La re-sincronización del 2026-11-13 del PR #29 (decisiones 68 a 72, SPEC-UI-139 a 171, más la 172 de la decisión 73) sumó casos en `e2e/layout.spec.js`, `e2e/tables.spec.js`, `e2e/dialogs.spec.js` y TC-UI-137f, y la quita de categorías (decisiones 74 a 76) retira y re-traza los que nombran categorías (ver «Casos retirados»). Casos anteriores que cambiaron de forma (no de exigencia) por el diálogo y la tabla: TC-UI-30a, 33a, 136c, 136e, 136f y 136g (el formulario vive en el diálogo y se sale cambiando el hash), TC-UI-101b y 22b (rango «1–20 de 45» en vez de «45 resultados»), TC-UI-04b y 137c (`#/tickets/new` abre el diálogo sobre «Tickets»), TC-UI-68a (recorrido con el diálogo) y TC-UI-85a y 64c (el diálogo se cierra con éxito).

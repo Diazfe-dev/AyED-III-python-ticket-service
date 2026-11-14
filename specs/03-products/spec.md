@@ -12,7 +12,7 @@ Origen: RF 1.3 (sin categoría desde el 2026-11-13) · Relacionados: RNF 10 · D
 | SPEC-PRD-06 | Ubicuo | **El sistema deberá** conservar la asociación de un producto inactivo con los tickets a los que ya estaba asociado. | RF 1.3.1, RNF 5 |
 | SPEC-PRD-07 | Por evento | **Reemplazada por SPEC-PRD-31.** **Cuando** un usuario autenticado solicita el listado de productos, **el sistema deberá** devolver cada producto con su tipo, su categoría y su estado. | RF 1.3.3 |
 | SPEC-PRD-08 | Por evento | **Reemplazada por SPEC-PRD-32.** **Cuando** un usuario autenticado filtra el listado por categoría o por tipo de producto, **el sistema deberá** devolver solo los productos que coinciden. | RF 1.3.3, Diagrama de clases (`getProductsByCategory`) |
-| SPEC-PRD-09 | No deseado | **Si** un usuario sin rol `Admin` intenta crear, modificar o dar de baja productos, **entonces el sistema deberá** denegar la operación. | RF 1.1.5, RNF 2 |
+| SPEC-PRD-09 | No deseado | **Reemplazada por SPEC-PRD-36 y SPEC-PRD-37.** **Si** un usuario sin rol `Admin` intenta crear, modificar o dar de baja productos, **entonces el sistema deberá** denegar la operación. | RF 1.1.5, RNF 2 |
 | SPEC-PRD-10 | Por evento | **Cuando** un usuario autenticado solicita los productos disponibles para asociar a un ticket, **el sistema deberá** devolver solo los productos activos. | RF 1.3.1 |
 | SPEC-PRD-11 | No deseado | **Si** el alta o la modificación de un producto tiene un nombre vacío o que no es texto, **entonces el sistema deberá** rechazarla e indicar que el nombre es inválido. | RF 1.3.1 |
 | SPEC-PRD-12 | No deseado | **Si** la modificación de un producto indica un tipo de producto inexistente, **entonces el sistema deberá** rechazarla. | RF 1.3.2 |
@@ -44,6 +44,14 @@ Origen: RF 1.3 (sin categoría desde el 2026-11-13) · Relacionados: RNF 10 · D
 | SPEC-PRD-33 | No deseado | **Si** el identificador de tipo de producto de un alta o de una modificación, o el usado como filtro del listado, no es un entero positivo, **entonces el sistema deberá** rechazar la solicitud e indicar qué campo es inválido (`400`). | RF 1.3.2, RF 1.3.3 |
 | SPEC-PRD-34 | No deseado | **Si** el listado se filtra por un tipo de producto inexistente, **entonces el sistema deberá** responder que no existe (`404`). | RF 1.3.3 |
 
+## Alta por el representante
+
+| ID | Tipo | Especificación | Origen |
+|----|------|----------------|--------|
+| SPEC-PRD-35 | Por evento | **Cuando** un representante crea un producto con nombre y tipo de producto, **el sistema deberá** registrarlo activo y asociado a ese tipo, con las mismas validaciones y reglas que el alta del administrador (SPEC-PRD-02, 03, 11, 13, 14 y 33). | RF 1.3.6, RF 1.3.1, RF 1.3.2 |
+| SPEC-PRD-36 | No deseado | **Si** un representante intenta modificar o dar de baja un producto, **entonces el sistema deberá** denegar la operación con `403` y el código `forbidden` (reactivar lo cubre SPEC-PRD-25). | RF 1.3.6, RF 1.1.5, RNF 2 |
+| SPEC-PRD-37 | No deseado | **Si** un usuario con rol `Client` intenta crear, modificar o dar de baja un producto, **entonces el sistema deberá** denegar la operación con `403` y el código `forbidden`. | RF 1.3.6, RF 1.1.5, RNF 2 |
+
 ## Decisiones
 
 Resueltas el 2026-11-09 y registradas en Engram (`tp-final/decision/*`) y en [MEMORY.md](../../MEMORY.md) (Cambios y motivación):
@@ -71,3 +79,9 @@ Aprobadas el 2026-11-12 (validación de requerimientos de [07-ui](../07-ui/spec.
 Aprobadas el 2026-11-13 (eliminación de las categorías, ver [02-product-types](../02-product-types/spec.md) decisión 8):
 
 11. **Sin categoría en productos**: el profesor pidió solo producto y tipo de producto; el tipo es el rubro. Se reemplazan SPEC-PRD-07 → 31, 08 → 32, 15 → 33 y 16 → 34, y se elimina SPEC-PRD-20 (ya no hay filtro cruzado). La respuesta de un producto no trae categoría y `GET /products` solo filtra por tipo (`product_type_id`), `is_active` y `q`; un `category_id` enviado se ignora sin error, como cualquier parámetro desconocido. Las decisiones 2, 8 y 9 quedan como historial.
+
+Aprobadas el 2026-11-14 (el enunciado del curso no dice quién da de alta productos y clientes; es una decisión de producto del usuario):
+
+12. **El representante da de alta productos (SPEC-PRD-35 a 37; SPEC-PRD-09 reemplazada)**: el representante atiende al cliente por teléfono y, si el producto de la consulta no está cargado, lo registra en el momento en vez de pedírselo al administrador. Puede **crear** (nombre y tipo, con las validaciones del alta del administrador, SPEC-PRD-35); no puede modificar, dar de baja (SPEC-PRD-36) ni reactivar (SPEC-PRD-25, sin cambios) productos. Un `Client` no puede crear, modificar ni dar de baja (SPEC-PRD-37). El `Admin` conserva la gestión completa (SPEC-PRD-01, 04, 05, 22 y 23 sin cambios). Los tipos de producto siguen siendo solo del `Admin` ([02-product-types](../02-product-types/spec.md), SPEC-PTY-34): el representante elige entre los tipos existentes, que ya puede listar (SPEC-PTY-31). SPEC-PRD-09, que decía «solo `Admin` crea, modifica o da de baja», se reemplaza porque ya no es cierta para el alta.
+13. **Orden de validaciones (SPEC-PRD-35 a 37)**: el formato del cuerpo del alta (nombre, tipo) se valida antes que el rol, con el criterio de la decisión 19 de [04-tickets](../04-tickets/spec.md#decisiones); en modificación y baja, un rol no autorizado recibe `403` antes de cualquier consulta, incluso si el producto no existe (el `404` de SPEC-PRD-17 solo lo ve el `Admin`).
+14. **Impacto en lo implementado**: `POST /products` deja de ser solo para `Admin`. El contrato (`openapi.json`), el servicio de productos y los tests existentes de `403` del representante en el alta cambian al implementar este cambio.

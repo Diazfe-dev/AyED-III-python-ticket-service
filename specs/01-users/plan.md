@@ -1,6 +1,8 @@
 # 01 — Usuarios y accesos · Plan de implementación
 
-Specs cubiertas: SPEC-USR-01 a SPEC-USR-50 ([spec.md](spec.md)). SPEC-USR-11 está reemplazada por SPEC-USR-32 a 34, SPEC-USR-13 por SPEC-USR-36 y SPEC-USR-16 por SPEC-USR-49 (2026-11-12). RNF: 2 (autenticación), 3 (usuarios únicos), 7 (API documentada) y 10 (listados paginables).
+> **Re-sincronización del 2026-11-14** (decisiones 22 a 24: el representante da de alta clientes): SPEC-USR-18 reemplazada por SPEC-USR-51 a 54. Manda la sección [Alta de clientes por el representante](#alta-de-clientes-por-el-representante-2026-11-14) y las tasks T-USR-57 a 62. Lo que las secciones anteriores dicen de `admin_required` en `POST /users` y de SPEC-USR-18 es historial (las referencias a SPEC-USR-18 de las decisiones 9, 12 y 19 se leen como SPEC-USR-53, decisión 23). La división en etapas de las tres áreas (01, 03 y 07) está al final de [tasks.md](tasks.md).
+
+Specs cubiertas: SPEC-USR-01 a SPEC-USR-54 ([spec.md](spec.md)). SPEC-USR-11 está reemplazada por SPEC-USR-32 a 34, SPEC-USR-13 por SPEC-USR-36 y SPEC-USR-16 por SPEC-USR-49 (2026-11-12), y SPEC-USR-18 por SPEC-USR-51 a 54 (2026-11-14). RNF: 2 (autenticación), 3 (usuarios únicos), 7 (API documentada) y 10 (listados paginables).
 
 > **Re-sincronización del 2026-11-12** (nueva área [07-ui](../07-ui/spec.md)): identidad (`GET /me`), reactivación, cambio y restablecimiento de contraseña, `GET /users`, `GET /clients` según el rol, filtros `q` e `is_active`, orden por nombre, paginación y la lista cerrada de rutas públicas. Ver [Re-sincronización del 2026-11-12](#re-sincronización-del-2026-11-12) y las tasks T-USR-37 a 56. Las secciones anteriores describen el diseño original y no se reescriben; donde algo cambió, manda la sección nueva.
 
@@ -197,3 +199,65 @@ Los dos huecos quedaron **resueltos** el 2026-11-12 con las decisiones 19 y 20 d
 | El hash de werkzeug (scrypt) hace lentos los tests que crean muchos usuarios | Los tests unitarios usan `FakePasswordHasher`. Los de integración crean pocos usuarios por test. |
 | ~~La respuesta `404` ante un usuario inexistente no tiene una spec propia~~ | ~~Se trata como el error HTTP estándar de `UserNotFoundError` y se prueba como caso borde de SPEC-USR-07 y 09.~~ **Resuelto el 2026-11-10** con SPEC-USR-26 (TC-USR-26a a 26f). |
 | Olvidar `login_required` o `admin_required` en un endpoint | Test de guarda sobre `app.url_map` (TC-USR-16d) y casos `403` parametrizados por endpoint (TC-USR-18b y 18c). |
+
+## Alta de clientes por el representante (2026-11-14)
+
+Specs cubiertas por este cambio: SPEC-USR-51, 52, 53 y 54 (reemplazan a SPEC-USR-18), con las decisiones 22 a 24. SPEC-USR-01 a 06, 19, 23, 25 y 26 no cambian: el alta del representante las reutiliza (SPEC-USR-51). RNF 2 (permisos), 3 (el email duplicado se rechaza igual) y 7 (contrato de `POST /users`).
+
+### Componentes por capa (cambios)
+
+| Capa | Archivo | Cambio | Specs |
+|------|---------|--------|-------|
+| Dominio | — | Sin cambios: `PermissionDeniedError` (`403` `forbidden`) ya existe desde 04-tickets y `ROLE_CLASSES` sigue siendo el registro de roles | — |
+| Services | `app/services/user_service.py` | `create_user(name, email, role, password, preferred_channel=None, *, actor: User \| None = None)`. Orden: (1) formato de todos los campos juntos (`ValidationError`, igual que hoy); (2) permiso del rol pedido según la tabla `CREATABLE_ROLES = {"Admin": frozenset(ROLE_CLASSES), "Representative": frozenset({"Client"})}` (un rol de quien llama que no figura, como `Client`, no puede crear ninguno) → `PermissionDeniedError`; (3) email libre (`DuplicateUserError`); (4) alta y `commit`. Con `actor=None` (llamada del sistema: `create-admin` y la siembra de `tests/ui/e2e/server.py`) no se aplica el paso 2 | USR-51, 52, 54, 01, 20 |
+| Controllers | `app/controllers/users.py` | `POST /users` pasa de `admin_required` a `login_required` y llama a `create_user(..., actor=authenticated_user())`. `PATCH /users/{id}`, `deactivate`, `activate` y `password` siguen con `admin_required` (SPEC-USR-53: `403` antes de leer el cuerpo y antes de buscar el usuario) | USR-51, 52, 53, 54 |
+| Contrato | `docs/openapi.json` | `POST /users`: la descripción y la respuesta `403` dicen que un `Admin` crea cualquier rol, un `Representative` solo `Client` (otro rol válido → `403`) y un `Client` ninguno (`403`), y que el `400` de formato (incluido un rol inexistente) precede al `403`. Sin cambios de esquema ni de `paths` | RNF 7, USR-51, 52, 54 |
+
+Sin cambios en el modelo de datos.
+
+### Interfaz HTTP (cambiada)
+
+| Método y ruta | Acceso | Éxito | Errores | Specs |
+|---------------|--------|-------|---------|-------|
+| `POST /users` | sesión: `Admin` (cualquier rol) o `Representative` (solo `role: "Client"`) | `201` `User` | `400` `validation_error` (antes que el rol), `401`, `403` `forbidden` (`Representative` con `Admin` o `Representative`; `Client` siempre), `409` `duplicate_email` (después del rol) | USR-01 a 06, 19, 23, 25, 51, 52, 54 |
+| `PATCH /users/{id}`, `POST /users/{id}/deactivate`, `/activate`, `/password` | admin (sin cambios) | sin cambios | `403` para todo no-`Admin`, antes del `400` y del `404` | USR-53 |
+
+**Orden de validación de `POST /users`** (decisión 23): (0) `401` sin sesión; (1) formato del cuerpo, todos los campos juntos → `400` (un rol inexistente como `Root` es formato: `fields.role = "invalid"`); (2) rol de quien llama frente al rol pedido → `403`; (3) email duplicado → `409`; (4) alta. El paso 2 va antes de cualquier consulta a la base, así un representante que pide `Admin` con un email existente recibe `403` y no `409` (mismo criterio que la decisión 19 de 04-tickets: el `403` del rol precede a las verificaciones contra la base).
+
+### Patrones aplicados
+
+- **Tabla en lugar de condicionales**: `CREATABLE_ROLES` resuelve qué roles puede crear cada rol, igual que `ROLE_CLASSES` y `CLIENT_VIEWS`. Sumar un rol que crea usuarios es una fila nueva, no un `if`.
+- **Regla de negocio en el service**: el controller no decide permisos; pasa el `actor` de la sesión y el service resuelve. `admin_required` queda para las operaciones que solo el `Admin` puede usar.
+- **Inyección por parámetro**: el `actor` entra como argumento con nombre; los tests unitarios lo arman con `Admin(...)`, `Representative(...)` y `Client(...)` transitorios, sin Flask.
+
+### Decisiones técnicas
+
+| Decisión | Motivo y alternativas descartadas |
+|----------|-----------------------------------|
+| El permiso del alta vive en `UserService.create_user` con la tabla `CREATABLE_ROLES` y no en un decorador | El permiso depende del rol pedido en el cuerpo, que el decorador no conoce sin duplicar la validación del formato; y la decisión 23 exige validar el formato **antes** que el rol, cosa que un decorador (que corre antes del controller) no permite. Se descartaron un decorador `roles_required("Admin", "Representative")` más un chequeo en el controller (lógica de negocio en el controller, prohibido por AGENTS.md) y un `if actor.role == ...` (la tabla es el patrón del proyecto). |
+| `actor` opcional con nombre; `None` significa llamada del sistema sin chequeo de rol | `create-admin` (SPEC-USR-20) crea el primer `Admin` sin sesión y la siembra de Playwright usa el service; un `actor` obligatorio obligaría a inventar un usuario ficticio. El riesgo (un controller que olvida pasar `actor`) lo cubren los casos HTTP TC-USR-52d y 54c, que fallan si `POST /users` no pasa el actor. Se descartó un método aparte `create_user_as(actor, ...)` (dos caminos de alta con el mismo orden de validación que mantener). |
+| Un `Client` que envía un cuerpo mal formado recibe `400` y no `403` | Decisión 23 («el formato del cuerpo se valida antes que el rol de quien llama, con el criterio de la decisión 19 de 04-tickets», que nombra al `Client` en el alta). La excepción de `admin_required` (decisión 19 de esta área, `403` antes del formato) queda solo para modificación, baja, reactivación y restablecimiento. Ver G-03 (confirmación, no bloquea). |
+| `POST /users` responde el `User` completo también al representante | Es el usuario que acaba de crear; SPEC-USR-33 restringe solo el listado de clientes. Un esquema propio para el alta del representante sería comportamiento sin spec. |
+| Los casos de SPEC-USR-18 se re-trazan a SPEC-USR-53 (TC-USR-18a, 18b, 18c, 18d y 18e → 53d, 53a, 53b, 53e y 53c) y las partes que ya cubre otra spec se quitan de la parametrización | `POST /users` sale de TC-USR-18b y 18c porque ahora lo cubren SPEC-USR-52 y 54 (TC-USR-52d, 54c); `GET /representatives`, `GET /clients` y `GET /users` salen de 18b, 18c y 18e porque los cubre TC-USR-35b (SPEC-USR-35, sin cambios). Convención de AGENTS.md (los tests de una spec reemplazada se actualizan o se eliminan en el mismo PR). |
+| Orden de las tasks: contrato (T-USR-57) → service (T-USR-58) → controller (T-USR-59) → re-trazado (T-USR-60) | Contrato primero, como pide AGENTS.md. A diferencia de la quita de categorías, acá abrir el decorador antes de que el service conozca los permisos dejaría crear usuarios a un `Client` (TC-USR-18c en rojo); por eso la regla entra al service con `actor` opcional (compatible con el controller de hoy) y recién después el controller cambia de decorador. Cada task deja la suite en verde. |
+
+### Riesgos
+
+| Riesgo | Mitigación |
+|--------|------------|
+| Un `Client` o un representante crea un `Admin` porque el controller no pasa el `actor` | TC-USR-52d y 54c (HTTP) en T-USR-59; TC-USR-49a sigue exigiendo sesión. |
+| Un representante descubre si un email existe pidiendo un rol prohibido | El `403` del rol precede al `409` (TC-USR-52c y 52f): con un rol prohibido nunca ve `duplicate_email`. Con rol `Client` sí lo ve, igual que el `Admin` (SPEC-USR-51 pide las mismas reglas). |
+| Un no-`Admin` ve `404` y confirma si un id existe | `admin_required` responde `403` antes de buscar (TC-USR-53f, protección sin fase roja propia). |
+| `create-admin` deja de funcionar al exigir un actor | `actor=None` es la llamada del sistema; TC-USR-20f (unit) y TC-USR-20a a 20e siguen en verde. |
+
+### Dependencias con otras áreas
+
+- 03-products hace el mismo cambio en `POST /products` (T-PRD-47 a 51); T-PRD-47 sigue a T-USR-57 en la cadena de `docs/openapi.json`.
+- 07-ui consume `POST /users` desde el diálogo «Nuevo cliente» (T-UI-64 espera a T-USR-59).
+- El diagrama de clases se edita en cadena: T-USR-61 → T-PRD-51 → T-UI-68.
+
+### Huecos y preguntas (2026-11-14)
+
+| ID | Specs | Pregunta | Comportamiento del plan | Estado |
+|----|-------|----------|-------------------------|--------|
+| G-03 | USR-54, 05; decisiones 19 y 23 | SPEC-USR-54 dice que un `Client` que intenta un alta recibe `403`, y la decisión 19 de esta área pone el `403` de un rol sin acceso antes del formato; la decisión 23 dice que en el alta el formato va antes que el rol, con el criterio de la decisión 19 de 04-tickets (que nombra al `Client` en el alta). ¿Un `Client` con un cuerpo mal formado recibe `400` o `403`? | `400` (decisión 23, la más específica y la más nueva). Alternativa: `403` primero para el `Client`, como `admin_required` (exigiría separar el chequeo del `Client` antes del formato). Impacto: TC-USR-54b y 54d | **Resuelto** (2026-11-14, usuario): opción A, formato `400` antes que el rol `403` (decisión 23) |
