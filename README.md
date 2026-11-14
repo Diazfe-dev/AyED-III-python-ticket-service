@@ -85,6 +85,7 @@ Arquitectura en capas **Controller → Service → Repository**, con dos patrone
 
 | Diagrama | Contenido |
 |----------|-----------|
+| [Casos de uso](diagrams/use-cases.md) | Modelo UML de casos de uso: 5 diagramas (general y 4 paquetes), 31 casos y descripciones de los casos centrales del ticket |
 | [Clases](diagrams/classes.md) | Modelo de dominio y capas de aplicación |
 | [Secuencias](diagrams/sequences/) | 22 flujos en 6 archivos, uno por área, cada uno con las specs que cubre |
 
@@ -100,7 +101,7 @@ Los diagramas están en Mermaid y se ven directamente en GitHub.
 │   ├── constitution.md  # Principios innegociables
 │   └── REQUERIMIENTOS.md # Requerimientos funcionales y no funcionales
 ├── specs/               # Una carpeta por área: spec, plan, tasks y test-plan
-├── diagrams/            # Diagramas de clases y de secuencia (Mermaid)
+├── diagrams/            # Casos de uso, clases y secuencias (Mermaid)
 ├── app/                 # Código; la interfaz web está en app/static/
 ├── tests/               # Tests unitarios, de integración y de la interfaz (tests/ui/)
 ├── package.json         # Solo herramientas de prueba de la interfaz (Playwright)

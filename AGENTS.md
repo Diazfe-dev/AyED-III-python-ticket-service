@@ -12,7 +12,7 @@ Fuentes de verdad, en este orden:
 
 1. [docs/REQUERIMIENTOS.md](docs/REQUERIMIENTOS.md): requerimientos funcionales (RF) y no funcionales (RNF).
 2. [specs/](specs/): una carpeta por área con `spec.md` (RF descompuestos en EARS, `SPEC-<ÁREA>-<NN>`), `plan.md`, `tasks.md` y `test-plan.md`. Bajo **spec-as-source**, `spec.md` es la fuente de verdad del comportamiento y el código se deriva de ella.
-3. [diagrams/](diagrams/): diagramas en **Mermaid**: [classes.md](diagrams/classes.md) (modelo de dominio y capas) y [sequences/](diagrams/sequences/) (un archivo por área de specs).
+3. [diagrams/](diagrams/): diagramas en **Mermaid**: [use-cases.md](diagrams/use-cases.md) (modelo de casos de uso), [classes.md](diagrams/classes.md) (modelo de dominio y capas) y [sequences/](diagrams/sequences/) (un archivo por área de specs).
 4. [docs/openapi.json](docs/openapi.json): contrato OpenAPI 3.1 de la API HTTP, escrito a mano (*contract-first*). Se sirve en `/openapi.json` y se navega con Swagger UI en `/docs`.
 
 Si el código y los diagramas no coinciden, no lo resuelvas por tu cuenta: avisá la discrepancia y actualizá el diagrama en el mismo PR que el código.
@@ -129,6 +129,7 @@ specs/
     test-plan.md       # VERIFICACIÓN: matriz spec → casos de prueba
   02-product-types/ … 07-ui/
 diagrams/              # UML en Mermaid (no borrar, mantener sincronizado con specs y código)
+  use-cases.md         # Modelo de casos de uso: actores, casos por paquete y descripciones
   classes.md           # Diagrama de clases: modelo de dominio y capas
   sequences/           # Diagramas de secuencia, un archivo por área (NN-<área>.md)
 docs/
