@@ -14,7 +14,6 @@ from app.wiring import get_catalog_service, get_product_service
 
 bp = Blueprint("catalog", __name__)
 
-PRODUCT_TYPE_KEYS = ("name", "category_id")
 PRODUCT_KEYS = ("name", "product_type_id")
 
 
@@ -28,9 +27,9 @@ def create_product_type() -> ResponseReturnValue:
 @bp.patch("/product-types/<int:product_type_id>")
 @admin_required
 def update_product_type(product_type_id: int) -> ResponseReturnValue:
-    body = json_body()
-    changes = {key: body[key] for key in PRODUCT_TYPE_KEYS if key in body}
-    product_type = get_catalog_service().update_product_type(product_type_id, **changes)
+    product_type = get_catalog_service().update_product_type(
+        product_type_id, name=json_body().get("name")
+    )
     return product_type_json(product_type)
 
 

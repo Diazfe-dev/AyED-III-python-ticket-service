@@ -62,15 +62,6 @@ class FakeProductTypeRepository:
         found = (t for t in self.product_types.values() if t.name_key == wanted)
         return next(found, None)
 
-    def find_by_name_in_category(self, name: str, category_id: int) -> ProductType | None:
-        wanted = normalize_name(name)
-        found = (
-            t
-            for t in self.product_types.values()
-            if t.category.id == category_id and t.name_key == wanted
-        )
-        return next(found, None)
-
     def has_products(self, product_type_id: int) -> bool:
         return bool(self.product_types[product_type_id].products)
 

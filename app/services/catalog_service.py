@@ -13,7 +13,7 @@ from app.domain.errors import (
 )
 from app.domain.products import Category, ProductType
 from app.services.listing import search_text
-from app.services.validation import id_error, parse_id, provided, raise_if_invalid, text_error
+from app.services.validation import raise_if_invalid, text_error
 
 
 class CategoryRepository(Protocol):
@@ -36,8 +36,6 @@ class ProductTypeRepository(Protocol):
     def get(self, product_type_id: int) -> ProductType | None: ...
 
     def find_by_name(self, name: str) -> ProductType | None: ...
-
-    def find_by_name_in_category(self, name: str, category_id: int) -> ProductType | None: ...
 
     def has_products(self, product_type_id: int) -> bool: ...
 
@@ -98,20 +96,15 @@ class CatalogService:
         self._commit()
         return product_type
 
-    def update_product_type(
-        self, product_type_id: int, *, name: Any = None, category_id: Any = None
-    ) -> ProductType:
-        """Rename or move a product type; a field left as `None` keeps its value."""
+    def update_product_type(self, product_type_id: int, *, name: Any = None) -> ProductType:
+        """Rename a product type; a name left as `None` keeps the current one."""
         product_type = self._get_product_type(product_type_id)
-        changes = provided(name=name, category_id=category_id)
-        raise_if_invalid({field: TYPE_FIELDS[field](value) for field, value in changes.items()})
-        new_name = changes.get("name", product_type.name)
-        category = product_type.category
-        if "category_id" in changes:
-            category = self._get_category(parse_id(category_id))
-        self._ensure_type_name_is_free(new_name, category, owner=product_type)
-        product_type.name = new_name
-        product_type.category = category
+        if name is not None:
+            raise_if_invalid({"name": text_error(name)})
+            holder = self._product_types.find_by_name(name)
+            if holder is not None and holder is not product_type:
+                raise DuplicateProductTypeError()
+            product_type.name = name
         self._commit()
         return product_type
 
@@ -143,13 +136,3 @@ class CatalogService:
         holder = self._categories.find_by_name(name)
         if holder is not None and holder is not owner:
             raise DuplicateCategoryError()
-
-    def _ensure_type_name_is_free(
-        self, name: str, category: Category, owner: ProductType | None = None
-    ) -> None:
-        holder = self._product_types.find_by_name_in_category(name, category.id)
-        if holder is not None and holder is not owner:
-            raise DuplicateProductTypeError()
-
-
-TYPE_FIELDS: dict[str, Callable[[Any], str | None]] = {"name": text_error, "category_id": id_error}
