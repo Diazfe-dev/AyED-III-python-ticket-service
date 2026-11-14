@@ -39,7 +39,7 @@ sequenceDiagram
         end
     end
 
-    Note over Admin,TR: PATCH /product-types/{id} primero busca el tipo con get (404 product_type_not_found),<br/>después valida el nombre (400) y la unicidad global ignorando al propio tipo (409, SPEC-PTY-30).<br/>Un name ausente o null no modifica nada; con un name válido se guarda el cambio (SPEC-PTY-29).<br/>Cualquier otra clave del cuerpo se ignora (SPEC-PTY-35)
+    Note over Admin,TR: PATCH /product-types/{id} primero busca el tipo con get (404 product_type_not_found),<br/>después valida el nombre (400) y la unicidad global ignorando al propio tipo (409, SPEC-PTY-30).<br/>Un name ausente o null no modifica nada, con un name válido se guarda el cambio (SPEC-PTY-29).<br/>Cualquier otra clave del cuerpo se ignora (SPEC-PTY-35)
 ```
 
 ## 2. Baja de tipo de producto
@@ -91,7 +91,7 @@ sequenceDiagram
     U->>PC: GET /product-types con q opcional
     PC->>CS: list_product_types(q)
     CS->>TR: list_all(search_text(q))
-    Note over TR: con q filtra por name_key que contiene q.casefold() (% y _ literales);<br/>sin q devuelve todos; ordena por name_key e id
+    Note over TR: con q filtra por name_key que contiene q.casefold() (% y _ literales),<br/>sin q devuelve todos, ordena por name_key e id
     TR-->>CS: tipos de producto
     alt q presente
         PC-->>U: 200 lista plana de {id, name} con los tipos coincidentes (SPEC-PTY-32)
