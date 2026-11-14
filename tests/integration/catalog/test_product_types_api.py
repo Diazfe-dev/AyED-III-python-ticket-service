@@ -178,24 +178,6 @@ def test_move_product_type_to_unknown_category_is_not_found(
     assert stored_types(db_session) == [("Notebook", hardware.id)]
 
 
-def test_move_product_type_onto_a_taken_name_is_a_conflict(
-    admin_client: FlaskClient,
-    db_session: Session,
-    notebook: ProductType,
-    hardware: Category,
-    office: Category,
-    make_product_type: MakeProductType,
-) -> None:
-    """SPEC-PTY-16 · TC-PTY-16e"""
-    make_product_type(office, "notebook")
-
-    response = admin_client.patch(f"/product-types/{notebook.id}", json={"category_id": office.id})
-
-    assert response.status_code == 409
-    assert response.get_json() == {"error": "duplicate_product_type"}
-    assert stored_types(db_session) == [("Notebook", hardware.id), ("notebook", office.id)]
-
-
 def test_rename_product_type_stores_the_name_without_surrounding_spaces(
     admin_client: FlaskClient, db_session: Session, notebook: ProductType, hardware: Category
 ) -> None:

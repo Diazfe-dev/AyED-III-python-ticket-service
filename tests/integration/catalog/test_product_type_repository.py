@@ -14,12 +14,9 @@ def new_session(app: Flask) -> Session:
     return app.extensions[EXTENSION_KEY]["session_factory"]()
 
 
-def test_added_product_type_keeps_its_category(
-    app: Flask, db_session: Session, make_category: MakeCategory
-) -> None:
-    """SPEC-PTY-03 · TC-PTY-03c"""
-    hardware = make_category("Hardware")
-    product_type = ProductType(name="Notebook", category=hardware)
+def test_added_product_type_without_category_is_stored(app: Flask, db_session: Session) -> None:
+    """SPEC-PTY-25 · TC-PTY-25c"""
+    product_type = ProductType(name="Notebook")
     SqlAlchemyProductTypeRepository(db_session).add(product_type)
     db_session.commit()
 
@@ -27,34 +24,39 @@ def test_added_product_type_keeps_its_category(
         found = SqlAlchemyProductTypeRepository(other_session).get(product_type.id)
 
         assert found is not None
-        assert found.category_id == hardware.id
-        assert found.category.name == "Hardware"
+        assert found.name == "Notebook"
 
 
-def test_adding_a_duplicate_name_in_the_category_raises_domain_error(
-    db_session: Session, make_category: MakeCategory
-) -> None:
-    """SPEC-PTY-05 · TC-PTY-05c"""
-    hardware = make_category("Hardware")
+def test_find_by_name_looks_in_the_whole_catalog(db_session: Session) -> None:
+    """SPEC-PTY-26 · TC-PTY-26b"""
     repository = SqlAlchemyProductTypeRepository(db_session)
-    repository.add(ProductType(name="Notebook", category=hardware))
+    notebook = ProductType(name="Notebook")
+    repository.add(notebook)
+
+    assert repository.find_by_name(" notebook ") is notebook
+    assert repository.find_by_name("Otro") is None
+
+
+def test_adding_a_duplicate_name_raises_domain_error(db_session: Session) -> None:
+    """SPEC-PTY-26 · TC-PTY-26c"""
+    repository = SqlAlchemyProductTypeRepository(db_session)
+    repository.add(ProductType(name="Notebook"))
 
     with pytest.raises(DuplicateProductTypeError):
-        repository.add(ProductType(name="notebook", category=hardware))
+        repository.add(ProductType(name="notebook"))
 
 
-def test_find_by_name_in_category_only_looks_inside_that_category(
-    db_session: Session, make_category: MakeCategory
-) -> None:
-    """SPEC-PTY-05 · TC-PTY-05d"""
-    hardware, office = make_category("Hardware"), make_category("Oficina")
+def test_names_are_compared_with_casefold_outside_ascii(db_session: Session) -> None:
+    """SPEC-PTY-26 · TC-PTY-26f"""
     repository = SqlAlchemyProductTypeRepository(db_session)
-    in_hardware = ProductType(name="Notebook", category=hardware)
-    repository.add(in_hardware)
-    repository.add(ProductType(name="Notebook", category=office))
+    audio = ProductType(name="áudio")
+    repository.add(audio)
     db_session.commit()
 
-    assert repository.find_by_name_in_category(" NOTEBOOK ", hardware.id) is in_hardware
+    with pytest.raises(DuplicateProductTypeError):
+        repository.add(ProductType(name="ÁUDIO"))
+    db_session.rollback()
+    assert repository.find_by_name("ÁUDIO") is audio
 
 
 def test_deleted_product_type_is_gone_and_its_category_stays(
@@ -76,7 +78,7 @@ def test_deleted_product_type_is_gone_and_its_category_stays(
 
 
 def test_get_with_an_id_beyond_sqlite_integers_finds_nothing(db_session: Session) -> None:
-    """SPEC-PTY-06 · TC-PTY-06g"""
+    """SPEC-PTY-29 · TC-PTY-29f"""
     assert SqlAlchemyProductTypeRepository(db_session).get(2**63) is None
 
 
