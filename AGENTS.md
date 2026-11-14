@@ -258,7 +258,7 @@ Reglas funcionales que suelen romperse, a tener en cuenta:
 ## Flujo de trabajo
 
 1. Leer `MEMORY.md` y buscar el tema en Engram con `mem_search` (ver la regla de memoria). Elegir la próxima task pendiente...
-2. Crear una rama desde `main`: `feat/<tema>`, `fix/<tema>`, `test/<tema>`, `docs/<tema>`, `refactor/<tema>`, `spec/<tema>`.
+2. Crear una rama desde `dev` (la rama de integración): `feat/<tema>`, `fix/<tema>`, `test/<tema>`, `docs/<tema>`, `refactor/<tema>`, `spec/<tema>`.
 3. **Red**: escribir el test del caso definido en `test-plan.md` (con el ID de spec y de caso en el docstring) y verlo fallar.
 4. **Green**: escribir el código mínimo para que pase.
 5. **Refactor**: limpiar con todos los tests en verde.
@@ -318,4 +318,6 @@ fix(milestone): order milestones chronologically
   - Si cambia comportamiento: el diff de `spec.md` va en el mismo PR (o en un PR `spec(...)` previo ya mergeado).
   - Cómo se probó (tests nuevos o modificados).
   - Diagramas actualizados, si corresponde.
-- Merge con squash a `main` una vez que el CI esté en verde y haya una aprobación.
+- Los PRs de trabajo van contra `dev` y se mergean una vez que el CI esté en verde y haya una revisión.
+- Cambios grandes en varias etapas: rama acumuladora (`feat/<tema>`) que sale de `dev`; cada etapa sale de la acumuladora en su propia rama y vuelve con merge `--no-ff`; al final, un único PR de la acumuladora contra `dev`, revisable merge por merge.
+- Ramas: `dev` es la de integración; `main` es la de entrega y la rama por defecto del repositorio. `main` está protegida: solo recibe PRs desde `dev`, con los jobs `python`, `js` y `e2e` del CI en verde y la rama al día, sin force-push ni borrado. Cada entrega a la cátedra se etiqueta en `main` (`vX.Y.Z`).
