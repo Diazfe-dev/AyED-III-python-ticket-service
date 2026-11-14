@@ -54,6 +54,7 @@ const SCREENS = [
     hash: "#/tickets",
     heading: "Tickets",
     create: { button: "Nuevo ticket", submit: "Crear" },
+    secondary: ["Nuevo cliente", "Nuevo producto"],
   },
 ];
 
@@ -230,6 +231,21 @@ test("SPEC-UI-159 shows each form in a native modal dialog with a labelled title
   await expect(reset.getByRole("heading", { name: "Restablecer contraseña" })).toBeVisible();
   await expect(reset.getByRole("button", { name: "Restablecer", exact: true })).toBeVisible();
   await expect(reset.getByRole("button", { name: "Cancelar", exact: true })).toBeVisible();
+  await openScreen(page, SCREENS[3]);
+  for (const name of SCREENS[3].secondary) {
+    await mainButton(page, name).click();
+    const dialog = dialogOf(page);
+    await expect(dialog).toBeVisible();
+    const state = await dialog.evaluate((node) => ({
+      modal: node.matches(":modal"),
+      title: document.getElementById(node.getAttribute("aria-labelledby"))?.textContent,
+      inRoot: document.getElementById("app").contains(node),
+    }));
+    expect(state, name).toEqual({ modal: true, title: name, inRoot: true });
+    await expect(dialog.getByRole("button", { name: "Cancelar", exact: true })).toBeVisible();
+    await expect(dialog.getByRole("button", { name: "Crear", exact: true })).toBeVisible();
+    await page.keyboard.press("Escape");
+  }
 });
 
 test("SPEC-UI-159 keeps the fields and the validation of the form inside the dialog (TC-UI-159b)", async ({
@@ -283,6 +299,18 @@ test("SPEC-UI-161 returns the focus to the control that opened the dialog (TC-UI
   await reset.click();
   await dialogOf(page).getByRole("button", { name: "Cancelar" }).click();
   await expect(reset).toBeFocused();
+  await openScreen(page, SCREENS[3]);
+  for (const name of SCREENS[3].secondary) {
+    const opener = mainButton(page, name);
+    await opener.click();
+    await expect(dialogOf(page)).toBeVisible();
+    await page.keyboard.press("Escape");
+    await expect(opener).toBeFocused();
+    await opener.click();
+    await expect(dialogOf(page)).toBeVisible();
+    await dialogOf(page).getByRole("button", { name: "Cancelar" }).click();
+    await expect(opener).toBeFocused();
+  }
 });
 
 test("SPEC-UI-161 moves the focus to the header button when the opener no longer exists (TC-UI-161b)", async ({
